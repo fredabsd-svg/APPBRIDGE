@@ -7,6 +7,12 @@ independente por componente (RP-03).
 ## [Não publicado]
 
 ### Adicionado
+- `docs/SEGURANCA.md` — entregável 6 da fase de design: ativos (A-01..A-08), fronteiras de confiança,
+  modelo STRIDE com 33 ameaças (AM-01..AM-33) mapeadas a controles e com estado declarado
+  (mitigado / parcial / aceito / pendente), 10 pendências de segurança (PS-01..PS-10), gestão de
+  segredos, 9 verificações obrigatórias como critério de aceite (V-01..V-09), escopo excluído e
+  resumo executivo separando o que o produto sustenta do que ainda não sustenta. Submetido,
+  aguardando aprovação.
 - `docs/API.md` — entregável 5 da fase de design: contrato v0 do Control Plane em estilo OpenAPI —
   autenticação e sessão, catálogo, lançamento, trilha de auditoria, administração, metering, Agent e
   cofre; catálogo de erros com código estável por situação; esqueleto OpenAPI 3.1 do endpoint de
@@ -68,6 +74,9 @@ independente por componente (RP-03).
 - Pendências de projeto PD-01 (expurgo de exclusão lógica), PD-02 (Row-Level Security), PD-04
   (armazenamento das respostas de idempotência) e PD-05 (limites de taxa por endpoint).
 - Risco R-019: o cabeçalho de travessia de tenant é o ponto mais sensível da API.
+- Riscos R-020 (nada impede tecnicamente o provedor de assinar com o certificado do cliente),
+  R-021 (a trilha é a palavra do provedor, sem verificação por terceiro) e R-022 (sem política de
+  dependências). Bloqueios B-006 e B-007, ambos decisões de produto de Frederico.
 
 ### Resolvido
 - PD-03 (armazenamento de ícones): arquivo referenciado por `icon_ref` e servido por

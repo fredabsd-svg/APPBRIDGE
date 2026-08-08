@@ -26,7 +26,7 @@ documento). Não há mais decisão de arquitetura pendente para iniciar `ARQUITE
 | 3 | `docs/ARQUITETURA.md` | 🔵 submetido — aguardando aprovação (C4 1–3 + 5 diagramas de sequência) |
 | 4 | `docs/MODELO-DE-DADOS.md` | 🔵 submetido — aguardando aprovação |
 | 5 | `docs/API.md` | 🔵 submetido — aguardando aprovação |
-| 6 | `docs/SEGURANCA.md` | ⬜ não iniciado |
+| 6 | `docs/SEGURANCA.md` | 🔵 submetido — aguardando aprovação |
 | 7 | `docs/ROADMAP.md` + backlog MVP-0 | ⬜ não iniciado |
 
 Legenda: ⬜ não iniciado · 🟡 em produção · 🔵 submetido, aguardando aprovação · ✅ aprovado
@@ -34,7 +34,7 @@ Legenda: ⬜ não iniciado · 🟡 em produção · 🔵 submetido, aguardando a
 ## 3. Próximos passos
 
 1. **Frederico aprova ou devolve `REQUISITOS.md` (emendado), `ARQUITETURA.md` e os ADR-0001..0010.** ADR aceito é imutável (RA-05): discordância vira ADR novo que substitui, não edição.
-2. Produzir `SEGURANCA.md` (entregável 6) — desbloqueado. Já tem insumo acumulado: R-011 (área de transferência), R-013 (certificado de assinatura), R-014 (revogação sem alcance em sessão aberta), ADR-0012 (cabeçalho de travessia de tenant).
+2. Produzir `ROADMAP.md` + backlog MVP-0 (entregável 7, último da fase) — desbloqueado.
 3. Iniciar T-001 (tabela de licenciamento dos apps), pré-condição de viabilidade do Caminho B.
 4. **T-005 (nova):** medir no dogfood as três premissas que a arquitetura não consegue resolver no papel — PRE-22 (prelaunch sustenta a jornada?), PRE-23 (o Connection Broker responde com a confiabilidade exigida?) e PRE-20 (token A3 redirecionado funciona?).
 5. Antes do piloto: revisar ADR-0003 (malha privada não é vendável a cliente) e a condição 4 do ADR-0008 (área de transferência liberada com dado de terceiros).
@@ -46,7 +46,9 @@ Legenda: ⬜ não iniciado · 🟡 em produção · 🔵 submetido, aguardando a
 | ~~B-001~~ | ~~Perguntas P1–P8 sem resposta~~ | — | **Encerrado em 2026-08-08** |
 | ~~B-002~~ | ~~Aprovação de `VISAO.md`~~ | — | **Encerrado em 2026-08-08 — aprovado** |
 | B-003 | Em P4, a frase "serve para provar o conceito com 2–3 sessões" ficou sem sujeito — qual máquina/ambiente? | Detalhamento da topologia em ADR-0002 | Frederico |
-| B-004 | Aprovação dos entregáveis 2 a 5 (`REQUISITOS.md` emendado, `ARQUITETURA.md`, `MODELO-DE-DADOS.md`, `API.md`) e dos ADR-0001..0012 | Entregável 6 (`SEGURANCA.md`) | Frederico |
+| B-004 | Aprovação dos entregáveis 2 a 6 (`REQUISITOS.md` emendado, `ARQUITETURA.md`, `MODELO-DE-DADOS.md`, `API.md`, `SEGURANCA.md`) e dos ADR-0001..0012 | Encerramento da fase de design | Frederico |
+| B-006 | **Decisão sobre PS-07** — o que impede tecnicamente o provedor de usar o certificado A1 de um cliente. Hoje: nada. As opções (segunda aprovação, senha sob custódia do titular, módulo de hardware) alteram o produto e custam | Entrada do cofre (DIF-01) em produção na V2 | Frederico + jurídico |
+| B-007 | **Decisão sobre PS-03** — encadeamento criptográfico da trilha, para que ela seja verificável por terceiro. Alteraria ADR-0007 e exige ADR novo | Piloto do Caminho B | Frederico |
 | ~~B-005~~ | ~~Questões abertas de `REQUISITOS.md` §7~~ | — | **Encerrado em 2026-08-08** — 3 de 5 decididas por ADR-0007/0008; as outras 2 dependem de levantamento (T-001, parque de estações), não de decisão |
 
 ## 5. Tarefas abertas
@@ -128,7 +130,10 @@ se faz com ADR novo que substitui o anterior.
 | R-016 | O Control Plane não bloqueia trabalho em andamento, mas bloqueia começar a trabalhar — e o pico de início é às 8h | Média-alta | Aberto — reforça RNF-033 e RNF-040 |
 | R-017 | `SessionReconciler` é a única defesa contra contagem inflada de licença antes do Agent | Média | Aberto — ligado a R-009 |
 | R-018 | A portabilidade prometida por RNF-035 é hipótese até existir uma segunda implementação de `ISessionBackend` que a prove | Média | Aberto — aceito conscientemente |
-| R-019 | O cabeçalho `X-AppBridge-Acting-Tenant` é o ponto mais sensível da API: falha na verificação do papel transforma o mecanismo de suporte multiempresa em porta de travessia de tenant | **Alta** | Aberto — exige teste dedicado de negativa e revisão de código específica (ADR-0012) |
+| R-019 | O cabeçalho `X-AppBridge-Acting-Tenant` é o ponto mais sensível da API: falha na verificação do papel transforma o mecanismo de suporte multiempresa em porta de travessia de tenant | **Alta** | Aberto — exige teste dedicado de negativa e revisão de código específica (ADR-0012, V-03) |
+| R-020 | **Nada impede tecnicamente o provedor de assinar com o certificado A1 de um cliente** (AM-33). A proteção é contratual e de detecção, não de prevenção — e o DIF-01 é vendido como diferencial | **Crítica** | Aberto — B-006 / PS-07, antes de o cofre ir a produção |
+| R-021 | A trilha é mantida pelo próprio provedor. Sem encadeamento criptográfico ou carimbo de tempo independente, num litígio ela é a palavra dele (AM-12) | Alta | Aberto — B-007 / PS-03, antes do piloto |
+| R-022 | Sem política de dependências, uma biblioteca comprometida entra no launcher ou no Control Plane sem barreira (AM-32) | Média | Aberto — PS-06 |
 | R-006 | Execução solo de quatro componentes com MVP-0 previsto em ~2 meses | Alta | Aberto |
 | R-007 | O MVP-0 acumula 34 RFs "Must" (RF-001..RF-040 sem os Should/Could) para ~2 meses de execução solo. Se algo tiver de sair, os candidatos naturais são RF-016, RF-026, RF-032, RF-033, RF-034 e RF-040 — todos Should/Could, nenhum Must. Corte de Must exige ADR | Alta | Aberto — decisão de escopo de Frederico |
 | R-008 | Windows 10 saiu do suporte padrão em out/2025 (PRE-16). Estação sem atualização de segurança é risco do lado do cliente que o AppBridge não elimina — apenas reduz, por manter dado e aplicativo no servidor | Média | Aberto — depende de B-005 |
@@ -142,7 +147,21 @@ se faz com ADR novo que substitui o anterior.
 | PD-02 | Row-Level Security do PostgreSQL como terceira linha de defesa de isolamento | ADR-0011 | Piloto |
 | ~~PD-03~~ | ~~Onde fica o binário do ícone~~ | — | **Resolvida em `API.md` §3** — arquivo referenciado, servido por endpoint com `ETag` |
 | PD-04 | Onde ficam as respostas de idempotência durante os 60 s de validade | ADR-0012, API §12 | Implementação |
-| PD-05 | Limites concretos de taxa por endpoint (RNF-010) | API §12 | Depende de medição (T-005) |
+| PD-05 | Limites concretos de taxa por endpoint (RNF-010) | API §12 | Depende de medição (T-005) — também PS-09 |
+
+### 9.1 Pendências de segurança (PS-01..PS-10)
+
+Consolidadas em `SEGURANCA.md` §5. As de maior peso, repetidas aqui por serem decisão de produto e
+não de implementação:
+
+| ID | Pendência | Prazo |
+|----|-----------|-------|
+| **PS-07** | Reduzir o poder unilateral do provedor sobre o cofre (R-020) | Antes do cofre ir a produção (V2) |
+| **PS-03** | Encadeamento criptográfico da trilha (R-021) | Antes do piloto |
+| **PS-02** | Restringir e registrar acesso direto ao banco | Antes do piloto |
+| **PS-08** | Revisar a liberação de área de transferência com dado de terceiros (R-011) | Antes do piloto |
+| **PS-05**, **PS-09**, **PS-10** | Permissões mínimas da conta de serviço, limites de taxa, procedimento de comprometimento do certificado de assinatura | MVP-0 |
+| **PS-01**, **PS-04**, **PS-06** | Detecção de uso indevido da chave, varredura de segredos, política de dependências | MVP-1 |
 
 ## 10. Violações de processo detectadas (RA-06)
 
