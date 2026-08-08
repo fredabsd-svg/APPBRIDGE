@@ -23,7 +23,7 @@ documento). Não há mais decisão de arquitetura pendente para iniciar `ARQUITE
 |---|-----------|--------|
 | 1 | `docs/VISAO.md` | ✅ **aprovado** (2026-08-08) |
 | 2 | `docs/REQUISITOS.md` | 🔵 submetido — aguardando aprovação (emendado por ADR-0001..0008) |
-| 3 | `docs/ARQUITETURA.md` | ⬜ não iniciado — desbloqueado, depende só da aprovação do nº 2 |
+| 3 | `docs/ARQUITETURA.md` | 🔵 submetido — aguardando aprovação (C4 1–3 + 5 diagramas de sequência) |
 | 4 | `docs/MODELO-DE-DADOS.md` | ⬜ não iniciado |
 | 5 | `docs/API.md` | ⬜ não iniciado |
 | 6 | `docs/SEGURANCA.md` | ⬜ não iniciado |
@@ -33,10 +33,11 @@ Legenda: ⬜ não iniciado · 🟡 em produção · 🔵 submetido, aguardando a
 
 ## 3. Próximos passos
 
-1. **Frederico aprova ou devolve `REQUISITOS.md` (emendado) e os ADR-0001..0008.** ADR aceito é imutável (RA-05): discordância vira ADR novo que substitui, não edição.
-2. Produzir `ARQUITETURA.md` (entregável 3) — desbloqueado.
+1. **Frederico aprova ou devolve `REQUISITOS.md` (emendado), `ARQUITETURA.md` e os ADR-0001..0010.** ADR aceito é imutável (RA-05): discordância vira ADR novo que substitui, não edição.
+2. Produzir `MODELO-DE-DADOS.md` (entregável 4) — desbloqueado.
 3. Iniciar T-001 (tabela de licenciamento dos apps), pré-condição de viabilidade do Caminho B.
-4. Antes do piloto: revisar ADR-0003 (o acesso por malha privada não é vendável a cliente) e a condição 4 do ADR-0008 (área de transferência liberada, com dado de terceiros em jogo).
+4. **T-005 (nova):** medir no dogfood as três premissas que a arquitetura não consegue resolver no papel — PRE-22 (prelaunch sustenta a jornada?), PRE-23 (o Connection Broker responde com a confiabilidade exigida?) e PRE-20 (token A3 redirecionado funciona?).
+5. Antes do piloto: revisar ADR-0003 (malha privada não é vendável a cliente) e a condição 4 do ADR-0008 (área de transferência liberada com dado de terceiros).
 
 ## 4. Bloqueios ativos
 
@@ -45,7 +46,7 @@ Legenda: ⬜ não iniciado · 🟡 em produção · 🔵 submetido, aguardando a
 | ~~B-001~~ | ~~Perguntas P1–P8 sem resposta~~ | — | **Encerrado em 2026-08-08** |
 | ~~B-002~~ | ~~Aprovação de `VISAO.md`~~ | — | **Encerrado em 2026-08-08 — aprovado** |
 | B-003 | Em P4, a frase "serve para provar o conceito com 2–3 sessões" ficou sem sujeito — qual máquina/ambiente? | Detalhamento da topologia em ADR-0002 | Frederico |
-| B-004 | Aprovação de `REQUISITOS.md` emendado e dos ADR-0001..0008 | Entregável 3 (`ARQUITETURA.md`) | Frederico |
+| B-004 | Aprovação de `REQUISITOS.md` emendado, `ARQUITETURA.md` e ADR-0001..0010 | Entregável 4 (`MODELO-DE-DADOS.md`) | Frederico |
 | ~~B-005~~ | ~~Questões abertas de `REQUISITOS.md` §7~~ | — | **Encerrado em 2026-08-08** — 3 de 5 decididas por ADR-0007/0008; as outras 2 dependem de levantamento (T-001, parque de estações), não de decisão |
 
 ## 5. Tarefas abertas
@@ -56,6 +57,8 @@ Legenda: ⬜ não iniciado · 🟡 em produção · 🔵 submetido, aguardando a
 | T-002 | Minuta do termo de autorização de custódia e uso de certificado digital, revisada por advogado | P6 | Frederico / jurídico | Alta — bloqueia DIF-01 em produção |
 | T-003 | Cotação SPLA atual em revendedor, para validar PRE-05 (custo ≤ R$ 50/usuário/mês) | P8 | Frederico | Alta |
 | T-004 | Verificar estágio comercial das ofertas de nuvem de Domínio/Thomson Reuters e Alterdata (PRE-06) | RM-04 | Frederico | Média |
+| T-005 | **Medições obrigatórias no dogfood**, que a arquitetura não resolve no papel: PRE-22 (o prelaunch sustenta uma jornada de trabalho?), PRE-23 (o Connection Broker permite consultar e encerrar sessões com confiabilidade?), PRE-20 (token A3 funciona redirecionado?), PRE-11 (abertura ≤ 5 s?) | ARQUITETURA §8 | AppBridge (implementação) | **Alta — RNF-027, RF-008, RF-038, RF-062 dependem** |
+| T-006 | Ingressar as estações do escritório no domínio e distribuir por GPO a delegação de credenciais, a política de redirecionamento e a impressão digital do certificado de assinatura | ADR-0008, ADR-0009, ADR-0010 | Frederico / implantação | **Alta — é a tarefa que mais facilmente estoura o prazo do MVP-0** |
 
 ## 6. Decisões de arquitetura (ADR)
 
@@ -72,6 +75,8 @@ se faz com ADR novo que substitui o anterior.
 | [ADR-0006](adr/ADR-0006-antecipacao-do-metering-minimo-para-mvp-1.md) | Escopo (R-004) | **Metering mínimo antecipado de V2 para MVP-1** (RF-062..064). Fila e relatório histórico ficam em V2 | RF-062, RF-063, RF-064 |
 | [ADR-0007](adr/ADR-0007-auditoria-bloqueante-e-retencao.md) | Auditoria | **Auditoria de evento de segurança é bloqueante** — mesma transação que concede o acesso. Retenção em 3 categorias (12/24/60 meses), configurável por tenant com mínimos | RNF-018, RNF-022 |
 | [ADR-0008](adr/ADR-0008-politica-base-de-redirecionamento.md) | Redirecionamento | Política base do MVP-0: impressora, token USB, área de transferência e saída de áudio **permitidos**; unidades locais, COM/LPT, entrada de áudio e demais USB **negados** | RNF-014 |
+| [ADR-0009](adr/ADR-0009-assinatura-do-rdp-e-hospedagem-do-control-plane.md) | Assinatura do `.rdp` | Assinatura via `rdpsign.exe` atrás da interface `IRdpFileSigner`. **Consequência assumida: o Control Plane é componente Windows** — contêiner Linux está fora enquanto esta decisão valer. Caminho de saída registrado para o Caminho A | — (detalha RF-019, RNF-002) |
+| [ADR-0010](adr/ADR-0010-autenticacao-na-sessao-e-ingresso-das-estacoes.md) | Autenticação na sessão | Estações **ingressadas no domínio**, com delegação de credenciais por GPO restrita aos session hosts nominados. A senha de domínio nunca passa pelo Control Plane. Caminho degradado documentado para máquina fora do domínio | — (detalha RNF-042) |
 
 ## 7. Premissas abertas (RP-05)
 
@@ -96,7 +101,10 @@ se faz com ADR novo que substitui o anterior.
 | PRE-17 | Instalação do launcher sem privilégio de administrador | RNF-044 | verificação técnica (protocolo + atalhos) — ligada ao gatilho do ADR-0005 |
 | PRE-18 | O host físico suporta Hyper-V com virtualização assistida por hardware | ADR-0002 | Frederico / aquisição |
 | PRE-19 | Prazos de 24 e 60 meses de retenção são escolha de engenharia, não parecer jurídico | ADR-0007 | advogado (T-002) |
-| PRE-20 | Tokens A3 do escritório funcionam redirecionados para a sessão | ADR-0008 | teste prático no dogfood |
+| PRE-20 | Tokens A3 do escritório funcionam redirecionados para a sessão | ADR-0008 | teste prático no dogfood (T-005) |
+| PRE-21 | Todas as estações rodam edição do Windows que permite ingresso em domínio (Home não permite) | ADR-0010 | levantamento do parque |
+| PRE-22 | SessionPrimer + GPO de tempo de logoff sustentam o prelaunch por uma jornada de trabalho | ARQUITETURA §5.3 | medição no dogfood (T-005) |
+| PRE-23 | O Connection Broker permite consultar e encerrar sessões com a confiabilidade exigida por RF-038 e RF-008 | ARQUITETURA §4.2 | validação técnica (T-005) |
 
 ## 8. Riscos registrados
 
@@ -111,6 +119,12 @@ se faz com ADR novo que substitui o anterior.
 | R-010 | A rede privada em malha é confortável demais e pode adiar o RD Gateway indefinidamente, levando o piloto comercial a chegar sem caminho de acesso vendável | Média-alta | Aberto — revisão do ADR-0003 é pré-requisito do piloto |
 | R-011 | Área de transferência liberada (ADR-0008) é caminho de exfiltração sem rastro. Aceito no dogfood, onde o dado é do próprio escritório; **muda de natureza no Caminho B**, com dado de terceiros | Média-alta | Aberto — revisão obrigatória antes do piloto; deve constar em `SEGURANCA.md` |
 | R-012 | Auditoria bloqueante (ADR-0007) transforma disco cheio em indisponibilidade de novos lançamentos | Média | Aberto — exige alerta de espaço em disco e expurgo funcionando desde o MVP-0 |
+| R-013 | `rdpsign` como processo por lançamento pode virar gargalo sob carga, e prende o Control Plane ao Windows | Média | Aberto — medir cedo (PRE-12); caminho de saída em ADR-0009 |
+| R-014 | **Sem RF-008 no MVP-0, revogar acesso não encerra sessão aberta.** Demissão exige desabilitar a conta no AD e encerrar a sessão manualmente no host | **Alta** | Aberto — precisa constar no roteiro operacional do MVP-0 |
+| R-015 | O prelaunch depende de comportamento de tempo de logoff do RDS ainda não medido; dele depende RNF-027 e a evidência de VP-02 | Alta | Aberto — T-005 |
+| R-016 | O Control Plane não bloqueia trabalho em andamento, mas bloqueia começar a trabalhar — e o pico de início é às 8h | Média-alta | Aberto — reforça RNF-033 e RNF-040 |
+| R-017 | `SessionReconciler` é a única defesa contra contagem inflada de licença antes do Agent | Média | Aberto — ligado a R-009 |
+| R-018 | A portabilidade prometida por RNF-035 é hipótese até existir uma segunda implementação de `ISessionBackend` que a prove | Média | Aberto — aceito conscientemente |
 | R-006 | Execução solo de quatro componentes com MVP-0 previsto em ~2 meses | Alta | Aberto |
 | R-007 | O MVP-0 acumula 34 RFs "Must" (RF-001..RF-040 sem os Should/Could) para ~2 meses de execução solo. Se algo tiver de sair, os candidatos naturais são RF-016, RF-026, RF-032, RF-033, RF-034 e RF-040 — todos Should/Could, nenhum Must. Corte de Must exige ADR | Alta | Aberto — decisão de escopo de Frederico |
 | R-008 | Windows 10 saiu do suporte padrão em out/2025 (PRE-16). Estação sem atualização de segurança é risco do lado do cliente que o AppBridge não elimina — apenas reduz, por manter dado e aplicativo no servidor | Média | Aberto — depende de B-005 |

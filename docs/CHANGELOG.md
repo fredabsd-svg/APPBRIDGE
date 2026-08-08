@@ -7,6 +7,15 @@ independente por componente (RP-03).
 ## [Não publicado]
 
 ### Adicionado
+- `docs/ARQUITETURA.md` — entregável 3 da fase de design: C4 níveis 1 a 3, contrato da fronteira de
+  portabilidade `ISessionBackend`, cinco diagramas de sequência (login, lançamento, prelaunch,
+  publicação e revogação), tabela de modo degradado por falha, rastreabilidade componente→requisito,
+  premissas PRE-21..PRE-23 e riscos arquiteturais R-013..R-018. Submetido, aguardando aprovação.
+- `docs/adr/ADR-0009` — assinatura do `.rdp` via `rdpsign.exe` atrás de interface, com a consequência
+  assumida de que o Control Plane é componente Windows nesta fase.
+- `docs/adr/ADR-0010` — estações ingressadas no domínio e delegação de credenciais por GPO restrita
+  aos session hosts, para que o lançamento não peça senha; senha de domínio nunca passa pelo Control
+  Plane.
 - `docs/adr/ADR-0001` a `ADR-0008` — oito decisões de arquitetura aceitas, por delegação de Frederico:
   identidade (AD DS base com Entra híbrido), topologia do MVP-0 (DC e session host em VMs separadas),
   acesso externo por rede privada em malha, isolamento multi-tenant híbrido, ratificação da stack com
@@ -40,10 +49,14 @@ independente por componente (RP-03).
 - `docs/VISAO.md` aprovado por Frederico em 2026-08-08.
 
 ### Registrado
-- Premissas PRE-07..PRE-20; PRE-08 e PRE-09 resolvidas por ADR-0007.
+- Premissas PRE-07..PRE-23; PRE-08 e PRE-09 resolvidas por ADR-0007.
+- Tarefas T-005 (medições obrigatórias no dogfood) e T-006 (ingresso das estações no domínio e GPOs).
 - Riscos R-007 (densidade de requisitos Must no MVP-0), R-008 (parque em Windows 10 fora de suporte),
   R-009 (contagem de licenças incorreta), R-010 (rede privada adiando o RD Gateway), R-011 (área de
   transferência como caminho de exfiltração no Caminho B) e R-012 (auditoria bloqueante e disco cheio).
+- Riscos arquiteturais R-013 (`rdpsign` como gargalo e amarra ao Windows), **R-014 (revogação não
+  alcança sessão aberta no MVP-0)**, R-015 (prelaunch não medido), R-016 (pico de início às 8h),
+  R-017 (reconciliação como única defesa da contagem) e R-018 (portabilidade não comprovada).
 - Riscos R-004 (mitigado parcialmente) e R-005 (fechado) atualizados.
 - Respostas de descoberta P1–P8 (escala, identidade, inventário, infraestrutura, acesso externo,
   cofre de certificados, isolamento, prazo e custo). Bloqueio B-001 encerrado.
