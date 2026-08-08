@@ -1,7 +1,7 @@
 # STATUS — AppBridge
 > Estado vivo do projeto. Atualizado ao fim de toda sessão (RA-02).
 
-**Última atualização:** 2026-08-08 · **Sessão atual:** S002 · **Fase:** ✅ Design concluído → **implementação do MVP-0a**
+**Última atualização:** 2026-08-08 · **Sessão atual:** S003 · **Fase:** ✅ Design concluído → **implementação do MVP-0a**
 
 ---
 
@@ -45,7 +45,7 @@ resultado negativo em G-01 pouparia meses de construção.
 
 | Ordem | Ação | Tarefa | Por que agora |
 |-------|------|--------|---------------|
-| 1 | **Licenciamento dos aplicativos** — confirmação por escrito de Domínio e Alterdata | T-001 / G-01 | Não depende de código e pode encerrar o Caminho B (R-001). Maior retorno sobre esforço do projeto |
+| 1 | **Licenciamento dos aplicativos** — 🟡 cartas prontas em `operacao/T-001-licenciamento/`; falta preencher dados de contrato e enviar | T-001 / G-01 | Não depende de código e pode encerrar o Caminho B (R-001). Maior retorno sobre esforço do projeto |
 | 2 | **Aquisição** de host, Windows Server 2025 e RDS CALs | T-101 | Prazo de entrega é externo; atrasa tudo o que vem depois |
 | 3 | **Cotação SPLA** | T-003 | Valida PRE-05 e a viabilidade econômica do piloto |
 | 4 | VMs separadas, domínio, RDS, FSLogix, AppLocker | T-102 a T-105 | Épico E-01, caminho crítico |
@@ -74,7 +74,7 @@ piloto), B-006 (PS-07, cofre) e B-007 (PS-03, encadeamento da trilha).
 
 | ID | Tarefa | Origem | Responsável | Criticidade |
 |----|--------|--------|-------------|-------------|
-| T-001 | Tabela **app × versão × tipo de licença × multiusuário S/N**, com confirmação **por escrito** de Domínio/Thomson Reuters e Alterdata sobre execução em servidor de terminal; Office só via licença por volume (LTSC) ou M365 Apps com ativação em computador compartilhado — OEM/varejo não serve; ERPs de clientes: cláusula de instalação em servidor | P3 | Frederico + AppBridge (levantamento) | **Crítica — pré-condição do Caminho B (R-001)** |
+| T-001 | **Material de consulta pronto em `operacao/T-001-licenciamento/`** (S003): cartas para Domínio e Alterdata, carta-modelo e matriz. **Bloqueado no envio** — depende dos dados de contrato e do inventário real, que só Frederico tem. Tabela **app × versão × tipo de licença × multiusuário S/N**, com confirmação **por escrito** de Domínio/Thomson Reuters e Alterdata sobre execução em servidor de terminal; Office só via licença por volume (LTSC) ou M365 Apps com ativação em computador compartilhado — OEM/varejo não serve; ERPs de clientes: cláusula de instalação em servidor | P3 | Frederico + AppBridge (levantamento) | **Crítica — pré-condição do Caminho B (R-001)** |
 | T-002 | Minuta do termo de autorização de custódia e uso de certificado digital, revisada por advogado | P6 | Frederico / jurídico | Alta — bloqueia DIF-01 em produção |
 | T-003 | Cotação SPLA atual em revendedor, para validar PRE-05 (custo ≤ R$ 50/usuário/mês) | P8 | Frederico | Alta |
 | T-004 | Verificar estágio comercial das ofertas de nuvem de Domínio/Thomson Reuters e Alterdata (PRE-06) | RM-04 | Frederico | Média |

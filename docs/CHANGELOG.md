@@ -6,6 +6,14 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Adicionado — execução (S003)
+- `docs/operacao/T-001-licenciamento/` — primeira pasta de material operacional, distinta da
+  documentação de design: instruções de condução, carta-modelo parametrizada, cartas prontas para
+  Domínio/Thomson Reuters e Alterdata, e a matriz de licenciamento que é o entregável de T-001
+  (portão G-01, risco R-001). As cartas separam explicitamente o uso pelos próprios colaboradores do
+  licenciado (C-1) da hospedagem por prestador para terceiros (C-2), e tratam o suporte técnico como
+  pergunta própria, por ser o modo mais comum de inviabilização na prática.
+
 ### Aprovado — fase de design encerrada (2026-08-08)
 - **Entregáveis 2 a 7 aprovados por Frederico**: `REQUISITOS.md`, `ARQUITETURA.md`,
   `MODELO-DE-DADOS.md`, `API.md`, `SEGURANCA.md` e `ROADMAP.md`. Com `VISAO.md`, já aprovado, os 7
