@@ -7,6 +7,12 @@ independente por componente (RP-03).
 ## [Não publicado]
 
 ### Adicionado
+- `docs/REQUISITOS.md` — entregável 2 da fase de design: 76 requisitos funcionais em escopo
+  (RF-001..RF-076) mais 10 declarados fora de escopo (RF-077..RF-086), e 53 requisitos não-funcionais
+  (RNF-001..RNF-053), com fase, classificação MoSCoW e origem rastreável para cada linha. Inclui os
+  RNFs de segurança exigidos por RP-06 (§3.1) e os de auditoria exigidos por RA-07 (§3.2: log de
+  acesso, trilha de uso de certificado, trilha administrativa e retenção configurável). Submetido,
+  aguardando aprovação.
 - `docs/VISAO.md` — entregável 1 da fase de design: problema e dores (PR-01..05), público-alvo
   (PA-01..03), proposta de valor (VP-01..04), diferenciais estratégicos (DIF-01..03), não-objetivos
   (NO-01..10), riscos de mercado (RM-01..10), riscos de viabilidade (R-001..006), premissas
@@ -17,7 +23,12 @@ independente por componente (RP-03).
 - `docs/adr/TEMPLATE.md` — template de ADR (Seção 6.3).
 - `docs/auditoria/2026-08-08-S001.md` — log da sessão S001.
 
+### Aprovado
+- `docs/VISAO.md` aprovado por Frederico em 2026-08-08.
+
 ### Registrado
+- Premissas PRE-07..PRE-17, introduzidas por `REQUISITOS.md` e pendentes de confirmação.
+- Riscos R-007 (densidade de requisitos Must no MVP-0) e R-008 (parque em Windows 10 fora de suporte).
 - Respostas de descoberta P1–P8 (escala, identidade, inventário, infraestrutura, acesso externo,
   cofre de certificados, isolamento, prazo e custo). Bloqueio B-001 encerrado.
 - Direção de arquitetura fixada para identidade, topologia, acesso externo e isolamento —

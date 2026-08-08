@@ -7,11 +7,12 @@
 
 ## 1. Onde estamos
 
-Perguntas de descoberta P1–P8 respondidas por Frederico. Bloqueio B-001 encerrado.
-`VISAO.md` (entregável 1) produzido e **submetido, aguardando aprovação explícita** (RP-04).
+Perguntas de descoberta P1–P8 respondidas. `VISAO.md` **aprovado por Frederico em 2026-08-08**.
+`REQUISITOS.md` (entregável 2) produzido e **submetido, aguardando aprovação** — 86 RFs (dos quais 10
+declarados fora de escopo) e 53 RNFs, todos com origem rastreável e classificação MoSCoW por fase.
 
 Quatro decisões de arquitetura ficaram definidas em direção pelas respostas P2, P4, P5 e P7, mas
-**nenhuma foi ratificada por ADR** — ver §6. Por RP-07, os ADR-0001..0004 devem ser escritos antes de
+**nenhuma foi ratificada por ADR** — ver §6. Por RP-07, os ADR-0001..0005 devem ser escritos antes de
 `ARQUITETURA.md` (entregável 3).
 
 **Nada de código de produção existe ou deve existir nesta fase.**
@@ -20,9 +21,9 @@ Quatro decisões de arquitetura ficaram definidas em direção pelas respostas P
 
 | # | Entregável | Estado |
 |---|-----------|--------|
-| 1 | `docs/VISAO.md` | 🔵 submetido — aguardando aprovação |
-| 2 | `docs/REQUISITOS.md` | ⬜ não iniciado — depende da aprovação do nº 1 |
-| 3 | `docs/ARQUITETURA.md` | ⬜ não iniciado — depende de ADR-0001..0004 |
+| 1 | `docs/VISAO.md` | ✅ **aprovado** (2026-08-08) |
+| 2 | `docs/REQUISITOS.md` | 🔵 submetido — aguardando aprovação |
+| 3 | `docs/ARQUITETURA.md` | ⬜ não iniciado — depende de ADR-0001..0005 |
 | 4 | `docs/MODELO-DE-DADOS.md` | ⬜ não iniciado |
 | 5 | `docs/API.md` | ⬜ não iniciado |
 | 6 | `docs/SEGURANCA.md` | ⬜ não iniciado |
@@ -32,9 +33,9 @@ Legenda: ⬜ não iniciado · 🟡 em produção · 🔵 submetido, aguardando a
 
 ## 3. Próximos passos
 
-1. **Frederico aprova ou devolve `VISAO.md` com correções.**
-2. Decidir se os ADR-0001..0004 (§6) vêm antes ou depois de `REQUISITOS.md`. Recomendação: `REQUISITOS.md` primeiro (não depende deles), ADRs em seguida, antes de `ARQUITETURA.md`.
-3. Decidir sobre a recomendação de antecipar o DIF-02 (metering mínimo) para o piloto — exige ADR (R-004).
+1. **Frederico aprova ou devolve `REQUISITOS.md` com correções**, respondendo idealmente às 5 questões abertas de §7 daquele documento (as três primeiras alteram requisitos já escritos).
+2. Escrever os **ADR-0001..0005** (§6) — pré-condição de `ARQUITETURA.md`.
+3. Decidir sobre a recomendação de antecipar o DIF-02 (RF-062..RF-064, metering mínimo) para o piloto — exige ADR (R-004).
 4. Iniciar T-001 (tabela de licenciamento dos apps), que é pré-condição de viabilidade do Caminho B.
 
 ## 4. Bloqueios ativos
@@ -42,8 +43,10 @@ Legenda: ⬜ não iniciado · 🟡 em produção · 🔵 submetido, aguardando a
 | ID | Bloqueio | Impede | Responsável |
 |----|----------|--------|-------------|
 | ~~B-001~~ | ~~Perguntas P1–P8 sem resposta~~ | — | **Encerrado em 2026-08-08** |
-| B-002 | Aprovação de `VISAO.md` | Entregável 2 (`REQUISITOS.md`) | Frederico |
+| ~~B-002~~ | ~~Aprovação de `VISAO.md`~~ | — | **Encerrado em 2026-08-08 — aprovado** |
 | B-003 | Em P4, a frase "serve para provar o conceito com 2–3 sessões" ficou sem sujeito — qual máquina/ambiente? | Detalhamento da topologia em ADR-0002 | Frederico |
+| B-004 | Aprovação de `REQUISITOS.md` | Entregável 3 (`ARQUITETURA.md`) e ADRs | Frederico |
+| B-005 | Questões abertas de `REQUISITOS.md` §7 (auditoria bloqueante, retenção contratual, parque Windows 10, app problemático como RemoteApp, redirecionamento de periféricos) | Confirmação de PRE-08, PRE-09, PRE-16 e fase de RF-028/RF-048 | Frederico |
 
 ## 5. Tarefas abertas
 
@@ -74,6 +77,17 @@ Legenda: ⬜ não iniciado · 🟡 em produção · 🔵 submetido, aguardando a
 | PRE-04 | Não há hoje Windows Server 2025 nem RDS CALs; serão adquiridos | P4 | Frederico / cotação |
 | PRE-05 | Custo total ≤ R$ 50/usuário/mês contra venda de R$ 70–150 | P8 | T-003 |
 | PRE-06 | Nuvens próprias de Domínio e Alterdata existem e avançam, estágio comercial não verificado | RM-04 | T-004 |
+| PRE-07 | Validade do `.rdp` temporário: 60 s | RF-020 | Frederico / medição no dogfood |
+| PRE-08 | Retenção de logs: mínimo 6 meses, padrão 12 | RNF-018 | Frederico (B-005) |
+| PRE-09 | Falha de gravação de auditoria alerta, mas não bloqueia o lançamento no MVP-0 | RNF-022 | Frederico (B-005) |
+| PRE-10 | 100 aplicativos publicados no dimensionamento para 500 usuários | RNF-026 | Frederico |
+| PRE-11 | Abertura ≤ 5 s com prelaunch, ≤ 20 s sem, em rede local | RNF-027 | medição no dogfood |
+| PRE-12 | Catálogo p95 ≤ 300 ms; geração+assinatura do `.rdp` p95 ≤ 1 s | RNF-028, RNF-029 | medição na implementação |
+| PRE-13 | Propagação da revogação em até 60 s | RNF-030 | Frederico |
+| PRE-14 | Telemetria do Agent ≤ 2% de CPU | RNF-031 | medição na V2 |
+| PRE-15 | Disponibilidade-alvo 99,5% mensal no piloto | RNF-034 | Frederico (vira cláusula contratual) |
+| PRE-16 | Estações Windows 10 22H2 e Windows 11, 64 bits | RNF-045 | Frederico (B-005) |
+| PRE-17 | Instalação do launcher sem privilégio de administrador | RNF-044 | verificação técnica (protocolo + atalhos) |
 
 ## 8. Riscos registrados
 
@@ -85,6 +99,8 @@ Legenda: ⬜ não iniciado · 🟡 em produção · 🔵 submetido, aguardando a
 | R-004 | Fosso (DIF-01..03) só chega em V2/V3; MVP-0 e MVP-1 não se distinguem de um RDS bem configurado. Recomendação: antecipar DIF-02 mínimo para o piloto, via ADR | Alta | Aberto — decisão de Frederico |
 | R-005 | DC + RD Session Host na mesma máquina obriga logon local de usuários finais no controlador de domínio. Proposta: separar em duas VMs no mesmo host (Windows Server Standard licencia 2 VMs) | Alta | Aberto — endereçar em ADR-0002 |
 | R-006 | Execução solo de quatro componentes com MVP-0 previsto em ~2 meses | Alta | Aberto |
+| R-007 | O MVP-0 acumula 34 RFs "Must" (RF-001..RF-040 sem os Should/Could) para ~2 meses de execução solo. Se algo tiver de sair, os candidatos naturais são RF-016, RF-026, RF-032, RF-033, RF-034 e RF-040 — todos Should/Could, nenhum Must. Corte de Must exige ADR | Alta | Aberto — decisão de escopo de Frederico |
+| R-008 | Windows 10 saiu do suporte padrão em out/2025 (PRE-16). Estação sem atualização de segurança é risco do lado do cliente que o AppBridge não elimina — apenas reduz, por manter dado e aplicativo no servidor | Média | Aberto — depende de B-005 |
 | RM-01..RM-10 | Riscos de mercado — ver `VISAO.md` §6 | vários | Aberto |
 
 ## 9. Violações de processo detectadas (RA-06)
