@@ -7,6 +7,12 @@
 
 ## 1. Onde estamos
 
+> **Fase de design concluída em produção de documentos:** os 7 entregáveis existem, 12 ADRs foram
+> aceitos e a rastreabilidade está fechada nos dois sentidos. `VISAO.md` está aprovado; os demais
+> aguardam aprovação. **O achado mais importante da fase está em `ROADMAP.md` §4: o MVP-0 completo
+> não cabe até outubro/2026**, e a recomendação de replanejamento está na §5.
+
+
 Perguntas de descoberta P1–P8 respondidas. `VISAO.md` **aprovado por Frederico em 2026-08-08**.
 `REQUISITOS.md` (entregável 2) produzido e **submetido, aguardando aprovação** — 86 RFs (dos quais 10
 declarados fora de escopo) e 53 RNFs, todos com origem rastreável e classificação MoSCoW por fase.
@@ -27,17 +33,19 @@ documento). Não há mais decisão de arquitetura pendente para iniciar `ARQUITE
 | 4 | `docs/MODELO-DE-DADOS.md` | 🔵 submetido — aguardando aprovação |
 | 5 | `docs/API.md` | 🔵 submetido — aguardando aprovação |
 | 6 | `docs/SEGURANCA.md` | 🔵 submetido — aguardando aprovação |
-| 7 | `docs/ROADMAP.md` + backlog MVP-0 | ⬜ não iniciado |
+| 7 | `docs/ROADMAP.md` + backlog MVP-0 | 🔵 submetido — aguardando aprovação |
 
 Legenda: ⬜ não iniciado · 🟡 em produção · 🔵 submetido, aguardando aprovação · ✅ aprovado
 
 ## 3. Próximos passos
 
-1. **Frederico aprova ou devolve `REQUISITOS.md` (emendado), `ARQUITETURA.md` e os ADR-0001..0010.** ADR aceito é imutável (RA-05): discordância vira ADR novo que substitui, não edição.
-2. Produzir `ROADMAP.md` + backlog MVP-0 (entregável 7, último da fase) — desbloqueado.
-3. Iniciar T-001 (tabela de licenciamento dos apps), pré-condição de viabilidade do Caminho B.
-4. **T-005 (nova):** medir no dogfood as três premissas que a arquitetura não consegue resolver no papel — PRE-22 (prelaunch sustenta a jornada?), PRE-23 (o Connection Broker responde com a confiabilidade exigida?) e PRE-20 (token A3 redirecionado funciona?).
-5. Antes do piloto: revisar ADR-0003 (malha privada não é vendável a cliente) e a condição 4 do ADR-0008 (área de transferência liberada com dado de terceiros).
+**Os 7 entregáveis da fase de design estão produzidos.** O que falta é decisão, não documento.
+
+1. **Aprovar ou devolver os entregáveis 2 a 7 e os ADR-0001..0012.** ADR aceito é imutável (RA-05): discordância vira ADR novo que substitui, não edição.
+2. **Decidir sobre o replanejamento do MVP-0** (`ROADMAP.md` §4 e §5): o escopo completo não cabe até outubro. Recomendação: dividir em MVP-0a (esqueleto ambulante, out/2026) e MVP-0b (dogfood real, dez/2026–jan/2027), e escolher entre as opções A, B ou C para o piloto.
+3. **Iniciar T-001 hoje** (G-01). Não depende de código, e uma resposta negativa de Domínio ou Alterdata economiza meses. É a tarefa de maior retorno sobre esforço do projeto.
+4. **Iniciar T-101 e T-102** (compra e VMs). A infraestrutura é o caminho crítico e não é código (R-023).
+5. Decidir B-006 (PS-07, cofre) e B-007 (PS-03, encadeamento da trilha) — ambos antes das fases que dependem deles.
 
 ## 4. Bloqueios ativos
 
@@ -46,7 +54,8 @@ Legenda: ⬜ não iniciado · 🟡 em produção · 🔵 submetido, aguardando a
 | ~~B-001~~ | ~~Perguntas P1–P8 sem resposta~~ | — | **Encerrado em 2026-08-08** |
 | ~~B-002~~ | ~~Aprovação de `VISAO.md`~~ | — | **Encerrado em 2026-08-08 — aprovado** |
 | B-003 | Em P4, a frase "serve para provar o conceito com 2–3 sessões" ficou sem sujeito — qual máquina/ambiente? | Detalhamento da topologia em ADR-0002 | Frederico |
-| B-004 | Aprovação dos entregáveis 2 a 6 (`REQUISITOS.md` emendado, `ARQUITETURA.md`, `MODELO-DE-DADOS.md`, `API.md`, `SEGURANCA.md`) e dos ADR-0001..0012 | Encerramento da fase de design | Frederico |
+| B-004 | Aprovação dos entregáveis 2 a 7 e dos ADR-0001..0012 | Encerramento formal da fase de design | Frederico |
+| B-008 | **Decisão sobre o replanejamento do MVP-0** e sobre o piloto (opções A, B ou C de `ROADMAP.md` §5) | Início da implementação com data confiável | Frederico |
 | B-006 | **Decisão sobre PS-07** — o que impede tecnicamente o provedor de usar o certificado A1 de um cliente. Hoje: nada. As opções (segunda aprovação, senha sob custódia do titular, módulo de hardware) alteram o produto e custam | Entrada do cofre (DIF-01) em produção na V2 | Frederico + jurídico |
 | B-007 | **Decisão sobre PS-03** — encadeamento criptográfico da trilha, para que ela seja verificável por terceiro. Alteraria ADR-0007 e exige ADR novo | Piloto do Caminho B | Frederico |
 | ~~B-005~~ | ~~Questões abertas de `REQUISITOS.md` §7~~ | — | **Encerrado em 2026-08-08** — 3 de 5 decididas por ADR-0007/0008; as outras 2 dependem de levantamento (T-001, parque de estações), não de decisão |
@@ -110,6 +119,8 @@ se faz com ADR novo que substitui o anterior.
 | PRE-22 | SessionPrimer + GPO de tempo de logoff sustentam o prelaunch por uma jornada de trabalho | ARQUITETURA §5.3 | medição no dogfood (T-005) |
 | PRE-23 | O Connection Broker permite consultar e encerrar sessões com a confiabilidade exigida por RF-038 e RF-008 | ARQUITETURA §4.2 | validação técnica (T-005) |
 | PRE-24 | Retenção de `host_telemetry`: 90 dias (não é trilha de auditoria) | MODELO-DE-DADOS §6.3 | quando o Agent existir (V2) |
+| PRE-25 | 1 ponto de estimativa ≈ meio dia de trabalho focado | ROADMAP §1.1 | primeira semana de implementação |
+| PRE-26 | Dedicação de 40% a 60% do tempo útil ao projeto | ROADMAP §4 | Frederico |
 
 ## 8. Riscos registrados
 
@@ -134,6 +145,8 @@ se faz com ADR novo que substitui o anterior.
 | R-020 | **Nada impede tecnicamente o provedor de assinar com o certificado A1 de um cliente** (AM-33). A proteção é contratual e de detecção, não de prevenção — e o DIF-01 é vendido como diferencial | **Crítica** | Aberto — B-006 / PS-07, antes de o cofre ir a produção |
 | R-021 | A trilha é mantida pelo próprio provedor. Sem encadeamento criptográfico ou carimbo de tempo independente, num litígio ela é a palavra dele (AM-12) | Alta | Aberto — B-007 / PS-03, antes do piloto |
 | R-022 | Sem política de dependências, uma biblioteca comprometida entra no launcher ou no Control Plane sem barreira (AM-32) | Média | Aberto — PS-06 |
+| R-023 | **A infraestrutura (E-01, 34 pts) é o caminho crítico do MVP-0 e não é código** — depende de compra, de terceiros e da agenda das pessoas | **Alta** | Aberto — iniciar E-01 antes de qualquer linha de código |
+| R-024 | **O MVP-0 completo não cabe na janela de P8** (241 pts ≈ 120 dias contra ≈ 32 dias úteis, ainda parciais). Conclusão robusta a erro de 2× na estimativa | **Crítica** | Aberto — B-008; recomendação em `ROADMAP.md` §5 |
 | R-006 | Execução solo de quatro componentes com MVP-0 previsto em ~2 meses | Alta | Aberto |
 | R-007 | O MVP-0 acumula 34 RFs "Must" (RF-001..RF-040 sem os Should/Could) para ~2 meses de execução solo. Se algo tiver de sair, os candidatos naturais são RF-016, RF-026, RF-032, RF-033, RF-034 e RF-040 — todos Should/Could, nenhum Must. Corte de Must exige ADR | Alta | Aberto — decisão de escopo de Frederico |
 | R-008 | Windows 10 saiu do suporte padrão em out/2025 (PRE-16). Estação sem atualização de segurança é risco do lado do cliente que o AppBridge não elimina — apenas reduz, por manter dado e aplicativo no servidor | Média | Aberto — depende de B-005 |

@@ -7,6 +7,11 @@ independente por componente (RP-03).
 ## [Não publicado]
 
 ### Adicionado
+- `docs/ROADMAP.md` — entregável 7 e último da fase de design: 12 épicos e 54 tarefas de MVP-0 com
+  critério de aceite verificável e estimativa relativa, checagem de capacidade contra a janela de
+  P8, recomendação de divisão em MVP-0a e MVP-0b, ordem de corte decidida antecipadamente, portões
+  de entrada do piloto (G-01..G-05), épicos de MVP-1 a V3, caminho crítico com dependências externas
+  e critérios de aceite da fase. Submetido, aguardando aprovação.
 - `docs/SEGURANCA.md` — entregável 6 da fase de design: ativos (A-01..A-08), fronteiras de confiança,
   modelo STRIDE com 33 ameaças (AM-01..AM-33) mapeadas a controles e com estado declarado
   (mitigado / parcial / aceito / pendente), 10 pendências de segurança (PS-01..PS-10), gestão de
@@ -74,6 +79,9 @@ independente por componente (RP-03).
 - Pendências de projeto PD-01 (expurgo de exclusão lógica), PD-02 (Row-Level Security), PD-04
   (armazenamento das respostas de idempotência) e PD-05 (limites de taxa por endpoint).
 - Risco R-019: o cabeçalho de travessia de tenant é o ponto mais sensível da API.
+- Riscos R-023 (a infraestrutura é o caminho crítico e não é código) e **R-024 (o MVP-0 completo não
+  cabe na janela de outubro)**. Bloqueio B-008: replanejamento e decisão sobre o piloto.
+- Premissas PRE-25 (âncora de estimativa) e PRE-26 (dedicação ao projeto).
 - Riscos R-020 (nada impede tecnicamente o provedor de assinar com o certificado do cliente),
   R-021 (a trilha é a palavra do provedor, sem verificação por terceiro) e R-022 (sem política de
   dependências). Bloqueios B-006 e B-007, ambos decisões de produto de Frederico.
