@@ -2,6 +2,7 @@
 > Entregável 2 de 7 da fase de Design · Sessão S001 · 2026-08-08
 > Status: **submetido — aguardando aprovação de Frederico** (RP-04)
 > Depende de: `VISAO.md` (aprovado em 2026-08-08)
+> Emendado em 2026-08-08 pelos ADR-0001 a ADR-0008 — ver §8
 
 ---
 
@@ -46,8 +47,8 @@ consolidados em §6 e em `STATUS.md`. Nenhum foi assumido silenciosamente (RP-05
 | ID | Requisito | Fase | MoSCoW | Origem |
 |----|-----------|------|--------|--------|
 | **RF-001** | O launcher autentica o usuário contra o provedor de identidade e obtém um token do Control Plane. Nenhuma função além da tela de login é acessível sem autenticação. | MVP-0 | **M** | VP-03, PA-01 |
-| **RF-002** | O Control Plane suporta **AD DS on-premises como diretório-base** e mantém o vínculo entre a identidade autenticada e a conta AD que abrirá a sessão RDS. | MVP-0 | **M** | P2 |
-| **RF-003** | O Control Plane suporta identidade híbrida via Entra ID (autenticação Entra/JWT com mapeamento para conta AD). | MVP-0 | **M** | P2 |
+| **RF-002** | O Control Plane suporta **AD DS on-premises como diretório-base** e mantém o vínculo entre a identidade autenticada e a conta AD que abrirá a sessão RDS (**ADR-0001**). | MVP-0 | **M** | P2, **ADR-0001** |
+| **RF-003** | O Control Plane suporta identidade híbrida via Entra ID (autenticação OIDC, com Entra Connect Sync espelhando o AD DS e mapeamento para a conta AD). No MVP-0 admite-se autenticar direto contra o AD DS enquanto o tenant Entra não estiver pronto, sem que isso altere o vínculo de RF-002 (**ADR-0001**). | MVP-0 | **M** | P2, **ADR-0001** |
 | **RF-004** | O token de sessão emitido pelo Control Plane tem expiração curta e é renovável sem novo login interativo enquanto a sessão do usuário for válida. | MVP-0 | **M** | RP-06 |
 | **RF-005** | Credenciais e tokens persistidos no cliente ficam no **Windows Credential Manager**; nunca em arquivo de configuração, banco local em claro ou log. | MVP-0 | **M** | RP-06, stack §3 |
 | **RF-006** | O usuário pode encerrar a sessão no launcher (logout), o que invalida o token local e exige novo login. | MVP-0 | **M** | VP-03 |
@@ -149,15 +150,15 @@ consolidados em §6 e em `STATUS.md`. Nenhum foi assumido silenciosamente (RP-05
 
 | ID | Requisito | Fase | MoSCoW | Origem |
 |----|-----------|------|--------|--------|
-| **RF-062** | Contar, **em tempo real**, o uso simultâneo por aplicativo e por tenant. | V2 | **M** | DIF-02, PR-03 |
-| **RF-063** | Definir **teto de uso simultâneo** por aplicativo e por tenant. | V2 | **M** | DIF-02, PR-03 |
-| **RF-064** | **Bloquear o lançamento** quando o teto for atingido, com mensagem clara ao usuário indicando a causa. | V2 | **M** | DIF-02 |
+| **RF-062** | Contar, **em tempo real**, o uso simultâneo por aplicativo e por tenant. Exige detecção confiável de fim de sessão, obtida por consulta periódica ao Connection Broker enquanto não houver Agent, atrás da interface de RNF-035. | **MVP-1** | **M** | DIF-02, PR-03, **ADR-0006** |
+| **RF-063** | Definir **teto de uso simultâneo** por aplicativo e por tenant. | **MVP-1** | **M** | DIF-02, PR-03, **ADR-0006** |
+| **RF-064** | **Bloquear o lançamento** quando o teto for atingido, com mensagem clara ao usuário indicando a causa. O administrador consegue reconciliar ou zerar o contador. | **MVP-1** | **M** | DIF-02, **ADR-0006** |
 | **RF-065** | **Fila de espera:** o usuário bloqueado entra em fila e é notificado quando houver vaga. | V2 | **S** | DIF-02, §2.3 prompt |
 | **RF-066** | Relatório histórico de uso e de **pico simultâneo** por aplicativo, para dimensionar compra de licença. | V2 | **S** | DIF-02, PR-03 |
 
-> **Observação de sequenciamento (R-004):** `VISAO.md` §4.1 recomenda antecipar RF-062, RF-063 e
-> RF-064 (metering mínimo, sem fila) para o piloto do Caminho B. **Isso não está feito aqui** — os
-> três seguem em V2. Antecipar exige ADR (RP-07).
+> **Sequenciamento (R-004) — resolvido por ADR-0006:** RF-062, RF-063 e RF-064 foram **antecipados
+> de V2 para MVP-1**, para que o piloto do Caminho B tenha diferencial verificável. RF-065 (fila de
+> espera) e RF-066 (relatório histórico) permanecem em V2.
 
 ### 2.10 DIF-03 · Orquestrador de atualizações
 
@@ -193,14 +194,14 @@ consolidados em §6 e em `STATUS.md`. Nenhum foi assumido silenciosamente (RP-05
 | **RNF-004** | **Segredos jamais aparecem** em código-fonte, documentação, mensagem de commit, log ou telemetria. Origem: variáveis de ambiente ou cofre. | todas | **M** | RP-06 |
 | **RNF-005** | **Menor privilégio:** contas de serviço do Control Plane e do Agent não são administradoras de domínio; usuários finais não são administradores nos session hosts. | todas | **M** | RP-06 |
 | **RNF-006** | Session hosts operam com **AppLocker ou WDAC em modo allowlist**: só executa o que foi explicitamente publicado. | MVP-0 | **M** | RP-06, §2.4 prompt |
-| **RNF-007** | **Usuários finais não recebem direito de logon local em controlador de domínio.** Session host e controlador de domínio não coabitam a mesma instância de sistema operacional. | MVP-0 | **M** | R-005, RP-06 |
+| **RNF-007** | **Usuários finais não recebem direito de logon local em controlador de domínio.** Session host e controlador de domínio não coabitam a mesma instância de sistema operacional (topologia em **ADR-0002**). | MVP-0 | **M** | R-005, RP-06, **ADR-0002** |
 | **RNF-008** | A **chave privada do certificado de assinatura RDP** é protegida contra exportação, com procedimento de rotação e de resposta a comprometimento documentado. | MVP-0 | **M** | RP-06, RF-019 |
-| **RNF-009** | No MVP-0 **não há exposição à internet**: acesso apenas por rede interna ou pela rede privada Tailscale já em uso. RD Gateway + MFA entram na V2. | MVP-0 | **M** | P5 |
+| **RNF-009** | No MVP-0 **não há exposição à internet**: acesso apenas por rede interna ou pela rede privada em malha, com ACL que restringe o alcance ao 3389 e aprovação nominal de dispositivo (**ADR-0003**). Verificação por varredura externa é obrigatória (CS-04). RD Gateway + MFA entram na V2. | MVP-0 | **M** | P5, **ADR-0003** |
 | **RNF-010** | Endpoints de autenticação e de lançamento têm **limitação de taxa** e bloqueio progressivo contra tentativa de força bruta e enumeração. | MVP-0 | **S** | RP-06 |
 | **RNF-011** | **FSLogix** (profile containers + App Masking) é a base de perfil dos session hosts; o perfil do usuário não persiste em disco local do host. | MVP-0 | **M** | §2.4 prompt |
 | **RNF-012** | Dados em repouso do Control Plane que contenham dado pessoal ou material sensível são cifrados. | MVP-0 | **S** | RP-06, LGPD |
 | **RNF-013** | O material do cofre de certificados é cifrado com chave gerenciada fora do banco de dados; comprometer o banco não basta para usar um certificado. | V2 | **M** | DIF-01, R-002 |
-| **RNF-014** | Redirecionamento de área de transferência, unidades locais, impressoras e USB é **negado por padrão** e liberado por política explícita. | V2 | **M** | RP-06, RF-048 |
+| **RNF-014** | Redirecionamento é **negado por padrão** e liberado apenas por exceção declarada. A **política base do MVP-0**, aplicada por GPO na OU do tenant, está definida em **ADR-0008**: permitidos impressora local, token/smart card USB, área de transferência bidirecional e saída de áudio; negados unidades locais, portas COM/LPT, entrada de áudio e demais dispositivos USB. Toda exceção é nominal e documentada. | **MVP-0** | **M** | RP-06, RF-048, **ADR-0008** |
 
 ### 3.2 Auditoria (RA-07 — obrigatório)
 
@@ -209,11 +210,11 @@ consolidados em §6 e em `STATUS.md`. Nenhum foi assumido silenciosamente (RP-05
 | **RNF-015** | **Log de acesso:** todo evento de acesso registra, no mínimo, **quem** (identidade), **o quê** (recurso/aplicativo), **quando** (timestamp) e **de onde** (endereço de rede e identificação da estação). | MVP-0 | **M** | RA-07 |
 | **RNF-016** | **Trilha de uso de certificado digital:** cada uso é registrado individualmente e o registro é suficiente para responder "quem assinou o quê, por qual titular, quando". | V2 | **M** | RA-07, DIF-01 |
 | **RNF-017** | **Trilha administrativa:** quem publicou, permissionou, revogou ou alterou configuração, com valores antes/depois. | MVP-1 | **M** | RA-07 |
-| **RNF-018** | **Retenção configurável** dos logs por tenant, com política de expurgo automatizada ao fim do período. `PREMISSA:` mínimo de 6 meses e padrão de 12 meses. | MVP-0 | **M** | RA-07, LGPD |
+| **RNF-018** | **Retenção configurável por tenant**, com expurgo automatizado e o próprio expurgo registrado. Prazos definidos em **ADR-0007**: log de acesso e lançamento — padrão 12 meses (mín. 6, máx. 60); trilha administrativa — padrão 24 meses (mín. 12, máx. 60); trilha de uso de certificado — padrão e mínimo 60 meses. O tenant não pode configurar abaixo do mínimo. | MVP-0 | **M** | RA-07, LGPD, **ADR-0007** |
 | **RNF-019** | Registros de auditoria são **append-only**: a aplicação não oferece caminho para alterar ou apagar evento individual; expurgo só ocorre por política de retenção e é ele próprio registrado. | MVP-0 | **M** | RA-07 |
 | **RNF-020** | Todos os timestamps são gravados em **UTC**, com relógio dos hosts sincronizado por NTP. Divergência de relógio é condição de alerta. | MVP-0 | **M** | RA-07 |
 | **RNF-021** | A trilha é **exportável em formato legível por máquina** (CSV/JSON), para entrega em auditoria. | MVP-1 | **S** | RA-07, VP-04 |
-| **RNF-022** | Falha ao gravar auditoria de um evento de segurança (autenticação, autorização, uso de certificado) **não pode passar silenciosamente**: gera alerta. `PREMISSA:` o lançamento não é bloqueado por falha de auditoria no MVP-0 — decisão a confirmar. | MVP-0 | **S** | RA-07 |
+| **RNF-022** | **A auditoria de evento de segurança é bloqueante** (ADR-0007): o registro é gravado na mesma transação que concede o acesso; se não puder ser gravado, o acesso **não é concedido**. Vale para RF-036, RF-037, RF-039, RF-041 e RF-042. Não vale para telemetria, diagnóstico e fim de sessão (RF-038). A falha gera alerta, é registrada no log estruturado e **não afeta sessões já abertas** (RNF-032). | MVP-0 | **M** | RA-07, **ADR-0007** |
 
 ### 3.3 Privacidade e LGPD
 
@@ -250,7 +251,7 @@ consolidados em §6 e em `STATUS.md`. Nenhum foi assumido silenciosamente (RP-05
 | ID | Requisito | Fase | MoSCoW | Origem |
 |----|-----------|------|--------|--------|
 | **RNF-035** | O **backend de sessão é abstraído por interface**. Trocar RDS por AVD é implementar a interface, não reescrever o Control Plane. Nenhuma regra de negócio depende de detalhe do RDS. | MVP-0 | **M** | §2.5 prompt, RM-07 |
-| **RNF-036** | **`tenant_id` em toda tabela desde o MVP-0**, com isolamento aplicado na camada de acesso a dados e não apenas na consulta escrita à mão. | MVP-0 | **M** | §2.5 prompt, P7, RF-073 |
+| **RNF-036** | **`tenant_id` em toda tabela desde o MVP-0**, com o filtro aplicado por **filtro global de consulta no `DbContext`**, alimentado pelo contexto de tenant resolvido do token — nunca por parâmetro do chamador. Travessia deliberada de tenant é explícita e registrada. A suíte de testes contém casos que tentam violar o isolamento e exigem falha (**ADR-0004**). | MVP-0 | **M** | §2.5 prompt, P7, RF-073, **ADR-0004** |
 | **RNF-037** | O MVP-0 roda **inteiramente on-premises**, sem dependência de serviço de nuvem específico para funcionar. | MVP-0 | **M** | P4, PA-01 |
 | **RNF-038** | Isolamento de tenant na camada RDS é **por session host, OU e GPO dedicados** por escritório; o domínio único do provedor com OU por cliente atende o piloto. | Piloto/V2 | **M** | P7 |
 
@@ -346,8 +347,8 @@ antes da implementação**; todos estão replicados em `STATUS.md`.
 | ID | Premissa | Onde | Impacto se errada |
 |----|----------|------|-------------------|
 | **PRE-07** | Validade do arquivo `.rdp` temporário: 60 s | RF-020 | Muito curto quebra lançamento em máquina lenta; muito longo amplia janela de reuso indevido |
-| **PRE-08** | Retenção de logs: mínimo 6 meses, padrão 12 | RNF-018 | Dimensionamento de armazenamento e conformidade com exigência de cliente |
-| **PRE-09** | Falha de gravação de auditoria alerta, mas não bloqueia o lançamento no MVP-0 | RNF-022 | Se a decisão for bloquear, muda o desenho do caminho crítico de lançamento |
+| ~~**PRE-08**~~ | ~~Retenção de logs: mínimo 6 meses, padrão 12~~ | RNF-018 | **Resolvida por ADR-0007** — tabela de prazos por categoria de trilha |
+| ~~**PRE-09**~~ | ~~Falha de auditoria alerta mas não bloqueia~~ | RNF-022 | **Resolvida por ADR-0007** — auditoria de evento de segurança é **bloqueante** |
 | **PRE-10** | Capacidade de 100 aplicativos publicados no dimensionamento para 500 usuários | RNF-026 | Dimensionamento de catálogo e de sincronização |
 | **PRE-11** | Abertura ≤ 5 s com prelaunch, ≤ 20 s sem, em rede local | RNF-027 | É o número que define percepção de "parece local" — merece medição real no dogfood |
 | **PRE-12** | Catálogo p95 ≤ 300 ms; geração+assinatura do `.rdp` p95 ≤ 1 s | RNF-028, RNF-029 | Metas de engenharia; `rdpsign` pode não caber em 1 s sob carga |
@@ -356,15 +357,38 @@ antes da implementação**; todos estão replicados em `STATUS.md`.
 | **PRE-15** | Disponibilidade-alvo de 99,5% mensal no piloto | RNF-034 | Vira cláusula contratual no Caminho B |
 | **PRE-16** | Estações Windows 10 22H2 e Windows 11, 64 bits | RNF-045 | Windows 10 saiu do suporte padrão em out/2025 — confirmar o parque real do escritório |
 | **PRE-17** | Instalação do launcher sem privilégio de administrador | RNF-044 | Registro de protocolo e criação de atalhos podem exigir elevação; muda o plano de implantação |
+| **PRE-18** | O host físico do MVP-0 suporta Hyper-V com virtualização assistida por hardware | ADR-0002 | Sem isso, a separação DC × session host exige segunda máquina |
+| **PRE-19** | Prazos de 24 e 60 meses de retenção são escolha de engenharia, não parecer jurídico | ADR-0007 | A trilha de certificado é evidência potencial em disputa — confirmar em T-002 |
+| **PRE-20** | Os tokens A3 do escritório funcionam redirecionados para a sessão RDS | ADR-0008 | Histórico de instabilidade dependente de driver; testar no dogfood antes de virar promessa comercial |
 
 ---
 
-## 7. Questões abertas para Frederico
+## 7. Questões abertas — situação
 
-Nenhuma bloqueia a aprovação deste documento, mas as três primeiras mudam requisitos já escritos.
+As cinco questões levantadas na versão original foram decididas por delegação de Frederico
+("você decide", 2026-08-08), cada uma com seu ADR. Restam duas que dependem de fato do mundo, não de
+decisão de projeto.
 
-1. **RNF-022 / PRE-09 — auditoria é bloqueante?** Se o Control Plane não conseguir gravar o registro de um lançamento, ele **impede o lançamento** ou registra o alerta e deixa passar? Postura conservadora (bloquear) é mais defensável em auditoria; postura permissiva protege a operação do escritório. É decisão de negócio, não técnica.
-2. **RNF-018 / PRE-08 — retenção.** Algum cliente do piloto já tem exigência contratual de prazo de retenção de logs? Isso fixa o mínimo.
-3. **PRE-16 — parque de estações.** Quantas máquinas do escritório ainda estão em Windows 10? O suporte padrão do Windows 10 encerrou em outubro/2025; se houver parque relevante, é risco de segurança do lado do cliente que o AppBridge não resolve.
-4. **RF-028 — desktop confinado.** Já existe algum aplicativo conhecido do inventário (T-001) que sabidamente não se comporta como RemoteApp? Isso puxaria RF-028 de MVP-1 para MVP-0.
-5. **RF-048 / RNF-014 — redirecionamento.** O escritório depende hoje de impressora local, scanner ou leitor de cartão dentro dos sistemas contábeis? Se sim, a política de redirecionamento negada por padrão precisa de exceções já no MVP-0, e isso é requisito, não configuração.
+| # | Questão | Situação |
+|---|---------|----------|
+| 1 | Auditoria bloqueante? | ✅ **Decidida — ADR-0007.** Sim, bloqueante para eventos de segurança. O argumento decisivo: a autorização já depende do mesmo banco, então o custo em disponibilidade é quase nulo. |
+| 2 | Prazo de retenção | ✅ **Decidida — ADR-0007.** Três categorias com prazos distintos; configurável por tenant, com mínimos que o tenant não pode furar. |
+| 3 | Parque em Windows 10 | ⏳ **Aberta — depende de levantamento.** É fato sobre o escritório, não decisão de arquitetura. RNF-045 mantém Windows 10 22H2 e Windows 11 como suportados; risco R-008 registrado. |
+| 4 | Aplicativo que exija desktop confinado | ⏳ **Aberta — depende de T-001.** RF-028 permanece em MVP-1 (Should). **Gatilho:** se o inventário revelar aplicativo que não funcione como RemoteApp, RF-028 sobe para MVP-0 e vira Must, via ADR. |
+| 5 | Redirecionamento de periféricos | ✅ **Decidida — ADR-0008.** Política base definida: impressora, token USB, área de transferência e saída de áudio permitidos; unidades locais, COM/LPT, entrada de áudio e demais USB negados. RNF-014 antecipado para MVP-0. |
+
+## 8. Emendas a este documento
+
+Registro das alterações posteriores à primeira submissão, cada uma com o ADR que a autoriza (RA-06 —
+nenhuma mudança silenciosa).
+
+| Data | Requisito | Alteração | ADR |
+|------|-----------|-----------|-----|
+| 2026-08-08 | RF-002, RF-003 | Detalhamento do modelo híbrido e do vínculo identidade→conta AD | ADR-0001 |
+| 2026-08-08 | RNF-007 | Referência à topologia de VMs separadas | ADR-0002 |
+| 2026-08-08 | RNF-009 | Acrescentadas ACL, aprovação nominal de dispositivo e varredura externa obrigatória | ADR-0003 |
+| 2026-08-08 | RNF-036 | Isolamento passa a ser exigido via filtro global no `DbContext` e teste de violação obrigatório | ADR-0004 |
+| 2026-08-08 | RF-062, RF-063, RF-064 | **Fase alterada de V2 para MVP-1** (metering mínimo antecipado) | ADR-0006 |
+| 2026-08-08 | RNF-018 | Prazos de retenção definidos por categoria; PRE-08 resolvida | ADR-0007 |
+| 2026-08-08 | RNF-022 | **Passa de Should não-bloqueante para Must bloqueante**; PRE-09 resolvida | ADR-0007 |
+| 2026-08-08 | RNF-014 | **Fase alterada de V2 para MVP-0**, com política base de redirecionamento definida | ADR-0008 |
