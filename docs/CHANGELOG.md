@@ -7,6 +7,14 @@ independente por componente (RP-03).
 ## [Não publicado]
 
 ### Adicionado
+- `docs/MODELO-DE-DADOS.md` — entregável 4 da fase de design: entidades do Control Plane em cinco
+  domínios (tenancy, identidade, catálogo, sessão e trilha), diagramas ER do núcleo MVP-0 e do cofre
+  de certificados, inventário de dados pessoais com base legal e retenção por coluna (LGPD),
+  volumetria estimada para 500 usuários, regras de migração e rastreabilidade entidade→requisito nos
+  dois sentidos. Submetido, aguardando aprovação.
+- `docs/adr/ADR-0011` — convenções do modelo de dados: UUID v7, `timestamptz` em UTC, exclusão lógica
+  para dado de tenant e proibida para trilha, e chave estrangeira composta com `tenant_id` como
+  segunda linha de defesa do isolamento.
 - `docs/ARQUITETURA.md` — entregável 3 da fase de design: C4 níveis 1 a 3, contrato da fronteira de
   portabilidade `ISessionBackend`, cinco diagramas de sequência (login, lançamento, prelaunch,
   publicação e revogação), tabela de modo degradado por falha, rastreabilidade componente→requisito,
@@ -49,7 +57,9 @@ independente por componente (RP-03).
 - `docs/VISAO.md` aprovado por Frederico em 2026-08-08.
 
 ### Registrado
-- Premissas PRE-07..PRE-23; PRE-08 e PRE-09 resolvidas por ADR-0007.
+- Premissas PRE-07..PRE-24; PRE-08 e PRE-09 resolvidas por ADR-0007.
+- Pendências de projeto PD-01 (expurgo de exclusão lógica), PD-02 (Row-Level Security) e PD-03
+  (armazenamento de ícones).
 - Tarefas T-005 (medições obrigatórias no dogfood) e T-006 (ingresso das estações no domínio e GPOs).
 - Riscos R-007 (densidade de requisitos Must no MVP-0), R-008 (parque em Windows 10 fora de suporte),
   R-009 (contagem de licenças incorreta), R-010 (rede privada adiando o RD Gateway), R-011 (área de

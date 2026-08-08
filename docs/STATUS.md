@@ -24,7 +24,7 @@ documento). Não há mais decisão de arquitetura pendente para iniciar `ARQUITE
 | 1 | `docs/VISAO.md` | ✅ **aprovado** (2026-08-08) |
 | 2 | `docs/REQUISITOS.md` | 🔵 submetido — aguardando aprovação (emendado por ADR-0001..0008) |
 | 3 | `docs/ARQUITETURA.md` | 🔵 submetido — aguardando aprovação (C4 1–3 + 5 diagramas de sequência) |
-| 4 | `docs/MODELO-DE-DADOS.md` | ⬜ não iniciado |
+| 4 | `docs/MODELO-DE-DADOS.md` | 🔵 submetido — aguardando aprovação |
 | 5 | `docs/API.md` | ⬜ não iniciado |
 | 6 | `docs/SEGURANCA.md` | ⬜ não iniciado |
 | 7 | `docs/ROADMAP.md` + backlog MVP-0 | ⬜ não iniciado |
@@ -34,7 +34,7 @@ Legenda: ⬜ não iniciado · 🟡 em produção · 🔵 submetido, aguardando a
 ## 3. Próximos passos
 
 1. **Frederico aprova ou devolve `REQUISITOS.md` (emendado), `ARQUITETURA.md` e os ADR-0001..0010.** ADR aceito é imutável (RA-05): discordância vira ADR novo que substitui, não edição.
-2. Produzir `MODELO-DE-DADOS.md` (entregável 4) — desbloqueado.
+2. Produzir `API.md` (entregável 5) — desbloqueado.
 3. Iniciar T-001 (tabela de licenciamento dos apps), pré-condição de viabilidade do Caminho B.
 4. **T-005 (nova):** medir no dogfood as três premissas que a arquitetura não consegue resolver no papel — PRE-22 (prelaunch sustenta a jornada?), PRE-23 (o Connection Broker responde com a confiabilidade exigida?) e PRE-20 (token A3 redirecionado funciona?).
 5. Antes do piloto: revisar ADR-0003 (malha privada não é vendável a cliente) e a condição 4 do ADR-0008 (área de transferência liberada com dado de terceiros).
@@ -46,7 +46,7 @@ Legenda: ⬜ não iniciado · 🟡 em produção · 🔵 submetido, aguardando a
 | ~~B-001~~ | ~~Perguntas P1–P8 sem resposta~~ | — | **Encerrado em 2026-08-08** |
 | ~~B-002~~ | ~~Aprovação de `VISAO.md`~~ | — | **Encerrado em 2026-08-08 — aprovado** |
 | B-003 | Em P4, a frase "serve para provar o conceito com 2–3 sessões" ficou sem sujeito — qual máquina/ambiente? | Detalhamento da topologia em ADR-0002 | Frederico |
-| B-004 | Aprovação de `REQUISITOS.md` emendado, `ARQUITETURA.md` e ADR-0001..0010 | Entregável 4 (`MODELO-DE-DADOS.md`) | Frederico |
+| B-004 | Aprovação de `REQUISITOS.md` emendado, `ARQUITETURA.md`, `MODELO-DE-DADOS.md` e ADR-0001..0011 | Entregável 5 (`API.md`) | Frederico |
 | ~~B-005~~ | ~~Questões abertas de `REQUISITOS.md` §7~~ | — | **Encerrado em 2026-08-08** — 3 de 5 decididas por ADR-0007/0008; as outras 2 dependem de levantamento (T-001, parque de estações), não de decisão |
 
 ## 5. Tarefas abertas
@@ -77,6 +77,7 @@ se faz com ADR novo que substitui o anterior.
 | [ADR-0008](adr/ADR-0008-politica-base-de-redirecionamento.md) | Redirecionamento | Política base do MVP-0: impressora, token USB, área de transferência e saída de áudio **permitidos**; unidades locais, COM/LPT, entrada de áudio e demais USB **negados** | RNF-014 |
 | [ADR-0009](adr/ADR-0009-assinatura-do-rdp-e-hospedagem-do-control-plane.md) | Assinatura do `.rdp` | Assinatura via `rdpsign.exe` atrás da interface `IRdpFileSigner`. **Consequência assumida: o Control Plane é componente Windows** — contêiner Linux está fora enquanto esta decisão valer. Caminho de saída registrado para o Caminho A | — (detalha RF-019, RNF-002) |
 | [ADR-0010](adr/ADR-0010-autenticacao-na-sessao-e-ingresso-das-estacoes.md) | Autenticação na sessão | Estações **ingressadas no domínio**, com delegação de credenciais por GPO restrita aos session hosts nominados. A senha de domínio nunca passa pelo Control Plane. Caminho degradado documentado para máquina fora do domínio | — (detalha RNF-042) |
+| [ADR-0011](adr/ADR-0011-convencoes-do-modelo-de-dados.md) | Convenções do modelo de dados | UUID v7 como chave, `timestamptz` em UTC, exclusão lógica para dado de tenant e proibida para trilha, e **chave estrangeira composta com `tenant_id`** — segunda linha de defesa que impede no motor uma linha do tenant A apontar para o tenant B | — (detalha RNF-019, RNF-020, RNF-036) |
 
 ## 7. Premissas abertas (RP-05)
 
@@ -105,6 +106,7 @@ se faz com ADR novo que substitui o anterior.
 | PRE-21 | Todas as estações rodam edição do Windows que permite ingresso em domínio (Home não permite) | ADR-0010 | levantamento do parque |
 | PRE-22 | SessionPrimer + GPO de tempo de logoff sustentam o prelaunch por uma jornada de trabalho | ARQUITETURA §5.3 | medição no dogfood (T-005) |
 | PRE-23 | O Connection Broker permite consultar e encerrar sessões com a confiabilidade exigida por RF-038 e RF-008 | ARQUITETURA §4.2 | validação técnica (T-005) |
+| PRE-24 | Retenção de `host_telemetry`: 90 dias (não é trilha de auditoria) | MODELO-DE-DADOS §6.3 | quando o Agent existir (V2) |
 
 ## 8. Riscos registrados
 
@@ -130,6 +132,14 @@ se faz com ADR novo que substitui o anterior.
 | R-008 | Windows 10 saiu do suporte padrão em out/2025 (PRE-16). Estação sem atualização de segurança é risco do lado do cliente que o AppBridge não elimina — apenas reduz, por manter dado e aplicativo no servidor | Média | Aberto — depende de B-005 |
 | RM-01..RM-10 | Riscos de mercado — ver `VISAO.md` §6 | vários | Aberto |
 
-## 9. Violações de processo detectadas (RA-06)
+## 9. Pendências de projeto abertas
+
+| ID | Pendência | Origem | Resolver antes de |
+|----|-----------|--------|-------------------|
+| PD-01 | Política de expurgo de linhas com exclusão lógica (`deleted_at` antigo) — distinta da retenção de trilha | ADR-0011, MODELO-DE-DADOS §14 | Implementação |
+| PD-02 | Row-Level Security do PostgreSQL como terceira linha de defesa de isolamento | ADR-0011 | Piloto |
+| PD-03 | Onde fica o binário do ícone de aplicativo (`icon_ref`) | MODELO-DE-DADOS §14 | `API.md` |
+
+## 10. Violações de processo detectadas (RA-06)
 
 Nenhuma.
