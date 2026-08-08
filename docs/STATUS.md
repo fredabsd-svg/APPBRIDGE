@@ -25,7 +25,7 @@ documento). Não há mais decisão de arquitetura pendente para iniciar `ARQUITE
 | 2 | `docs/REQUISITOS.md` | 🔵 submetido — aguardando aprovação (emendado por ADR-0001..0008) |
 | 3 | `docs/ARQUITETURA.md` | 🔵 submetido — aguardando aprovação (C4 1–3 + 5 diagramas de sequência) |
 | 4 | `docs/MODELO-DE-DADOS.md` | 🔵 submetido — aguardando aprovação |
-| 5 | `docs/API.md` | ⬜ não iniciado |
+| 5 | `docs/API.md` | 🔵 submetido — aguardando aprovação |
 | 6 | `docs/SEGURANCA.md` | ⬜ não iniciado |
 | 7 | `docs/ROADMAP.md` + backlog MVP-0 | ⬜ não iniciado |
 
@@ -34,7 +34,7 @@ Legenda: ⬜ não iniciado · 🟡 em produção · 🔵 submetido, aguardando a
 ## 3. Próximos passos
 
 1. **Frederico aprova ou devolve `REQUISITOS.md` (emendado), `ARQUITETURA.md` e os ADR-0001..0010.** ADR aceito é imutável (RA-05): discordância vira ADR novo que substitui, não edição.
-2. Produzir `API.md` (entregável 5) — desbloqueado.
+2. Produzir `SEGURANCA.md` (entregável 6) — desbloqueado. Já tem insumo acumulado: R-011 (área de transferência), R-013 (certificado de assinatura), R-014 (revogação sem alcance em sessão aberta), ADR-0012 (cabeçalho de travessia de tenant).
 3. Iniciar T-001 (tabela de licenciamento dos apps), pré-condição de viabilidade do Caminho B.
 4. **T-005 (nova):** medir no dogfood as três premissas que a arquitetura não consegue resolver no papel — PRE-22 (prelaunch sustenta a jornada?), PRE-23 (o Connection Broker responde com a confiabilidade exigida?) e PRE-20 (token A3 redirecionado funciona?).
 5. Antes do piloto: revisar ADR-0003 (malha privada não é vendável a cliente) e a condição 4 do ADR-0008 (área de transferência liberada com dado de terceiros).
@@ -46,7 +46,7 @@ Legenda: ⬜ não iniciado · 🟡 em produção · 🔵 submetido, aguardando a
 | ~~B-001~~ | ~~Perguntas P1–P8 sem resposta~~ | — | **Encerrado em 2026-08-08** |
 | ~~B-002~~ | ~~Aprovação de `VISAO.md`~~ | — | **Encerrado em 2026-08-08 — aprovado** |
 | B-003 | Em P4, a frase "serve para provar o conceito com 2–3 sessões" ficou sem sujeito — qual máquina/ambiente? | Detalhamento da topologia em ADR-0002 | Frederico |
-| B-004 | Aprovação de `REQUISITOS.md` emendado, `ARQUITETURA.md`, `MODELO-DE-DADOS.md` e ADR-0001..0011 | Entregável 5 (`API.md`) | Frederico |
+| B-004 | Aprovação dos entregáveis 2 a 5 (`REQUISITOS.md` emendado, `ARQUITETURA.md`, `MODELO-DE-DADOS.md`, `API.md`) e dos ADR-0001..0012 | Entregável 6 (`SEGURANCA.md`) | Frederico |
 | ~~B-005~~ | ~~Questões abertas de `REQUISITOS.md` §7~~ | — | **Encerrado em 2026-08-08** — 3 de 5 decididas por ADR-0007/0008; as outras 2 dependem de levantamento (T-001, parque de estações), não de decisão |
 
 ## 5. Tarefas abertas
@@ -78,6 +78,7 @@ se faz com ADR novo que substitui o anterior.
 | [ADR-0009](adr/ADR-0009-assinatura-do-rdp-e-hospedagem-do-control-plane.md) | Assinatura do `.rdp` | Assinatura via `rdpsign.exe` atrás da interface `IRdpFileSigner`. **Consequência assumida: o Control Plane é componente Windows** — contêiner Linux está fora enquanto esta decisão valer. Caminho de saída registrado para o Caminho A | — (detalha RF-019, RNF-002) |
 | [ADR-0010](adr/ADR-0010-autenticacao-na-sessao-e-ingresso-das-estacoes.md) | Autenticação na sessão | Estações **ingressadas no domínio**, com delegação de credenciais por GPO restrita aos session hosts nominados. A senha de domínio nunca passa pelo Control Plane. Caminho degradado documentado para máquina fora do domínio | — (detalha RNF-042) |
 | [ADR-0011](adr/ADR-0011-convencoes-do-modelo-de-dados.md) | Convenções do modelo de dados | UUID v7 como chave, `timestamptz` em UTC, exclusão lógica para dado de tenant e proibida para trilha, e **chave estrangeira composta com `tenant_id`** — segunda linha de defesa que impede no motor uma linha do tenant A apontar para o tenant B | — (detalha RNF-019, RNF-020, RNF-036) |
+| [ADR-0012](adr/ADR-0012-convencoes-da-api.md) | Convenções da API | `/v1` no caminho; erro em Problem Details com código estável; `Idempotency-Key` obrigatório no lançamento; **o `tenant_id` nunca vem do cliente** — não existe parâmetro a verificar; recurso de outro tenant responde `404`; paginação por cursor | — (detalha RF-021, RF-025, RNF-036, RNF-043) |
 
 ## 7. Premissas abertas (RP-05)
 
@@ -127,6 +128,7 @@ se faz com ADR novo que substitui o anterior.
 | R-016 | O Control Plane não bloqueia trabalho em andamento, mas bloqueia começar a trabalhar — e o pico de início é às 8h | Média-alta | Aberto — reforça RNF-033 e RNF-040 |
 | R-017 | `SessionReconciler` é a única defesa contra contagem inflada de licença antes do Agent | Média | Aberto — ligado a R-009 |
 | R-018 | A portabilidade prometida por RNF-035 é hipótese até existir uma segunda implementação de `ISessionBackend` que a prove | Média | Aberto — aceito conscientemente |
+| R-019 | O cabeçalho `X-AppBridge-Acting-Tenant` é o ponto mais sensível da API: falha na verificação do papel transforma o mecanismo de suporte multiempresa em porta de travessia de tenant | **Alta** | Aberto — exige teste dedicado de negativa e revisão de código específica (ADR-0012) |
 | R-006 | Execução solo de quatro componentes com MVP-0 previsto em ~2 meses | Alta | Aberto |
 | R-007 | O MVP-0 acumula 34 RFs "Must" (RF-001..RF-040 sem os Should/Could) para ~2 meses de execução solo. Se algo tiver de sair, os candidatos naturais são RF-016, RF-026, RF-032, RF-033, RF-034 e RF-040 — todos Should/Could, nenhum Must. Corte de Must exige ADR | Alta | Aberto — decisão de escopo de Frederico |
 | R-008 | Windows 10 saiu do suporte padrão em out/2025 (PRE-16). Estação sem atualização de segurança é risco do lado do cliente que o AppBridge não elimina — apenas reduz, por manter dado e aplicativo no servidor | Média | Aberto — depende de B-005 |
@@ -138,7 +140,9 @@ se faz com ADR novo que substitui o anterior.
 |----|-----------|--------|-------------------|
 | PD-01 | Política de expurgo de linhas com exclusão lógica (`deleted_at` antigo) — distinta da retenção de trilha | ADR-0011, MODELO-DE-DADOS §14 | Implementação |
 | PD-02 | Row-Level Security do PostgreSQL como terceira linha de defesa de isolamento | ADR-0011 | Piloto |
-| PD-03 | Onde fica o binário do ícone de aplicativo (`icon_ref`) | MODELO-DE-DADOS §14 | `API.md` |
+| ~~PD-03~~ | ~~Onde fica o binário do ícone~~ | — | **Resolvida em `API.md` §3** — arquivo referenciado, servido por endpoint com `ETag` |
+| PD-04 | Onde ficam as respostas de idempotência durante os 60 s de validade | ADR-0012, API §12 | Implementação |
+| PD-05 | Limites concretos de taxa por endpoint (RNF-010) | API §12 | Depende de medição (T-005) |
 
 ## 10. Violações de processo detectadas (RA-06)
 

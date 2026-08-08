@@ -7,6 +7,13 @@ independente por componente (RP-03).
 ## [Não publicado]
 
 ### Adicionado
+- `docs/API.md` — entregável 5 da fase de design: contrato v0 do Control Plane em estilo OpenAPI —
+  autenticação e sessão, catálogo, lançamento, trilha de auditoria, administração, metering, Agent e
+  cofre; catálogo de erros com código estável por situação; esqueleto OpenAPI 3.1 do endpoint de
+  lançamento; rastreabilidade endpoint→requisito nos dois sentidos. Submetido, aguardando aprovação.
+- `docs/adr/ADR-0012` — convenções da API: `/v1` no caminho, Problem Details (RFC 9457) com código
+  estável, `Idempotency-Key` obrigatório no lançamento, `tenant_id` derivado exclusivamente do token,
+  `404` para recurso de outro tenant e paginação por cursor.
 - `docs/MODELO-DE-DADOS.md` — entregável 4 da fase de design: entidades do Control Plane em cinco
   domínios (tenancy, identidade, catálogo, sessão e trilha), diagramas ER do núcleo MVP-0 e do cofre
   de certificados, inventário de dados pessoais com base legal e retenção por coluna (LGPD),
@@ -58,8 +65,13 @@ independente por componente (RP-03).
 
 ### Registrado
 - Premissas PRE-07..PRE-24; PRE-08 e PRE-09 resolvidas por ADR-0007.
-- Pendências de projeto PD-01 (expurgo de exclusão lógica), PD-02 (Row-Level Security) e PD-03
-  (armazenamento de ícones).
+- Pendências de projeto PD-01 (expurgo de exclusão lógica), PD-02 (Row-Level Security), PD-04
+  (armazenamento das respostas de idempotência) e PD-05 (limites de taxa por endpoint).
+- Risco R-019: o cabeçalho de travessia de tenant é o ponto mais sensível da API.
+
+### Resolvido
+- PD-03 (armazenamento de ícones): arquivo referenciado por `icon_ref` e servido por
+  `GET /v1/applications/{id}/icon` com `ETag`, em vez de binário no banco.
 - Tarefas T-005 (medições obrigatórias no dogfood) e T-006 (ingresso das estações no domínio e GPOs).
 - Riscos R-007 (densidade de requisitos Must no MVP-0), R-008 (parque em Windows 10 fora de suporte),
   R-009 (contagem de licenças incorreta), R-010 (rede privada adiando o RD Gateway), R-011 (área de
