@@ -6,6 +6,26 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Aprovado — fase de design encerrada (2026-08-08)
+- **Entregáveis 2 a 7 aprovados por Frederico**: `REQUISITOS.md`, `ARQUITETURA.md`,
+  `MODELO-DE-DADOS.md`, `API.md`, `SEGURANCA.md` e `ROADMAP.md`. Com `VISAO.md`, já aprovado, os 7
+  entregáveis da fase de design estão concluídos e 13 ADRs aceitos.
+
+### Alterado — replanejamento (ADR-0013)
+- **Cronograma replanejado na opção A**, escolhida por Frederico: o MVP-0 passa a ser entregue em
+  duas etapas — **MVP-0a** (esqueleto ambulante, meados de out/2026) e **MVP-0b** (dogfood real,
+  dez/2026 a jan/2027) — e o piloto do Caminho B vai para **abr–jun/2027**, mantendo 3–5 escritórios.
+  Nenhum RF ou RNF foi alterado: a mudança é de marcos e agrupamento de entrega.
+- `ROADMAP.md` §2 e §5 atualizados com a linha do tempo vigente; a linha original de P8 fica
+  preservada para comparação.
+- `STATUS.md` passa de fase de design para implementação do MVP-0a.
+- Bloqueios B-003, B-004 e B-008 encerrados. Risco R-024 fechado.
+
+### Registrado
+- Risco **R-025** e bloqueio **B-009**: o MVP-1 tornou-se o gargalo — cerca de três meses entre o fim
+  do dogfood e o início do piloto para os épicos E-13 a E-18. É preciso definir o subconjunto mínimo
+  exigido pelo piloto.
+
 ### Adicionado
 - `docs/ROADMAP.md` — entregável 7 e último da fase de design: 12 épicos e 54 tarefas de MVP-0 com
   critério de aceite verificável e estimativa relativa, checagem de capacidade contra a janela de

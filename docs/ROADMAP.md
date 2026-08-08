@@ -28,15 +28,24 @@ requisito↔código · nenhuma pendência de segurança nova sem registro.
 
 ---
 
-## 2. Linha do tempo proposta em P8 e marcos
+## 2. Linha do tempo — vigente
 
-| Marco | Data de P8 | Conteúdo |
-|-------|-----------|----------|
-| **M1 · Design fechado** | fim de ago/2026 | 7 entregáveis aprovados |
-| **M2 · MVP-0 no escritório** | meados de out/2026 | CS-01 a CS-04 atingidos |
-| **M3 · Piloto Caminho B** | 1º tri/2027 | CS-05, 3–5 escritórios pagantes |
+> **Replanejada e aprovada em 2026-08-08 (ADR-0013, opção A).** A §4 mostra por quê; a §5 detalha o
+> recorte. A linha do tempo original de P8 está preservada abaixo para comparação.
 
-**A §4 mostra que M2, como escopado, não cabe na janela.** A recomendação está na §5.
+| Marco | Data vigente | Conteúdo |
+|-------|-------------|----------|
+| **M1 · Design fechado** | ✅ **2026-08-08** | 7 entregáveis aprovados, 13 ADRs aceitos |
+| **M2a · MVP-0a — esqueleto ambulante** | meados de out/2026 | Um usuário, um aplicativo, ponta a ponta, com `.rdp` assinado, trilha e V-01/V-05/V-06 |
+| **M2b · MVP-0b — dogfood real** | dez/2026 a jan/2027 | CS-01 a CS-04 integralmente |
+| **M2c · MVP-1 (subconjunto do piloto)** | fev a mar/2027 | **Escopo a definir — B-009, R-025** |
+| **M3 · Piloto Caminho B** | **abr–jun/2027** | CS-05, 3–5 escritórios pagantes, portões G-01 a G-05 cumpridos |
+
+| Marco original (P8) | Data | Situação |
+|---------------------|------|----------|
+| Design fechado | fim de ago/2026 | Antecipado |
+| MVP-0 completo | meados de out/2026 | **Substituído por M2a + M2b** (ADR-0013) |
+| Piloto | 1º tri/2027 | **Substituído por M3 em abr–jun/2027** (ADR-0013) |
 
 ---
 
@@ -207,7 +216,7 @@ projeto de um script.
 
 ---
 
-## 5. Recomendação — dividir o MVP-0 em dois
+## 5. Divisão do MVP-0 — **decidida** (ADR-0013)
 
 Preserva a data de outubro **redefinindo o que ela entrega**, e mantém a disciplina.
 
@@ -231,16 +240,24 @@ que o prelaunch não sustenta a jornada é recuperável; descobrir em janeiro, n
 Todo o restante: launcher empacotado, atalhos, prelaunch, reconciliação, retenção, segurança e a
 semana de dogfood dirigido. **Critério de aceite: CS-01 a CS-04 integralmente.**
 
-### Efeito no piloto
+### Efeito no piloto — **decidido: opção A**
 
-M3 no 1º trimestre de 2027 fica inviável com dogfood terminando em janeiro. Três saídas, e a escolha
-é de Frederico:
+M3 no 1º trimestre de 2027 seria inviável com dogfood terminando em janeiro. Frederico escolheu a
+**opção A em 2026-08-08**: o piloto vai para **abr–jun/2027**, mantendo 3–5 escritórios.
 
-| Opção | Consequência |
-|-------|--------------|
-| **A — Adiar o piloto para o 2º tri/2027** | Mais seguro. Dá tempo para T-001, PS-03 e PS-07 |
-| **B — Piloto reduzido no 1º tri: 1 escritório, sem cofre** | Valida o modelo comercial cedo, com risco operacional maior |
-| **C — Manter 3–5 escritórios no 1º tri** | **Não recomendo.** Levaria a produção um sistema sem dogfood completo, sem PS-02 e sem a verificação V-09 |
+| Opção | Consequência | Situação |
+|-------|--------------|----------|
+| **A — Piloto no 2º tri/2027** | Mais seguro. Dá folga para T-001 (G-01), T-002, T-003, PS-02 e PS-03 | ✅ **Escolhida** (ADR-0013) |
+| B — Piloto reduzido no 1º tri: 1 escritório, sem cofre | Valida o modelo comercial cedo, com risco operacional maior | Recusada |
+| C — Manter 3–5 escritórios no 1º tri | Levaria a produção um sistema sem dogfood completo, sem PS-02 e sem V-09 | Recusada |
+
+> **Consequência que o adiamento cria — R-025.** Com o dogfood terminando em janeiro e o piloto
+> começando em abril, sobram ~3 meses para os épicos E-13 a E-18. Pela mesma aritmética da §4, **o
+> MVP-1 completo provavelmente não cabe nessa janela** — ele é o novo gargalo. É preciso definir o
+> subconjunto mínimo exigido pelo piloto (**B-009**). Recomendação preliminar: priorizar **E-15**
+> (encerramento de sessão, que fecha R-014/AM-30), **E-16** (metering mínimo, o único diferencial
+> presente no piloto) e a parte de permissões do **E-13**; adiar favoritos (RF-017), atualização
+> automática (RF-035) e exportação (RNF-021).
 
 ---
 
@@ -353,6 +370,7 @@ parecer do advogado em T-002 (bloqueia V2, não MVP-0).
 | R-001 | Licenciamento pode invalidar o Caminho B | G-01 como portão intransponível do piloto |
 | R-015 | Prelaunch não medido | T-1002 e T-1003 dentro do MVP-0a/0b, não no fim |
 | R-020 | Cofre sem impedimento técnico ao provedor | E-20 bloqueado por B-006/PS-07 |
+| **R-025** | **O MVP-1 é o novo gargalo:** ~3 meses entre o fim do dogfood (jan/2027) e o piloto (abr/2027) para os épicos E-13 a E-18 | Definir subconjunto mínimo do piloto — **B-009**, com recomendação preliminar na §5 |
 
 ---
 
