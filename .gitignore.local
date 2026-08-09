@@ -1,0 +1,58 @@
+# AppBridge-specific
+# Certificates and secrets (NEVER commit)
+*.pfx
+*.p12
+*.pem
+*.key
+*.crt
+
+# .NET User Secrets
+user-secrets/
+[Uu]ser-[Ss]ecrets/
+
+# Environment files (local development)
+.env
+.env.local
+.env.*.local
+appsettings.Development.local.json
+appsettings.Staging.local.json
+
+# VS Code
+.vscode/settings.local.json
+
+# Rider
+.idea/
+*.sln.iml
+
+# Build artifacts
+bin/
+obj/
+dist/
+build/
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+
+# Test results
+TestResults/
+*.trx
+
+# RDP files (temporary)
+*.rdp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vs/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Misc
+.temporary/
+*.log

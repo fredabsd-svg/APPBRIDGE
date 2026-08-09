@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>AppBridge.ControlPlane.Application</RootNamespace>
+    <AssemblyName>AppBridge.ControlPlane.Application</AssemblyName>
+    <Version>0.0.1-alpha</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Core/AppBridge.ControlPlane.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Use cases and application services -->
+  </ItemGroup>
+
+</Project>

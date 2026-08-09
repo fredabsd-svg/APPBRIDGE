@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>AppBridge.ControlPlane.Core</RootNamespace>
+    <AssemblyName>AppBridge.ControlPlane.Core</AssemblyName>
+    <Version>0.0.1-alpha</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Domain model dependencies -->
+  </ItemGroup>
+
+</Project>
