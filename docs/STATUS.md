@@ -38,14 +38,26 @@
 | M2c · MVP-1 (subconjunto) | fev–mar/2027 | **Escopo a definir — B-009** |
 | M3 · Piloto Caminho B | **abr–jun/2027** | 3–5 escritórios, portões G-01 a G-05 cumpridos |
 
-## 3. E-00 (Setup) — em progresso
+## 3. E-00 (Setup) — 75% concluído
 
 | Tarefa | Status | Descrição |
 |--------|--------|-----------|
 | **T-00.2** | ✅ Concluída (2026-08-09) | Estrutura .NET (AppBridge.sln, 7 projetos, camadas Clean Architecture) |
-| **T-00.3** | 🟡 Planejada | Configurar `dotnet user-secrets` por ambiente |
-| **T-00.4** | 🟡 Planejada | GitHub Actions: detect-secrets validando `.secrets.baseline` |
-| **T-00.5** | 🟡 Planejada | ADR-0015 — encadeamento criptográfico da trilha (PS-03) |
+| **T-00.3** | ✅ Concluída (2026-08-09) | `dotnet user-secrets` setup scripts (PowerShell + Bash), config options |
+| **T-00.4** | ✅ Concluída (2026-08-09) | GitHub Actions: detect-secrets validado, SECRETS-SCANNING.md documentado |
+| **T-00.5** | 🟡 Bloqueada por B-007 | ADR-0015 — encadeamento criptográfico da trilha (PS-03), aguardando Frederico |
+
+## 4. E-02 (Fundação do Control Plane) — 25% concluído
+
+| Tarefa | Status | Descrição |
+|--------|--------|-----------|
+| **T-02.1** | ✅ Concluída (2026-08-09) | Schema BD: 6 entities (Tenant, User, Application, Session, Permission, AuditLog) com multi-tenancy |
+| **T-02.2** | 🟡 Planejada | EF Core DbContext finalizado; migrations iniciais (aguardando dotnet CLI) |
+| **T-02.3** | 🟡 Planejada | Autenticação/autorização base (JWT, AD/Entra) |
+| **T-02.4** | 🟡 Planejada | Audit logging framework (blocker, RNF-022) |
+| **T-02.5** | 🟡 Planejada | Autorização por aplicativo (permission checks) |
+| **T-02.6** | ✅ Concluída (2026-08-09) | Multi-tenant isolation: composite FKs, global filters implementados |
+| **T-02.7** | 🟡 Planejada | API base (controllers, middleware, error handling) |
 
 ## 4. Próximos passos — implementação do MVP-0a
 
