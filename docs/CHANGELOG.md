@@ -6,6 +6,14 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Adicionado — execução (S005)
+- `docs/operacao/E-01-infraestrutura/` — material de execução do épico de infraestrutura, primeiro do
+  caminho crítico do MVP-0a: visão do épico com ordem e dependências, especificação de aquisição de
+  T-101 (dimensionamento justificado, licenças e as perguntas de SPLA para T-003) e roteiro de
+  implantação de T-102 a T-107, que traduz os ADR-0002, 0003, 0008, 0009 e 0010 em configuração
+  concreta, com verificação por passo e V-01/V-04/V-08 como critério de aceite.
+- Premissas PRE-27 (RAM por sessão) e PRE-28 (tamanho do container FSLogix), ambas a medir no dogfood.
+
 ### Alterado — licenciamento (ADR-0014, S004)
 - **O licenciamento dos aplicativos hospedados passa a ser responsabilidade do cliente**, que
   adquire, instala e usa suas próprias licenças. O AppBridge não consulta fornecedor nem intermedia

@@ -1,7 +1,7 @@
 # STATUS — AppBridge
 > Estado vivo do projeto. Atualizado ao fim de toda sessão (RA-02).
 
-**Última atualização:** 2026-08-08 · **Sessão atual:** S004 · **Fase:** ✅ Design concluído → **implementação do MVP-0a**
+**Última atualização:** 2026-08-08 · **Sessão atual:** S005 · **Fase:** ✅ Design concluído → **implementação do MVP-0a**
 
 ---
 
@@ -46,11 +46,11 @@ resultado negativo em G-01 pouparia meses de construção.
 | Ordem | Ação | Tarefa | Por que agora |
 |-------|------|--------|---------------|
 | 1 | **Registro de licenças** — preencher a matriz com o inventário do dogfood; minuta da declaração de titularidade para o piloto, junto com T-002 | T-001 / G-01 | Reorientada por ADR-0014: não depende mais de fornecedor, mas o resíduo de R-001 permanece |
-| 2 | **Aquisição** de host, Windows Server 2025 e RDS CALs | T-101 | Prazo de entrega é externo; atrasa tudo o que vem depois |
+| 2 | **Aquisição** de host, Windows Server 2025 e RDS CALs — 🟡 **especificação pronta** em `operacao/E-01-infraestrutura/T-101-especificacao-de-aquisicao.md`; falta cotar e comprar | T-101 | **Única dependência externa restante do início.** Prazo de entrega define se M2a se sustenta |
 | 3 | **Cotação SPLA** | T-003 | Valida PRE-05 e a viabilidade econômica do piloto |
-| 4 | VMs separadas, domínio, RDS, FSLogix, AppLocker | T-102 a T-105 | Épico E-01, caminho crítico |
-| 5 | Ingresso das estações e GPOs | T-106 | A tarefa que mais facilmente estoura o prazo |
-| 6 | Varredura externa | T-107 / V-01 | Comprova CS-04 desde a primeira semana |
+| 4 | VMs separadas, domínio, RDS, FSLogix, AppLocker — 🟡 **roteiro pronto** em `operacao/E-01-infraestrutura/roteiro-implantacao.md` | T-102 a T-105 | Épico E-01, caminho crítico. Depende do equipamento |
+| 5 | Ingresso das estações e GPOs — roteiro pronto | T-106 | A tarefa que mais facilmente estoura o prazo; sequenciar cedo |
+| 6 | Varredura externa | T-107 / V-01 | Comprova CS-04. Pode correr em paralelo a partir de T-102 |
 | 7 | Só então: fundação do Control Plane e lançamento assinado | E-02, E-05 | Depende da infraestrutura existir |
 
 **Decisões que ainda cabem a Frederico, em paralelo:** B-009 (subconjunto do MVP-1 exigido pelo
@@ -131,6 +131,8 @@ se faz com ADR novo que substitui o anterior.
 | PRE-22 | SessionPrimer + GPO de tempo de logoff sustentam o prelaunch por uma jornada de trabalho | ARQUITETURA §5.3 | medição no dogfood (T-005) |
 | PRE-23 | O Connection Broker permite consultar e encerrar sessões com a confiabilidade exigida por RF-038 e RF-008 | ARQUITETURA §4.2 | validação técnica (T-005) |
 | PRE-24 | Retenção de `host_telemetry`: 90 dias (não é trilha de auditoria) | MODELO-DE-DADOS §6.3 | quando o Agent existir (V2) |
+| PRE-27 | 2–3 GB de RAM por sessão com Domínio + Alterdata + Excel simultâneos | E-01 / T-101 | medição no dogfood |
+| PRE-28 | 20–30 GB de container FSLogix por usuário | E-01 / T-101 | medição no dogfood |
 | PRE-25 | 1 ponto de estimativa ≈ meio dia de trabalho focado | ROADMAP §1.1 | primeira semana de implementação |
 | PRE-26 | Dedicação de 40% a 60% do tempo útil ao projeto | ROADMAP §4 | Frederico |
 
