@@ -1,7 +1,7 @@
 # STATUS — AppBridge
 > Estado vivo do projeto. Atualizado ao fim de toda sessão (RA-02).
 
-**Última atualização:** 2026-08-08 · **Sessão atual:** S005 · **Fase:** ✅ Design concluído → **implementação do MVP-0a**
+**Última atualização:** 2026-08-09 · **Sessão atual:** S006 · **Fase:** ✅ Design concluído → **implementação do MVP-0a (E-00 em progresso)**
 
 ---
 
@@ -38,25 +38,35 @@
 | M2c · MVP-1 (subconjunto) | fev–mar/2027 | **Escopo a definir — B-009** |
 | M3 · Piloto Caminho B | **abr–jun/2027** | 3–5 escritórios, portões G-01 a G-05 cumpridos |
 
-## 3. Próximos passos — implementação do MVP-0a
+## 3. E-00 (Setup) — em progresso
+
+| Tarefa | Status | Descrição |
+|--------|--------|-----------|
+| **T-00.2** | ✅ Concluída (2026-08-09) | Estrutura .NET (AppBridge.sln, 7 projetos, camadas Clean Architecture) |
+| **T-00.3** | 🟡 Planejada | Configurar `dotnet user-secrets` por ambiente |
+| **T-00.4** | 🟡 Planejada | GitHub Actions: detect-secrets validando `.secrets.baseline` |
+| **T-00.5** | 🟡 Planejada | ADR-0015 — encadeamento criptográfico da trilha (PS-03) |
+
+## 4. Próximos passos — implementação do MVP-0a
 
 Ordem deliberada: **o que não é código vem primeiro**, porque é caminho crítico (R-023) e porque um
 resultado negativo em G-01 pouparia meses de construção.
 
 | Ordem | Ação | Tarefa | Por que agora |
 |-------|------|--------|---------------|
-| 1 | **Registro de licenças** — preencher a matriz com o inventário do dogfood; minuta da declaração de titularidade para o piloto, junto com T-002 | T-001 / G-01 | Reorientada por ADR-0014: não depende mais de fornecedor, mas o resíduo de R-001 permanece |
-| 2 | **Aquisição** de host, Windows Server 2025 e RDS CALs — 🟡 **especificação pronta** em `operacao/E-01-infraestrutura/T-101-especificacao-de-aquisicao.md`; falta cotar e comprar | T-101 | **Única dependência externa restante do início.** Prazo de entrega define se M2a se sustenta |
-| 3 | **Cotação SPLA** | T-003 | Valida PRE-05 e a viabilidade econômica do piloto |
-| 4 | VMs separadas, domínio, RDS, FSLogix, AppLocker — 🟡 **roteiro pronto** em `operacao/E-01-infraestrutura/roteiro-implantacao.md` | T-102 a T-105 | Épico E-01, caminho crítico. Depende do equipamento |
-| 5 | Ingresso das estações e GPOs — roteiro pronto | T-106 | A tarefa que mais facilmente estoura o prazo; sequenciar cedo |
-| 6 | Varredura externa | T-107 / V-01 | Comprova CS-04. Pode correr em paralelo a partir de T-102 |
-| 7 | Só então: fundação do Control Plane e lançamento assinado | E-02, E-05 | Depende da infraestrutura existir |
+| 1 | **Setup e decisões críticas** — E-00 (T-00.2 ✅ concluída, T-00.3/4/5 abertas) + B-009, B-006, B-007 | T-00.1..T-00.5 | Fundação para qualquer código |
+| 2 | **Registro de licenças** — preencher a matriz com o inventário do dogfood; minuta da declaração de titularidade para o piloto, junto com T-002 | T-001 / G-01 | Reorientada por ADR-0014: não depende mais de fornecedor, mas o resíduo de R-001 permanece |
+| 3 | **Aquisição** de host, Windows Server 2025 e RDS CALs — 🟡 **especificação pronta** em `operacao/E-01-infraestrutura/T-101-especificacao-de-aquisicao.md`; falta cotar e comprar | T-101 | **Única dependência externa restante do início.** Prazo de entrega define se M2a se sustenta |
+| 4 | **Cotação SPLA** | T-003 | Valida PRE-05 e a viabilidade econômica do piloto |
+| 5 | VMs separadas, domínio, RDS, FSLogix, AppLocker — 🟡 **roteiro pronto** em `operacao/E-01-infraestrutura/roteiro-implantacao.md` | T-102 a T-105 | Épico E-01, caminho crítico. Depende do equipamento |
+| 6 | Ingresso das estações e GPOs — roteiro pronto | T-106 | A tarefa que mais facilmente estoura o prazo; sequenciar cedo |
+| 7 | Varredura externa | T-107 / V-01 | Comprova CS-04. Pode correr em paralelo a partir de T-102 |
+| 8 | Só então: fundação do Control Plane e lançamento assinado | E-02, E-05 | Depende da infraestrutura existir |
 
 **Decisões que ainda cabem a Frederico, em paralelo:** B-009 (subconjunto do MVP-1 exigido pelo
 piloto), B-006 (PS-07, cofre) e B-007 (PS-03, encadeamento da trilha).
 
-## 4. Bloqueios ativos
+## 5. Bloqueios ativos
 
 | ID | Bloqueio | Impede | Responsável |
 |----|----------|--------|-------------|
@@ -70,7 +80,7 @@ piloto), B-006 (PS-07, cofre) e B-007 (PS-03, encadeamento da trilha).
 | B-007 | **Decisão sobre PS-03** — encadeamento criptográfico da trilha, para que ela seja verificável por terceiro. Alteraria ADR-0007 e exige ADR novo | Piloto do Caminho B | Frederico |
 | ~~B-005~~ | ~~Questões abertas de `REQUISITOS.md` §7~~ | — | **Encerrado em 2026-08-08** — 3 de 5 decididas por ADR-0007/0008; as outras 2 dependem de levantamento (T-001, parque de estações), não de decisão |
 
-## 5. Tarefas abertas
+## 6. Tarefas abertas (além de E-00)
 
 | ID | Tarefa | Origem | Responsável | Criticidade |
 |----|--------|--------|-------------|-------------|
@@ -81,7 +91,7 @@ piloto), B-006 (PS-07, cofre) e B-007 (PS-03, encadeamento da trilha).
 | T-005 | **Medições obrigatórias no dogfood**, que a arquitetura não resolve no papel: PRE-22 (o prelaunch sustenta uma jornada de trabalho?), PRE-23 (o Connection Broker permite consultar e encerrar sessões com confiabilidade?), PRE-20 (token A3 funciona redirecionado?), PRE-11 (abertura ≤ 5 s?) | ARQUITETURA §8 | AppBridge (implementação) | **Alta — RNF-027, RF-008, RF-038, RF-062 dependem** |
 | T-006 | Ingressar as estações do escritório no domínio e distribuir por GPO a delegação de credenciais, a política de redirecionamento e a impressão digital do certificado de assinatura | ADR-0008, ADR-0009, ADR-0010 | Frederico / implantação | **Alta — é a tarefa que mais facilmente estoura o prazo do MVP-0** |
 
-## 6. Decisões de arquitetura (ADR)
+## 7. Decisões de arquitetura (ADR)
 
 Todas aceitas em 2026-08-08, por delegação de Frederico. **ADR aceito é imutável (RA-05)** — revisão
 se faz com ADR novo que substitui o anterior.
@@ -103,7 +113,7 @@ se faz com ADR novo que substitui o anterior.
 | [ADR-0013](adr/ADR-0013-replanejamento-do-mvp-0-e-piloto-no-segundo-trimestre.md) | **Replanejamento** | MVP-0 dividido em **MVP-0a** (esqueleto ambulante, out/2026) e **MVP-0b** (dogfood real, dez/2026–jan/2027); piloto do Caminho B em **abr–jun/2027** com 3–5 escritórios. Portões G-01..G-05 mantidos intransponíveis | marcos, não requisitos |
 | [ADR-0012](adr/ADR-0012-convencoes-da-api.md) | Convenções da API | `/v1` no caminho; erro em Problem Details com código estável; `Idempotency-Key` obrigatório no lançamento; **o `tenant_id` nunca vem do cliente** — não existe parâmetro a verificar; recurso de outro tenant responde `404`; paginação por cursor | — (detalha RF-021, RF-025, RNF-036, RNF-043) |
 
-## 7. Premissas abertas (RP-05)
+## 8. Premissas abertas (RP-05)
 
 | ID | Premissa | Origem | Confirmar com |
 |----|----------|--------|---------------|
@@ -136,7 +146,7 @@ se faz com ADR novo que substitui o anterior.
 | PRE-25 | 1 ponto de estimativa ≈ meio dia de trabalho focado | ROADMAP §1.1 | primeira semana de implementação |
 | PRE-26 | Dedicação de 40% a 60% do tempo útil ao projeto | ROADMAP §4 | Frederico |
 
-## 8. Riscos registrados
+## 9. Riscos registrados
 
 | ID | Risco | Severidade | Estado |
 |----|-------|-----------|--------|
@@ -167,7 +177,7 @@ se faz com ADR novo que substitui o anterior.
 | R-008 | Windows 10 saiu do suporte padrão em out/2025 (PRE-16). Estação sem atualização de segurança é risco do lado do cliente que o AppBridge não elimina — apenas reduz, por manter dado e aplicativo no servidor | Média | Aberto — depende de B-005 |
 | RM-01..RM-10 | Riscos de mercado — ver `VISAO.md` §6 | vários | Aberto |
 
-## 9. Pendências de projeto abertas
+## 10. Pendências de projeto abertas
 
 | ID | Pendência | Origem | Resolver antes de |
 |----|-----------|--------|-------------------|
@@ -191,6 +201,6 @@ não de implementação:
 | **PS-05**, **PS-09**, **PS-10** | Permissões mínimas da conta de serviço, limites de taxa, procedimento de comprometimento do certificado de assinatura | MVP-0 |
 | **PS-01**, **PS-04**, **PS-06** | Detecção de uso indevido da chave, varredura de segredos, política de dependências | MVP-1 |
 
-## 10. Violações de processo detectadas (RA-06)
+## 11. Violações de processo detectadas (RA-06)
 
 Nenhuma.
