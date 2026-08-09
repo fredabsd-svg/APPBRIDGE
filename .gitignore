@@ -1,0 +1,38 @@
+# Build output
+bin/
+obj/
+out/
+publish/
+*.user
+*.suo
+
+# .NET / Windows App SDK
+[Dd]ebug/
+[Rr]elease/
+AppPackages/
+BundleArtifacts/
+*.appx
+*.appxbundle
+*.msix
+*.msixbundle
+
+# Secrets — RP-06: segredos jamais versionados
+*.pfx
+*.p12
+*.snk
+appsettings.*.local.json
+.env
+.env.*
+secrets.json
+
+# Local databases / logs
+*.db
+*.db-shm
+*.db-wal
+*.log
+
+# Tooling
+.vs/
+.vscode/
+.idea/
+node_modules/
