@@ -1,7 +1,7 @@
 # STATUS — AppBridge
 > Estado vivo do projeto. Atualizado ao fim de toda sessão (RA-02).
 
-**Última atualização:** 2026-08-08 · **Sessão atual:** S003 · **Fase:** ✅ Design concluído → **implementação do MVP-0a**
+**Última atualização:** 2026-08-08 · **Sessão atual:** S004 · **Fase:** ✅ Design concluído → **implementação do MVP-0a**
 
 ---
 
@@ -45,7 +45,7 @@ resultado negativo em G-01 pouparia meses de construção.
 
 | Ordem | Ação | Tarefa | Por que agora |
 |-------|------|--------|---------------|
-| 1 | **Licenciamento dos aplicativos** — 🟡 cartas prontas em `operacao/T-001-licenciamento/`; falta preencher dados de contrato e enviar | T-001 / G-01 | Não depende de código e pode encerrar o Caminho B (R-001). Maior retorno sobre esforço do projeto |
+| 1 | **Registro de licenças** — preencher a matriz com o inventário do dogfood; minuta da declaração de titularidade para o piloto, junto com T-002 | T-001 / G-01 | Reorientada por ADR-0014: não depende mais de fornecedor, mas o resíduo de R-001 permanece |
 | 2 | **Aquisição** de host, Windows Server 2025 e RDS CALs | T-101 | Prazo de entrega é externo; atrasa tudo o que vem depois |
 | 3 | **Cotação SPLA** | T-003 | Valida PRE-05 e a viabilidade econômica do piloto |
 | 4 | VMs separadas, domínio, RDS, FSLogix, AppLocker | T-102 a T-105 | Épico E-01, caminho crítico |
@@ -74,7 +74,7 @@ piloto), B-006 (PS-07, cofre) e B-007 (PS-03, encadeamento da trilha).
 
 | ID | Tarefa | Origem | Responsável | Criticidade |
 |----|--------|--------|-------------|-------------|
-| T-001 | **Material de consulta pronto em `operacao/T-001-licenciamento/`** (S003): cartas para Domínio e Alterdata, carta-modelo e matriz. **Bloqueado no envio** — depende dos dados de contrato e do inventário real, que só Frederico tem. Tabela **app × versão × tipo de licença × multiusuário S/N**, com confirmação **por escrito** de Domínio/Thomson Reuters e Alterdata sobre execução em servidor de terminal; Office só via licença por volume (LTSC) ou M365 Apps com ativação em computador compartilhado — OEM/varejo não serve; ERPs de clientes: cláusula de instalação em servidor | P3 | Frederico + AppBridge (levantamento) | **Crítica — pré-condição do Caminho B (R-001)** |
+| T-001 | **Reorientada por ADR-0014** — o cliente adquire, instala e usa suas próprias licenças; **não se consulta fornecedor** (cartas removidas). Resta: preencher a matriz com o inventário declarado (app × versão × tipo de licença × quantidade) e, para o piloto, obter a **declaração de titularidade e conformidade** assinada por cada cliente | P3, ADR-0014 | Frederico | Alta — G-01 na nova forma |
 | T-002 | Minuta do termo de autorização de custódia e uso de certificado digital, revisada por advogado | P6 | Frederico / jurídico | Alta — bloqueia DIF-01 em produção |
 | T-003 | Cotação SPLA atual em revendedor, para validar PRE-05 (custo ≤ R$ 50/usuário/mês) | P8 | Frederico | Alta |
 | T-004 | Verificar estágio comercial das ofertas de nuvem de Domínio/Thomson Reuters e Alterdata (PRE-06) | RM-04 | Frederico | Média |
@@ -99,6 +99,7 @@ se faz com ADR novo que substitui o anterior.
 | [ADR-0009](adr/ADR-0009-assinatura-do-rdp-e-hospedagem-do-control-plane.md) | Assinatura do `.rdp` | Assinatura via `rdpsign.exe` atrás da interface `IRdpFileSigner`. **Consequência assumida: o Control Plane é componente Windows** — contêiner Linux está fora enquanto esta decisão valer. Caminho de saída registrado para o Caminho A | — (detalha RF-019, RNF-002) |
 | [ADR-0010](adr/ADR-0010-autenticacao-na-sessao-e-ingresso-das-estacoes.md) | Autenticação na sessão | Estações **ingressadas no domínio**, com delegação de credenciais por GPO restrita aos session hosts nominados. A senha de domínio nunca passa pelo Control Plane. Caminho degradado documentado para máquina fora do domínio | — (detalha RNF-042) |
 | [ADR-0011](adr/ADR-0011-convencoes-do-modelo-de-dados.md) | Convenções do modelo de dados | UUID v7 como chave, `timestamptz` em UTC, exclusão lógica para dado de tenant e proibida para trilha, e **chave estrangeira composta com `tenant_id`** — segunda linha de defesa que impede no motor uma linha do tenant A apontar para o tenant B | — (detalha RNF-019, RNF-020, RNF-036) |
+| [ADR-0014](adr/ADR-0014-licenciamento-dos-aplicativos-e-do-cliente.md) | **Licenciamento dos aplicativos** | O cliente adquire, instala e usa suas próprias licenças. O AppBridge **não consulta fornecedor nem intermedia licença**. G-01 deixa de ser confirmação escrita do fornecedor e passa a ser **declaração de titularidade e conformidade assinada pelo cliente**. Restringe NO-04 | nenhuma — não altera RF/RNF |
 | [ADR-0013](adr/ADR-0013-replanejamento-do-mvp-0-e-piloto-no-segundo-trimestre.md) | **Replanejamento** | MVP-0 dividido em **MVP-0a** (esqueleto ambulante, out/2026) e **MVP-0b** (dogfood real, dez/2026–jan/2027); piloto do Caminho B em **abr–jun/2027** com 3–5 escritórios. Portões G-01..G-05 mantidos intransponíveis | marcos, não requisitos |
 | [ADR-0012](adr/ADR-0012-convencoes-da-api.md) | Convenções da API | `/v1` no caminho; erro em Problem Details com código estável; `Idempotency-Key` obrigatório no lançamento; **o `tenant_id` nunca vem do cliente** — não existe parâmetro a verificar; recurso de outro tenant responde `404`; paginação por cursor | — (detalha RF-021, RF-025, RNF-036, RNF-043) |
 
@@ -137,7 +138,7 @@ se faz com ADR novo que substitui o anterior.
 
 | ID | Risco | Severidade | Estado |
 |----|-------|-----------|--------|
-| R-001 | Licença de Domínio/Alterdata pode vedar execução multiusuário em servidor de terminal — invalida o Caminho B | **Crítica** | Aberto — mitigação em T-001 |
+| R-001 | **Reescrito por ADR-0014.** A responsabilidade de licenciamento passa a ser do cliente, o que **aloca** a exposição mas não a elimina: se um fornecedor vedar execução em servidor de sessão, a vedação continua existindo. Resíduo específico do Caminho B: termos que restringem execução em **infraestrutura operada por terceiro**, independentemente de quem detém a licença — nesse caso a declaração do cliente não protege o provedor | **Alta** (era Crítica) | Aberto — resíduo para o advogado de T-002; G-01 vira declaração assinada |
 | R-002 | Custódia centralizada de A1 tem exposição jurídica antes da técnica | Alta | Aberto — mitigação em T-002 |
 | R-003 | SPLA/RDS SAL como custo fixo pode inviabilizar PRE-05 | Alta | Aberto — mitigação em T-003 |
 | R-004 | Fosso só chega em V2/V3; MVP-0 e MVP-1 não se distinguem de um RDS bem configurado | Alta | **Mitigado parcialmente por ADR-0006** — metering mínimo antecipado para MVP-1. MVP-0 segue sem diferencial, por decisão |

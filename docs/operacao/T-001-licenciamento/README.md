@@ -1,89 +1,74 @@
-# T-001 — Consulta de licenciamento aos fornecedores
-> Tarefa **T-001** · Portão **G-01** do piloto · Risco coberto: **R-001 (crítico)**
-> Origem: P3 · Sessão S003 · 2026-08-08
+# T-001 — Registro de licenciamento dos aplicativos
+> Tarefa **T-001** · Portão **G-01** · Risco **R-001**
+> **Reorientada em 2026-08-08 por ADR-0014.** Origem: P3 · Sessões S003 e S004
 
 ---
 
-## 1. Por que esta tarefa existe e por que ela vem primeiro
+## 1. O que esta tarefa é — e o que deixou de ser
 
-O AppBridge executa aplicativos de terceiros em **servidor de sessão multiusuário**. Se o contrato de
-licença de Domínio ou de Alterdata vedar esse modo de uso — ou cobrar por ele de forma que inviabilize
-o preço-alvo —, o **Caminho B (serviço hospedado) deixa de existir** e o Caminho A perde boa parte do
-público-alvo.
+**Decisão vigente (ADR-0014): o licenciamento dos aplicativos hospedados é responsabilidade do
+cliente. O cliente adquire, instala e usa suas próprias licenças.**
 
-Isso é **R-001**, o risco mais grave do projeto inteiro. E tem uma característica rara: **não depende
-de código**. A resposta pode chegar antes da primeira linha escrita.
+Em consequência:
 
-> **A pergunta que essa consulta responde na prática:** "vale a pena construir isto?"
-> Uma negativa aqui economiza meses. Uma confirmação escrita vale mais que qualquer sprint.
+| Antes (S003) | Agora (ADR-0014) |
+|--------------|------------------|
+| Consultar Domínio e Alterdata por carta formal | **Não se consulta fornecedor.** As cartas foram removidas |
+| G-01 = confirmação escrita do fornecedor | **G-01 = declaração de titularidade e conformidade assinada pelo cliente**, anexa ao contrato |
+| Matriz = resultado da consulta | **Matriz = registro do que o cliente declarou** |
 
-Por isso T-001 é a tarefa de maior retorno sobre esforço do projeto, e por isso ela e a aquisição de
-hardware são as duas primeiras coisas a começar (`ROADMAP.md` §8, R-023).
+Isso é coerente com **NO-04** (`VISAO.md`): o AppBridge distribui aplicativos, não licencia software
+de terceiros. O ADR-0014 apenas restringe a formulação — passa a ser **sempre** pelo cliente.
 
-## 2. Os dois cenários — e por que eles precisam ser perguntados separadamente
+## 2. O que a matriz serve agora
 
-Esta é a decisão mais importante da redação das cartas. Muitos fornecedores tratam os dois de forma
-completamente diferente, e uma resposta genérica ("sim, pode usar em servidor") **não distingue**:
+`matriz-licenciamento.md` deixa de ser instrumento de consulta e passa a ter três usos operacionais:
 
-| Cenário | Descrição | Fase | Se for vedado |
-|---------|-----------|------|---------------|
-| **C-1 · Uso próprio** | O escritório instala em servidor próprio e seus **próprios colaboradores** acessam remotamente | MVP-0, dogfood | O dogfood não acontece. O projeto para |
-| **C-2 · Hospedagem para terceiros** | Um provedor hospeda o software e **escritórios clientes** acessam | Piloto, Caminho B | O Caminho B morre. O Caminho A sobrevive |
+1. **Dimensionamento** — saber quantos usuários simultâneos cada aplicativo terá.
+2. **Metering** — alimentar o teto por aplicativo (RF-063), quando o metering chegar no MVP-1.
+3. **Evidência** — registrar o que o cliente declarou possuir, e quando.
 
-**C-1 costuma ser permitido; C-2 é onde mora o risco.** Uma carta que pergunte apenas "posso usar em
-servidor?" recebe um "sim" que não cobre C-2 — e o problema só aparece quando já houver clientes.
+## 3. O que precisa existir antes do piloto
 
-## 3. O que caracteriza uma resposta útil
+**A declaração de titularidade e conformidade de licença** (ADR-0014, item 3). Sem ela, a alocação de
+responsabilidade decidida existe apenas na intenção. Conteúdo mínimo sugerido:
 
-Uma resposta serve para G-01 quando tem **as quatro** características:
+- Identificação do cliente e dos aplicativos que solicita publicar, com versão e quantidade de licenças.
+- Declaração de que **detém as licenças** desses aplicativos e responde por sua conformidade.
+- Reconhecimento de que os aplicativos serão executados em **servidor de sessão multiusuário**, e de
+  que cabe ao cliente verificar essa condição junto ao respectivo fornecedor.
+- Menção explícita ao **suporte**: se o fabricante limitar ou recusar suporte por causa desse modo de
+  uso, quem fica sem suporte é o cliente.
+- Compromisso de manter a informação atualizada quando trocar de versão ou de quantidade de licenças.
 
-1. **Por escrito** — e-mail com identificação de quem responde. Conversa de chat ou telefone não serve.
-2. **De canal com autoridade** — gerente de conta, canal comercial formal ou jurídico. **Resposta de
-   atendente de suporte de primeiro nível não vale**, porque não vincula o fornecedor.
-3. **Com referência à cláusula** do contrato ou do EULA, e não apenas a opinião de quem respondeu.
-4. **Distinguindo C-1 de C-2** explicitamente.
+> A minuta deve passar por advogado, junto com T-002 (termo de custódia de certificado). Não redigimos
+> instrumento contratual aqui.
 
-> **A armadilha mais comum:** o fornecedor não veda, mas declara que **não presta suporte** nesse
-> cenário. Na prática, isso é um veto disfarçado — um escritório contábil não opera um sistema
-> fiscal sem suporte do fabricante. Por isso a pergunta sobre suporte é item próprio nas cartas, e
-> não uma nota de rodapé.
+## 4. O que continua sendo responsabilidade do provedor
 
-## 4. Arquivos desta pasta
+O ADR-0014 desloca a licença **dos aplicativos hospedados**, não a da plataforma. Continuam com o
+provedor, e entram na matriz com origem "revendedor":
 
-| Arquivo | Uso |
-|---------|-----|
-| `carta-modelo.md` | Modelo parametrizado. Serve para qualquer fornecedor, inclusive ERPs de clientes |
-| `carta-dominio.md` | Versão pronta para Domínio / Thomson Reuters |
-| `carta-alterdata.md` | Versão pronta para Alterdata |
-| `matriz-licenciamento.md` | **O entregável de T-001** — a tabela que consolida as respostas |
+- **Windows Server 2025** e **RDS CAL por usuário** (T-101).
+- No Caminho B, avaliação de **SPLA**, que é o que T-003 apura e o que valida ou derruba PRE-05.
+- **Office**, quando fornecido pelo provedor: exige licença por volume (LTSC) ou M365 Apps com
+  ativação em computador compartilhado — OEM/varejo não atende (P3). Se o Office for do cliente, cai
+  na declaração da §3.
 
-## 5. Como conduzir
+## 5. Critério de conclusão de T-001
 
-1. **Levantar o inventário real** antes de enviar: aplicativo, versão, módulos e número de usuários.
-   As cartas têm um quadro para isso; enviar com o quadro vazio enfraquece a consulta.
-2. **Enviar pelo canal comercial formal**, com cópia para o gerente de conta.
-3. **Registrar a data de envio** na `matriz-licenciamento.md`.
-4. **Cobrar em 10 dias úteis** se não houver resposta. Silêncio não é permissão.
-5. **Arquivar a resposta** — o e-mail é evidência contratual e precisa sobreviver a troca de caixa
-   postal. Guardar em local que não seja apenas o webmail de uma pessoa.
-6. **Consolidar na matriz** e reavaliar o Caminho B à luz do conjunto.
+T-001 está concluída quando a matriz tiver, para cada aplicativo do inventário do dogfood, a linha
+preenchida com aplicativo, versão, tipo e quantidade de licença — e, para o piloto, quando cada
+cliente tiver assinado a declaração da §3.
 
-## 6. Office e Microsoft — não precisa de carta
+## 6. O resíduo que a decisão não elimina — leia antes do piloto
 
-O caso do Office é diferente: as regras são públicas e a questão não é "posso?", e sim **"qual SKU
-comprar"**. Conforme P3, o que precisa ser verificado com um revendedor Microsoft:
+Quem instala não altera o que a licença permite. Se algum fornecedor vedar execução em servidor de
+sessão, a vedação continua existindo; o que muda é **quem responde por ela**.
 
-- Office em servidor de sessão exige **licença por volume (LTSC)** ou **Microsoft 365 Apps com
-  ativação em computador compartilhado**. Licença **OEM ou varejo não atende** a esse cenário.
-- **RDS CAL por usuário** para cada pessoa que acessar (já previsto em T-101).
-- No Caminho B, a hospedagem para terceiros normalmente passa por **SPLA**, o que muda a estrutura de
-  custo — é o que T-003 (cotação SPLA) precisa apurar, e o que valida ou derruba PRE-05.
+Há ainda um resíduo específico do Caminho B: alguns termos de licença restringem execução em
+**infraestrutura operada por terceiro**, independentemente de quem detenha a licença. Nesse caso, a
+declaração do cliente não protege o provedor de um questionamento do fornecedor.
 
-Estes três itens entram na `matriz-licenciamento.md` como linhas próprias, com origem "revendedor",
-e não como resposta de carta.
-
-## 7. Critério de conclusão de T-001
-
-T-001 está concluída quando a `matriz-licenciamento.md` tiver, **para cada aplicativo do inventário**,
-a resposta de C-1 e de C-2 com evidência arquivada — ou a constatação registrada de que o fornecedor
-se recusou a responder, o que é, por si só, um resultado a considerar na decisão sobre o Caminho B.
+Está registrado como **R-001 (reescrito)** em `STATUS.md`, e é assunto para o advogado que revisar a
+minuta da §3 — não para ser resolvido aqui.

@@ -2,6 +2,7 @@
 > Entregável 7 de 7 da fase de Design · Sessão S001 · 2026-08-08
 > Status: **submetido — aguardando aprovação de Frederico** (RP-04)
 > Depende de: todos os entregáveis anteriores e ADR-0001 a ADR-0012
+> Alterado após aprovação: ADR-0013 (marcos, §2 e §5) e ADR-0014 (portão G-01)
 
 ---
 
@@ -298,15 +299,17 @@ afirmações de `SEGURANCA.md` §10.
 
 | Portão | Item | Risco coberto |
 |--------|------|---------------|
-| **G-01** | **T-001 concluído** — confirmação por escrito de que as licenças permitem execução multiusuário | **R-001 — pode invalidar o Caminho B inteiro** |
+| **G-01** | **Declaração de titularidade e conformidade de licença assinada pelo cliente**, anexa ao contrato (ADR-0014). O cliente adquire, instala e usa suas próprias licenças | **R-001 (reescrito)** — a declaração aloca a responsabilidade; não elimina o resíduo do Caminho B |
 | **G-02** | T-003 — cotação SPLA validando PRE-05 | R-003 |
 | **G-03** | PS-02 e V-09 executados | AM-16, AM-25 |
 | **G-04** | Decisão sobre PS-03 (encadeamento da trilha) | R-021 |
 | **G-05** | Revisão do ADR-0003 (malha privada não é vendável) e de PS-08 (área de transferência) | R-010, R-011 |
 
-> **G-01 é o portão que pode encerrar o Caminho B.** Ele não depende de código e pode ser iniciado
-> hoje. É a tarefa de maior retorno sobre esforço do projeto inteiro: uma resposta negativa de
-> Domínio ou Alterdata economiza meses de construção.
+> **G-01 mudou de natureza em ADR-0014.** Deixou de ser consulta a fornecedor e passou a ser
+> declaração do cliente. Continua intransponível — cliente sem declaração assinada não entra no
+> piloto —, mas não depende mais de terceiro sem prazo de resposta. O que ele **não** faz é eliminar
+> o resíduo: alguns termos de licença restringem execução em infraestrutura operada por terceiro
+> independentemente de quem detém a licença, e nesse caso a declaração não protege o provedor.
 
 ### V2 · Agent, cofre, metering completo, acesso externo
 
@@ -327,7 +330,7 @@ gantt
     dateFormat YYYY-MM-DD
     title Caminho crítico do MVP-0
     section Externo
-    T-001 licenciamento (G-01)      :crit, t1, 2026-08-11, 45d
+    Registro de licenças (G-01)     :t1, 2026-08-11, 20d
     Aquisição de host e licenças    :crit, a1, 2026-08-11, 21d
     section Infraestrutura
     Domínio e VMs (T-102, T-103)    :crit, i1, after a1, 10d
@@ -342,7 +345,7 @@ gantt
 ```
 
 **Dependências fora do controle do projeto:** prazo de entrega do hardware · ativação das licenças ·
-**resposta dos fornecedores em T-001** · disponibilidade das estações e das pessoas para T-106 ·
+disponibilidade das estações e das pessoas para T-106 ·
 parecer do advogado em T-002 (bloqueia V2, não MVP-0).
 
 ---
@@ -367,7 +370,7 @@ parecer do advogado em T-002 (bloqueia V2, não MVP-0).
 | R-006 | Execução solo de projeto com quatro componentes | Divisão em MVP-0a/0b; ordem de corte decidida a frio (§6) |
 | R-007 | Densidade de requisitos Must no MVP-0 | §4 quantifica; §5 replaneja |
 | **R-023** | **A infraestrutura (E-01, 34 pts) é o caminho crítico e não é código** — depende de compra, de terceiros e da agenda das pessoas | Iniciar E-01 **antes** de qualquer linha de código; T-101 e G-01 podem começar hoje |
-| R-001 | Licenciamento pode invalidar o Caminho B | G-01 como portão intransponível do piloto |
+| R-001 | Licenciamento (reescrito por ADR-0014): responsabilidade é do cliente; resta o resíduo de termos que vedam infraestrutura operada por terceiro | G-01 na forma de declaração assinada; resíduo para o advogado de T-002 |
 | R-015 | Prelaunch não medido | T-1002 e T-1003 dentro do MVP-0a/0b, não no fim |
 | R-020 | Cofre sem impedimento técnico ao provedor | E-20 bloqueado por B-006/PS-07 |
 | **R-025** | **O MVP-1 é o novo gargalo:** ~3 meses entre o fim do dogfood (jan/2027) e o piloto (abr/2027) para os épicos E-13 a E-18 | Definir subconjunto mínimo do piloto — **B-009**, com recomendação preliminar na §5 |

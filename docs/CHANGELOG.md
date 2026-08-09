@@ -6,6 +6,24 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Alterado — licenciamento (ADR-0014, S004)
+- **O licenciamento dos aplicativos hospedados passa a ser responsabilidade do cliente**, que
+  adquire, instala e usa suas próprias licenças. O AppBridge não consulta fornecedor nem intermedia
+  licença. Restringe o não-objetivo NO-04, que admitia licenciamento "pelo cliente ou pelo provedor".
+- **Portão G-01 redefinido**: deixa de ser confirmação escrita do fornecedor e passa a ser
+  **declaração de titularidade e conformidade assinada pelo cliente**, anexa ao contrato.
+- `matriz-licenciamento.md` reorientada: de resultado de consulta para **registro do que o cliente
+  declarou**, com uso em dimensionamento, metering (RF-063) e evidência.
+- `ROADMAP.md`: consulta a fornecedor sai do caminho crítico e das dependências externas.
+- **R-001 reescrito** — a decisão aloca a responsabilidade, mas não elimina o fato: quem instala não
+  altera o que a licença permite. Severidade de Crítica para Alta. Resíduo do Caminho B registrado:
+  termos que restringem execução em infraestrutura operada por terceiro.
+
+### Removido
+- `docs/operacao/T-001-licenciamento/carta-modelo.md`, `carta-dominio.md` e `carta-alterdata.md` —
+  as cartas de consulta formal aos fornecedores, criadas em S003 e tornadas desnecessárias por
+  ADR-0014.
+
 ### Adicionado — execução (S003)
 - `docs/operacao/T-001-licenciamento/` — primeira pasta de material operacional, distinta da
   documentação de design: instruções de condução, carta-modelo parametrizada, cartas prontas para
