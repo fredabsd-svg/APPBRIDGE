@@ -86,7 +86,7 @@ public sealed class AuthEndpointTests : IAsyncLifetime
             "/v1/auth/session", new { identityToken = "dev:oid-ana:escritorio-a.local", workstationName = "PC-01" });
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<LoginResponse>(
+        var body = await response.Content.ReadFromJsonAsync<SessionResponse>(
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
         Assert.NotNull(body);
         Assert.False(string.IsNullOrWhiteSpace(body!.AccessToken));

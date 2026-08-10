@@ -26,10 +26,19 @@
 > para o `refreshToken` que o contrato já prometia): **ADR-0017** decide token de sessão em JWT
 > HS256 e `refreshToken` opaco guardado só como hash, em nova tabela `refresh_token`. Nenhuma
 > integração real com Entra ID/AD DS ainda (infraestrutura de E-01 não existe) — um
-> `DevIdentityProvider` viabiliza rodar e testar o endpoint só sob `Development`. **37 testes
-> automatizados no total.** Ver `docs/SETUP-DEV.md` para o ambiente de desenvolvimento (.NET 10 SDK
-> e PostgreSQL 16 locais). Ver §3 para a correção de sequenciamento: E-02 não esperava mais o
-> hardware do que a própria estrutura do código exigia.
+> `DevIdentityProvider` viabiliza rodar e testar o endpoint só sob `Development`.
+>
+> **T-303 também concluída** — `POST /v1/auth/refresh` (rotação: o token apresentado é revogado ao
+> emitir um novo) e `POST /v1/auth/logout` (idempotente, grava `access_event`), escopo restrito ao
+> servidor — o armazenamento no Windows Credential Manager (RF-005) é T-803, do launcher, que ainda
+> não existe. **Dois bugs reais encontrados e corrigidos, não invenção de escopo**: `CreatedAt`/
+> `UpdatedAt` nunca eram gravados em nenhuma entidade desde T-202 (todo `INSERT` persistia
+> `-infinity` silenciosamente) — corrigido de uma vez em `AppBridgeDbContext.SaveChanges(Async)`;
+> e os DTOs de requisição de T-301/T-303 não exigiam seus campos, deixando um corpo malformado virar
+> `500` em vez de `400` — corrigido com `required`. **49 testes automatizados no total.** Ver
+> `docs/SETUP-DEV.md` para o ambiente de desenvolvimento (.NET 10 SDK e PostgreSQL 16 locais). Ver §3
+> para a correção de sequenciamento: E-02 não esperava mais o hardware do que a própria estrutura do
+> código exigia.
 
 
 ## 2. Entregáveis da fase de design — ✅ concluída
@@ -75,8 +84,9 @@ significa que o código espera.
 | 5 | Ingresso das estações e GPOs — roteiro pronto | T-106 | A tarefa que mais facilmente estoura o prazo; sequenciar cedo |
 | 6 | Varredura externa | T-107 / V-01 | Comprova CS-04. Pode correr em paralelo a partir de T-102 |
 | ~~—~~ | ~~**Fundação do Control Plane**~~ | E-02 | **Concluído em 2026-08-10 (S010)** — T-201 a T-207, 29 testes |
-| ~~—~~ | ~~**`POST /v1/auth/session`**~~ | T-301 | **Concluído em 2026-08-10 (S010)** — 37 testes no total; ADR-0017 (token de sessão, `refresh_token`) |
-| **—** | **T-302** (vínculo por SID), **T-303** (refresh/logout) e **T-304** (`AuthorizationService`) seguem E-03, em paralelo com E-01 pelo mesmo motivo já registrado acima | E-03 | T-301 fechou a fundação de identidade que as três precisam |
+| ~~—~~ | ~~**`POST /v1/auth/session`**~~ | T-301 | **Concluído em 2026-08-10 (S010)** — ADR-0017 (token de sessão, `refresh_token`) |
+| ~~—~~ | ~~**`POST /v1/auth/refresh` e `/logout`**~~ | T-303 | **Concluído em 2026-08-10 (S010)** — 49 testes no total; armazenamento cliente (RF-005) continua T-803 |
+| **—** | **T-302** (vínculo por SID) e **T-304** (`AuthorizationService`) seguem E-03, em paralelo com E-01 pelo mesmo motivo já registrado acima | E-03 | T-301/T-303 fecharam a fundação de identidade que as duas precisam |
 
 **Decisões que ainda cabem a Frederico, em paralelo:** B-009 (subconjunto do MVP-1 exigido pelo
 piloto), B-006 (PS-07, cofre) e B-007 (PS-03, encadeamento da trilha).

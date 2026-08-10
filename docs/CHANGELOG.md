@@ -6,6 +6,38 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Adicionado — `POST /v1/auth/refresh` e `POST /v1/auth/logout` (T-303, S010)
+- Refresh com **rotação**: o token apresentado é revogado no mesmo momento em que um novo é
+  emitido, então reutilizar um token já trocado — a assinatura de um roubo — passa a falhar a
+  partir da primeira troca. Reconfere `TenantStatus`/`UserAccountStatus` a cada renovação, não só no
+  login. **Não grava `access_event`** — decisão registrada: ADR-0007 Parte 1 não lista RF-004 entre
+  os eventos bloqueantes, e `MODELO-DE-DADOS.md` §7.2 não categoriza refresh como tipo de evento de
+  acesso.
+- Logout **grava `access_event` (`logout`) via `IAuditWriter`** — está na categorização de §7.2 — e
+  é idempotente por desenho: token desconhecido ou já revogado devolve `204` igual a um logout que
+  revogou de verdade (mesmo raciocínio anti-enumeração de ADR-0012 §5).
+- **Escopo restrito ao servidor.** O título de T-303 também menciona "armazenamento no Credential
+  Manager" (RF-005) — isso já é **T-803**, do launcher (E-08, WinUI), que não existe neste
+  repositório. Construir um launcher agora seria inventar escopo (RP-05); o armazenamento cliente
+  continua T-803.
+
+### Corrigido — `CreatedAt`/`UpdatedAt` nunca eram gravados (T-303, S010)
+- **Bug real, não só de T-303**: `CreatedAt`/`UpdatedAt` são `init`-only por desenho, mas nada em
+  código nenhum jamais os definia — todo `INSERT` desde T-202 persistia silenciosamente
+  `DateTimeOffset.MinValue` (`-infinity` no PostgreSQL). Encontrado inspecionando
+  `refresh_token.created_at` durante a verificação manual de T-303. Corrigido de uma vez em
+  `AppBridgeDbContext.SaveChanges(Async)`, que agora carimba `CreatedAt` em toda entidade inserida e
+  `UpdatedAt` em toda entidade modificada, via `entry.Property(...).CurrentValue` — funciona sobre
+  uma propriedade `init` porque o rastreador de mudanças do EF Core opera abaixo da restrição de
+  tempo de compilação do C#.
+- **Segundo bug, em código já publicado por T-301**: `LoginRequest.IdentityToken` e
+  `RefreshTokenRequest.RefreshToken` não exigiam presença — um corpo sem o campo virava `null` e a
+  próxima linha lançava `NullReferenceException` (`500` genérico, não o `400` esperado). Corrigido
+  marcando os dois campos `required`.
+- **Achado à parte, sem relação com código**: o cabeçalho `### E-04 · Catálogo` havia sido removido
+  sem querer por uma edição do commit de T-301 (a âncora do texto substituído incluía a linha do
+  título; o texto novo não a repôs). Corrigido nesta sessão.
+
 ### Adicionado — `POST /v1/auth/session` (T-301, S010)
 - Primeiro endpoint real do Control Plane — E-03 · Identidade e autorização começa. Valida a
   identidade apresentada, resolve o tenant (via `Tenant.AdDomain`), aplica as regras de negação na

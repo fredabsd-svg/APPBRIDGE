@@ -49,6 +49,44 @@ public sealed class AppBridgeDbContext(DbContextOptions<AppBridgeDbContext> opti
 
     public DbSet<PurgeRun> PurgeRuns => Set<PurgeRun>();
 
+    /// <summary>
+    /// <c>CreatedAt</c>/<c>UpdatedAt</c> are <c>init</c>-only in C# for domain-model immutability,
+    /// which means nothing at any call site can forget to set them — but nothing was setting
+    /// <c>CreatedAt</c> either, so every insert silently persisted <c>DateTimeOffset.MinValue</c>
+    /// (Npgsql's <c>-infinity</c>) until this was caught inspecting <c>refresh_token.created_at</c>
+    /// during T-303. <c>entry.Property(...).CurrentValue</c> can still write an <c>init</c> property
+    /// at runtime — EF Core's change tracker operates below the C# compile-time <c>init</c>
+    /// restriction, the same way materializing an entity from a query already did.
+    /// </summary>
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        StampAuditColumns();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        StampAuditColumns();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    private void StampAuditColumns()
+    {
+        var now = DateTimeOffset.UtcNow;
+        foreach (var entry in ChangeTracker.Entries())
+        {
+            if (entry.State == EntityState.Added && entry.Metadata.FindProperty(nameof(AuditedEntity.CreatedAt)) is not null)
+            {
+                entry.Property(nameof(AuditedEntity.CreatedAt)).CurrentValue = now;
+            }
+
+            if (entry.State == EntityState.Modified && entry.Metadata.FindProperty(nameof(AuditedEntity.UpdatedAt)) is not null)
+            {
+                entry.Property(nameof(AuditedEntity.UpdatedAt)).CurrentValue = now;
+            }
+        }
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());

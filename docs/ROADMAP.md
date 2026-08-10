@@ -231,7 +231,7 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 |----|--------|--------------------|------|
 | ~~T-301~~ | ✅ `POST /auth/session`, com registro na mesma transação | Login gera `access_event`; falha de trilha devolve `503 AUDIT_UNAVAILABLE` | 8 |
 | T-302 | Vínculo identidade → conta AD por **SID** | Renomear a conta no AD não quebra o vínculo nem a trilha (RF-002) | 5 |
-| T-303 | Refresh, logout e armazenamento no Credential Manager | Token renova sem login; logout invalida (RF-004..RF-006) | 5 |
+| ~~T-303~~ | ✅ Refresh, logout **(servidor)** e armazenamento no Credential Manager | Token renova sem login; logout invalida (RF-004..RF-006) | 5 |
 | T-304 | `AuthorizationService` com vigência de permissão | Permissão revogada nega o lançamento seguinte em ≤ 60 s (V-07, RNF-030) | 3 |
 
 > **T-301 concluída em 2026-08-10 (S010).** `POST /v1/auth/session` implementado e verificado de
@@ -286,6 +286,64 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 >    só se aplica no ponto em que ele intercepta `Build()`, tarde demais para o `?? throw` logo após
 >    `CreateBuilder(args)`. Corrigido definindo variáveis de ambiente reais no processo — que
 >    `CreateBuilder` já lê como uma das suas próprias fontes padrão, de forma síncrona.
+>
+> **T-303 concluída em 2026-08-10 (S010) — escopo restrito ao servidor.** O título da tarefa mistura
+> dois lados: `POST /v1/auth/refresh` e `POST /v1/auth/logout` (esta tarefa) e o armazenamento no
+> Windows Credential Manager (RF-005), que já é **T-803** por direito próprio, em `E-08 · Launcher —
+> fundação` — um projeto WinUI que não existe neste repositório. Construir o launcher agora para
+> "completar" o título seria inventar escopo que T-303 não pede (RP-05); o armazenamento cliente
+> continua para quando E-08 começar.
+>
+> `POST /v1/auth/refresh`: encontra o `refresh_token` pelo hash do valor apresentado (única forma de
+> saber o tenant neste ponto — segundo uso legítimo de `IgnoreQueryFilters()`, depois do de T-301,
+> ambos pela mesma razão de bootstrap), confere validade/revogação/expiração, **revoga o token
+> apresentado e emite um novo** (rotação: reutilizar um token já trocado — a assinatura de um roubo —
+> passa a falhar a partir da primeira troca), e reconfere `TenantStatus`/`UserAccountStatus` **de
+> novo** (um usuário desabilitado depois de emitido o refresh token não pode continuar renovando
+> sessão). **Não passa por `IAuditWriter`** — decisão registrada, não esquecimento: ADR-0007 Parte 1
+> não lista RF-004 entre os eventos bloqueantes, e `MODELO-DE-DADOS.md` §7.2 não categoriza refresh
+> como tipo de `access_event` (só autenticação, logout e fim de sessão). `POST /v1/auth/logout`: a
+> mesma busca, mas **grava `access_event` (`logout`) via `IAuditWriter`** — este sim está na
+> categorização de §7.2 — e é idempotente por desenho: token desconhecido ou já revogado devolve
+> `204` igual a um logout que revogou de verdade, sem distinguir os casos (mesmo raciocínio
+> anti-enumeração de ADR-0012 §5).
+>
+> **Bug real encontrado e corrigido, não só de T-303**: inspecionar `refresh_token.created_at`
+> durante a verificação mostrou `-infinity` — `CreatedAt`/`UpdatedAt` são `init`-only por desenho
+> (imutabilidade de domínio), mas **nada em código nenhum jamais os definia**, então todo `INSERT`
+> desde T-202 gravava `DateTimeOffset.MinValue` silenciosamente. Corrigido no único lugar que
+> resolve para sempre: `AppBridgeDbContext.SaveChanges(Async)` agora carimba `CreatedAt` em toda
+> entidade `Added` e `UpdatedAt` em toda `Modified`, via `entry.Property(...).CurrentValue` — que
+> continua funcionando sobre uma propriedade `init` porque o rastreador de mudanças do EF Core opera
+> abaixo da restrição de tempo de compilação do C#, o mesmo mecanismo que já materializa entidades
+> vindas do banco. Mesma disciplina de "mecanismo, não lembrete" de T-203/T-204/T-205.
+>
+> **Segundo bug encontrado e corrigido no mesmo lote, em código já publicado (T-301)**: nenhuma das
+> duas requisições (`LoginRequest.IdentityToken`, e agora `RefreshTokenRequest.RefreshToken`) exigia
+> a presença do campo — um corpo sem ele vinculava `null` silenciosamente (o C# não-anulável não é
+> garantia de tempo de execução sem `required`), e a próxima linha de código lançava
+> `NullReferenceException`, virando um `500` genérico em vez de um `400` claro. Corrigido marcando os
+> dois campos como `required`; verificado enviando `{}` de propósito e confirmando `400 Bad Request`,
+> não mais uma exceção não tratada.
+>
+> **Verificado rodando a aplicação de verdade** (`dotnet run` + `curl` + `psql`): sessão completa —
+> login, refresh (token novo, token antigo revogado), reuso do token antigo recusado, logout,
+> segundo logout idempotente, refresh após logout recusado, corpo malformado devolvendo `400`. **12
+> novos testes automatizados**: 9 em `RefreshLogoutEndpointTests.cs` (cada um fazendo login de
+> verdade pelo endpoint real antes de exercitar refresh/logout, não montando um token à mão), 3 em
+> `AuditColumnStampingTests.cs` (`CreatedAt` carimbado na inserção, `UpdatedAt` na modificação, e o
+> valor sobrevive a uma releitura real do PostgreSQL — não bastaria não lançar exceção, porque
+> `-infinity` também "funciona" sem erro). **49 testes automatizados no total** (22 Api + 27
+> Infrastructure), todos passando.
+>
+> **Achado à parte, sem relação com código:** o cabeçalho `### E-04 · Catálogo — 11 pts` tinha
+> desaparecido do arquivo — removido sem querer pela edição que registrou a conclusão de T-301 (a
+> âncora do texto substituído incluía a linha do título, e o texto novo não a repôs). A tabela de
+> T-401 a T-404 continuava presente, só sem o título da seção. Corrigido nesta sessão, ao notar a
+> ausência ao navegar o arquivo para esta mesma nota — reforça por que revisar o `diff` antes de
+> commitar, não só confiar que um `Edit` bem-intencionado preservou tudo ao redor.
+
+### E-04 · Catálogo — 11 pts
 
 | ID | Tarefa | Critério de aceite | Est. |
 |----|--------|--------------------|------|
