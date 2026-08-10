@@ -60,6 +60,14 @@
 > rodando a aplicação real**: login, "renomeação" (segundo login com UPN/nome novos), e conferência
 > no banco — uma única linha de `user_account`, `ad_object_sid` inalterado, e os dois `access_event`
 > apontando para o mesmo `user_account_id`. **57 testes automatizados no total.**
+>
+> **T-401 concluída — primeira tarefa de E-04.** `CatalogSeeder` grava o catálogo fixo do dogfood
+> (Domínio Contábil, Alterdata) direto nas tabelas via EF Core, sem arquivo JSON e sem painel —
+> RF-012 admite "JSON ou tabela" como formas alternativas do mesmo requisito, não como as duas
+> exigidas juntas. Acionado por verbo de CLI (`dotnet run -- seed-catalog <ad-domain>`), não por
+> endpoint HTTP — expor isso como rota seria o início do próprio painel que RF-012 diz que o MVP-0
+> não tem. Idempotente, verificado rodando duas vezes contra `appbridge_dev` real sem duplicar
+> nada. **59 testes automatizados no total.**
 
 
 ## 2. Entregáveis da fase de design — ✅ concluída
@@ -109,6 +117,8 @@ significa que o código espera.
 | ~~—~~ | ~~**`POST /v1/auth/refresh` e `/logout`**~~ | T-303 | **Concluído em 2026-08-10 (S010)** — 49 testes no total; armazenamento cliente (RF-005) continua T-803 |
 | ~~—~~ | ~~**`AuthorizationService`**~~ | T-304 | **Concluído em 2026-08-10 (S010)** — 55 testes no total; sem consumidor ainda (E-05) |
 | ~~—~~ | ~~**Vínculo identidade → conta AD por SID**~~ | T-302 | **Concluído em 2026-08-10 (S010)** — 57 testes no total. **E-03 · Identidade e autorização está completo** |
+| ~~—~~ | ~~**Seed de aplicativos**~~ | T-401 | **Concluído em 2026-08-10 (S010)** — 59 testes no total; primeira tarefa de E-04 |
+| **—** | **T-402** (`GET /applications` filtrado por autorização) é a próxima de E-04 | E-04 | Depende do catálogo semeado (T-401) e de `IAuthorizationService` (T-304), ambos prontos |
 
 **Decisões que ainda cabem a Frederico, em paralelo:** B-009 (subconjunto do MVP-1 exigido pelo
 piloto), B-006 (PS-07, cofre) e B-007 (PS-03, encadeamento da trilha).

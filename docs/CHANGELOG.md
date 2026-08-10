@@ -6,6 +6,15 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Adicionado — seed de catálogo (T-401, S010)
+- `CatalogSeeder` (`AppBridge.ControlPlane.Infrastructure/Catalog/`) popula `application`/
+  `host_pool` diretamente via EF Core com o dataset fixo do dogfood (Domínio Contábil, Alterdata —
+  VISAO.md §1/PA-01), sem arquivo JSON separado e sem painel administrativo (RF-012).
+- Acionado por um verbo de CLI — `dotnet run -- seed-catalog <ad-domain-do-tenant>` — não por um
+  endpoint HTTP novo, para não construir, de propósito, o início do painel que RF-012 diz que o
+  MVP-0 dispensa (esse painel é RF-043, MVP-1).
+- Idempotente: seguro rodar mais de uma vez contra o mesmo tenant sem duplicar linhas.
+
 ### Adicionado — vínculo identidade → conta AD por SID (T-302, S010)
 - `IIdentityProvider.ValidateAsync` passa a devolver `Upn`/`DisplayName` opcionais — os valores
   atuais do diretório, lidos frescos a cada validação — e `AuthEndpoints.Login` sincroniza esses

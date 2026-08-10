@@ -6,6 +6,7 @@ using AppBridge.ControlPlane.Api.Middleware;
 using AppBridge.ControlPlane.Infrastructure;
 using AppBridge.ControlPlane.Infrastructure.Auditing;
 using AppBridge.ControlPlane.Infrastructure.Authorization;
+using AppBridge.ControlPlane.Infrastructure.Catalog;
 using AppBridge.ControlPlane.Infrastructure.Identity;
 using AppBridge.ControlPlane.Infrastructure.Tenancy;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -103,7 +104,35 @@ app.MapHealthChecks("/v1/health", new HealthCheckOptions
 
 app.MapAuthEndpoints();
 
+// RF-012: the catalog is populated by seed, not an admin panel (that's RF-043, MVP-1). A CLI verb
+// instead of an HTTP route so this stays a seed, not the very panel RF-012 says the catalog does
+// without — `dotnet run -- seed-catalog <ad-domain>` seeds CatalogSeeder's fixed dogfood dataset
+// into the tenant identified by Tenant.AdDomain, then exits without starting the host.
+if (args.Length > 0 && args[0] == "seed-catalog")
+{
+    if (args.Length < 2)
+    {
+        Console.Error.WriteLine("Uso: dotnet run -- seed-catalog <ad-domain-do-tenant>");
+        return 1;
+    }
+
+    using var scope = app.Services.CreateScope();
+    var dbContext = scope.ServiceProvider.GetRequiredService<AppBridgeDbContext>();
+    var tenant = await dbContext.Tenants.SingleOrDefaultAsync(t => t.AdDomain == args[1]);
+    if (tenant is null)
+    {
+        Console.Error.WriteLine($"Tenant com ad_domain '{args[1]}' não encontrado.");
+        return 1;
+    }
+
+    scope.ServiceProvider.GetRequiredService<TenantContext>().TenantId = tenant.Id;
+    await CatalogSeeder.SeedAsync(dbContext, tenant.Id);
+    Console.WriteLine($"Catálogo semeado para o tenant '{tenant.Name}' ({tenant.Id}).");
+    return 0;
+}
+
 app.Run();
+return 0;
 
 public partial class Program
 {

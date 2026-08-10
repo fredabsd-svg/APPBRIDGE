@@ -421,10 +421,43 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 
 | ID | Tarefa | Critério de aceite | Est. |
 |----|--------|--------------------|------|
-| T-401 | Seed de aplicativos em JSON/tabela | Catálogo carregado sem painel (RF-012) | 3 |
+| ~~T-401~~ | ✅ Seed de aplicativos em JSON/tabela | Catálogo carregado sem painel (RF-012) | 3 |
 | T-402 | `GET /applications` com filtro por autorização | Aplicativo não autorizado **não aparece** (RF-011) | 3 |
 | T-403 | `ETag` / `If-None-Match` | Segunda sincronização devolve `304` (RF-015) | 2 |
 | T-404 | Endpoint de ícone | Serve PNG com cache; resolve PD-03 | 3 |
+
+> **T-401 concluída em 2026-08-10 (S010).** `CatalogSeeder`
+> (`AppBridge.ControlPlane.Infrastructure/Catalog/`) grava direto nas tabelas `application`/
+> `host_pool` via EF Core — sem arquivo JSON separado, porque nada além do próprio seed leria um, e
+> RF-012 trata "JSON ou tabela" como formas alternativas de um mesmo requisito ("sem painel
+> administrativo"), não como exigência de as duas existirem. Dataset fixo do dogfood
+> (`VISAO.md` §1/PA-01): Domínio Contábil e Alterdata, ambos `Published`, num único `HostPool`
+> ("Pool Principal") criado sob demanda.
+>
+> **Sem endpoint HTTP novo, de propósito** — um verbo de CLI (`dotnet run -- seed-catalog
+> <ad-domain>`) antes de `app.Run()`, não uma rota. Expor isso como endpoint seria, na prática, o
+> começo do próprio painel administrativo que RF-012 diz que o MVP-0 não tem (esse painel é RF-043,
+> MVP-1).
+>
+> **Idempotente por desenho** — verificado rodando duas vezes seguidas contra `appbridge_dev` real:
+> a segunda chamada não duplica `application` nem `host_pool` (a checagem de existência usa o mesmo
+> escopo do índice único `uq_application_tenant_alias_pool`, MODELO-DE-DADOS.md §5.1). Tenant
+> desconhecido devolve código de saída `1` com mensagem no `stderr`, sem alterar nada no banco
+> (verificado separadamente do `stdout`, já que `dotnet run` sempre devolve `0` quando encadeado
+> num pipe — o próprio código de saída do `dotnet run` só reflete o do processo publicado quando
+> lido sem pipe no meio).
+>
+> **Escopo deliberadamente não inclui** `IconRef` (isso é T-404, dono do endpoint de ícone) nem
+> `ApplicationPermission`/`Group` (isso é T-402, que precisa desses dados como fixture do próprio
+> teste de autorização, não como responsabilidade do seed de catálogo). RF-013 lista "grupo de
+> permissão" entre os campos mínimos do catálogo, mas o critério de aceite de T-401 é
+> especificamente "catálogo carregado sem painel" — os outros campos chegam com as tarefas que os
+> usam, não antecipados aqui.
+>
+> **2 novos testes** em `CatalogSeederTests.cs`: `SeedAsync` popula os dois aplicativos, publicados,
+> com `HostPoolId` válido, num único `HostPool`; rodar duas vezes não duplica nem `application` nem
+> `host_pool`. **59 testes automatizados no total** (24 Api + 35 Infrastructure), todos passando.
+> **Nenhum bug encontrado durante a verificação desta tarefa.**
 
 ### E-05 · Lançamento — 32 pts · **coração do produto**
 
