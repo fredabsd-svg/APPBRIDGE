@@ -1,7 +1,7 @@
 # STATUS — AppBridge
 > Estado vivo do projeto. Atualizado ao fim de toda sessão (RA-02).
 
-**Última atualização:** 2026-08-10 · **Sessão atual:** S010 · **Fase:** ✅ Design concluído → **implementação do MVP-0a (E-00 finalizado, E-02 finalizado, E-03 finalizado, E-04 finalizado)**
+**Última atualização:** 2026-08-10 · **Sessão atual:** S010 · **Fase:** ✅ Design concluído → **implementação do MVP-0a (E-00/E-02/E-03/E-04/E-05 finalizados)**
 
 ---
 
@@ -80,6 +80,17 @@
 | **T-04.5** | ✅ Concluída (2026-08-10) | SessionServiceTests: 10 integration tests (Get, List, Launch authorization/validation, Update, Terminate) |
 | **T-04.6** | ✅ Concluída (2026-08-10) | SessionsControllerTests: 15 unit tests (endpoints, status codes, context validation, error handling) |
 | **T-04.7** | ✅ Concluída (2026-08-10) | Program.cs: Registered ISessionService, IRdpFileSigner, IApplicationService |
+
+## 7. E-05 (Launcher Client) — ✅ 100% concluído
+
+| Tarefa | Status | Descrição |
+|--------|--------|-----------|
+| **T-05.1** | ✅ Concluída (2026-08-10) | AppBridgeApiClient: HTTP client (auth, get apps, launch session), token validation, Bearer scheme |
+| **T-05.2** | ✅ Concluída (2026-08-10) | ApplicationListViewModel: MVVM pattern (app list, select, launch), error handling, RDP launch |
+| **T-05.3** | ✅ Concluída (2026-08-10) | App.xaml(.cs): DI configuration (logging, HTTP client, services), app entry point |
+| **T-05.4** | ✅ Concluída (2026-08-10) | MainWindow.xaml(.cs): UI with ListView (app list), Launch button, error display |
+| **T-05.5** | ✅ Concluída (2026-08-10) | RDP Launch Flow: fetch signed RDP from API, write to temp file, launch mstsc.exe |
+| **T-05.6** | ✅ Concluída (2026-08-10) | .csproj: Added NuGet packages (Logging, DI, Http, MVVM, CommunityToolkit.WinUI) |
 
 ## 4. Próximos passos — implementação do MVP-0a
 
