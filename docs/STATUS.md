@@ -1,7 +1,7 @@
 # STATUS — AppBridge
 > Estado vivo do projeto. Atualizado ao fim de toda sessão (RA-02).
 
-**Última atualização:** 2026-08-10 · **Sessão atual:** S008 · **Fase:** ✅ Design concluído → **implementação do MVP-0a (E-00 finalizado, E-02 em progresso)**
+**Última atualização:** 2026-08-10 · **Sessão atual:** S009 · **Fase:** ✅ Design concluído → **implementação do MVP-0a (E-00 finalizado, E-02 finalizado)**
 
 ---
 
@@ -47,17 +47,17 @@
 | **T-00.4** | ✅ Concluída (2026-08-09) | GitHub Actions: detect-secrets validado, SECRETS-SCANNING.md documentado |
 | **T-00.5** | 🟡 Bloqueada por B-007 | ADR-0015 — encadeamento criptográfico da trilha (PS-03), aguardando Frederico |
 
-## 4. E-02 (Fundação do Control Plane) — 71% concluído
+## 4. E-02 (Fundação do Control Plane) — ✅ 100% concluído
 
 | Tarefa | Status | Descrição |
 |--------|--------|-----------|
 | **T-02.1** | ✅ Concluída (2026-08-09) | Schema BD: 6 entities (Tenant, User, Application, Session, Permission, AuditLog) com multi-tenancy |
-| **T-02.2** | ✅ Concluída (2026-08-10) | EF Core migrations: Initial.cs com DDL, Designer.cs e ModelSnapshot.cs com 6 tabelas multi-tenant |
+| **T-02.2** | ✅ Concluída (2026-08-10) | EF Core migrations: Initial.cs com DDL, ModelSnapshot.cs com 6 tabelas multi-tenant |
 | **T-02.3** | ✅ Concluída (2026-08-10) | JWT token service, authentication service, AuthController + HealthController, Bearer scheme, appsettings |
 | **T-02.4** | ✅ Concluída (2026-08-10) | Audit logging middleware/service (blocker pattern, RNF-022) |
 | **T-02.5** | ✅ Concluída (2026-08-10) | Autorização por aplicativo (application permission checks, multi-tenant validation) |
-| **T-02.6** | 🟡 Planejada | Multi-tenant request context & middleware (tenant isolation enforcement) |
-| **T-02.7** | 🟡 Planejada | API base (error handling, global exception middleware, response formats) |
+| **T-02.6** | ✅ Concluída (2026-08-10) | Tenant context middleware + password hashing (bcrypt, LastLoginAt tracking) |
+| **T-02.7** | ✅ Concluída (2026-08-10) | Global exception handling + response formats (RFC 7807, ProblemDetails, ErrorResponse) |
 
 ## 4. Próximos passos — implementação do MVP-0a
 
