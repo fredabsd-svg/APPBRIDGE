@@ -6,6 +6,15 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Corrigido — auditoria de consistência (S006)
+- **Cabeçalhos dos 7 entregáveis** atualizados de "submetido — aguardando aprovação" para "aprovado",
+  alinhando-os ao `STATUS.md`.
+- **`VISAO.md` emendado por ADR-0014** (nova §11 de emendas): NO-04 restringido para licenciamento
+  sempre do cliente; RM-05 com severidade e mitigação revistas; **R-001 reescrito** — de risco
+  crítico de invalidar o Caminho B para exposição alocada ao cliente, com resíduo declarado.
+- Contagem de ADRs, dependências declaradas em `ARQUITETURA.md` e `SEGURANCA.md`, e a descrição de
+  `license_notes` em `MODELO-DE-DADOS.md` alinhadas às decisões vigentes.
+
 ### Adicionado — execução (S005)
 - `docs/operacao/E-01-infraestrutura/` — material de execução do épico de infraestrutura, primeiro do
   caminho crítico do MVP-0a: visão do épico com ordem e dependências, especificação de aquisição de

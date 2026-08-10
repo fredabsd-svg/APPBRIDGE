@@ -1,6 +1,6 @@
 # VISÃO — AppBridge
 > Entregável 1 de 7 da fase de Design · Sessão S001 · 2026-08-08
-> Status: **submetido — aguardando aprovação de Frederico** (RP-04)
+> Status: **✅ aprovado por Frederico em 2026-08-08** (RP-04)
 
 *"Instale uma vez. Publique para todos."*
 
@@ -120,7 +120,7 @@ lista exige ADR (RP-07).
 | **NO-01** | **Não reimplementamos o protocolo RDP.** | Usamos a pilha RDS da Microsoft e o `mstsc` como cliente. Escrever cliente RDP é projeto de anos que não gera valor para o cliente. |
 | **NO-02** | **Não entregamos desktop do servidor como produto.** | O "desktop confinado" (shell substituído pelo launcher) existe apenas como *fallback* para apps que se comportem mal como RemoteApp — é exceção documentada, nunca a oferta. |
 | **NO-03** | **Não somos ferramenta de suporte/acesso remoto a estações** (TeamViewer, AnyDesk, RustDesk). | Publicamos aplicativos de servidor; não assumimos o controle da máquina de ninguém. |
-| **NO-04** | **Não substituímos, revendemos nem emulamos os aplicativos hospedados.** | Domínio, Alterdata, Office e ERPs continuam sendo licenciados pelo cliente ou pelo provedor, sob os contratos dos respectivos fornecedores. |
+| **NO-04** | **Não substituímos, revendemos, licenciamos nem emulamos os aplicativos hospedados.** | Domínio, Alterdata, ERPs e, quando for o caso, o Office são **licenciados pelo cliente**, que os adquire, instala e usa sob os contratos dos respectivos fornecedores (**ADR-0014** — restringe a formulação original, que admitia "pelo cliente ou pelo provedor"). |
 | **NO-05** | **Não somos VDI (um desktop persistente por usuário).** | O modelo é sessão multiusuário em session host compartilhado. VDI/AVD é evolução possível de backend, não a proposta. |
 | **NO-06** | **Não suportamos aplicativos Linux, macOS ou móveis nativos** nesta fase. | O problema atacado é especificamente o legado Windows desktop. |
 | **NO-07** | **Não somos backup, antivírus, EDR nem firewall.** | Integramos com o que o cliente já tem; não competimos nessa camada. |
@@ -151,7 +151,7 @@ os fornecedores — não estão confirmados neste documento (RP-05).
 | ID | Risco | Severidade | Mitigação prevista |
 |----|-------|-----------|--------------------|
 | **RM-04** | **Risco existencial parcial:** se o fornecedor do sistema contábil central levar seu produto para a nuvem com boa experiência, some a principal razão de hospedá-lo. | **Alta** | O AppBridge nunca foi sobre um app só. O escritório continua com ERP de cliente, Excel pesado e legado — que nenhum fornecedor vai hospedar. Posicionar como camada do **parque restante**, complementar e não concorrente da nuvem do fornecedor. |
-| **RM-05** | O mesmo fornecedor pode **vedar contratualmente** a execução multiusuário em servidor de terminal por terceiros, para proteger sua nuvem. | **Alta** | Verificação contratual por escrito antes do piloto (tarefa T-001, ver R-001). É verificação de viabilidade, não de conformidade — o resultado pode redefinir o Caminho B. |
+| **RM-05** | O mesmo fornecedor pode **vedar contratualmente** a execução multiusuário em servidor de terminal por terceiros, para proteger sua nuvem. | **Média-alta** (era Alta) | Por **ADR-0014**, a titularidade e a conformidade da licença são do cliente, que declara possuí-las (portão G-01). Isso **aloca** a exposição, mas não a elimina: permanece o resíduo de termos que restringem execução em infraestrutura operada por terceiro, independentemente de quem detém a licença. |
 | **RM-06** | Migração parcial de clientes para a nuvem do fornecedor reduz o número de usuários por escritório e corrói a receita por conta. | Média | Precificação por usuário ativo, não por escritório; expandir para PA-02 (ERPs), onde não há nuvem de fornecedor. |
 
 ### 6.3 Concorrentes — a plataforma da própria Microsoft
@@ -175,7 +175,7 @@ um terminal server com desktop compartilhado, sem painel, sem metering, sem audi
 
 | ID | Risco | Severidade |
 |----|-------|-----------|
-| **R-001** | Licença de Domínio/Alterdata pode vedar execução multiusuário em servidor de terminal — **invalida o Caminho B** se confirmado. | **Crítica** |
+| **R-001** | **Reescrito por ADR-0014.** A licença dos aplicativos é do cliente, que a adquire, instala e usa. Quem instala, porém, não altera o que a licença permite: se um fornecedor vedar execução em servidor de sessão, a vedação continua existindo — muda quem responde por ela. Resíduo do Caminho B: termos que restringem execução em **infraestrutura operada por terceiro**, caso em que a declaração do cliente não protege o provedor. | **Alta** (era Crítica) |
 | **R-002** | Custódia centralizada de A1 tem exposição jurídica (ICP-Brasil, responsabilidade por uso indevido) que precede a técnica. Minuta sem parecer jurídico = DIF-01 não entra em produção. | **Alta** |
 | **R-003** | SPLA/RDS SAL é custo fixo por usuário/mês; sem cotação atual não há como afirmar que a meta de ≤ R$ 50/usuário/mês é alcançável. | Alta |
 | **R-004** | Fosso só chega em V2/V3; MVP-0 e MVP-1 não se distinguem de RDS bem configurado. | Alta |
@@ -231,3 +231,17 @@ pelo menos um destes** e nenhum requisito pode existir sem origem aqui (RA-04).
 - **R-001..R-006** — riscos de viabilidade
 - **PRE-01..PRE-06** — premissas abertas
 - **CS-01..CS-05** — critérios de sucesso
+
+---
+
+## 11. Emendas a este documento
+
+Alterações posteriores à aprovação, cada uma autorizada por um ADR (RA-06 — nenhuma mudança
+silenciosa).
+
+| Data | Item | Alteração | ADR |
+|------|------|-----------|-----|
+| 2026-08-08 | **NO-04** | Restringido: o licenciamento dos aplicativos hospedados é **sempre do cliente**, nunca do provedor | ADR-0014 |
+| 2026-08-08 | **RM-05** | Severidade de Alta para Média-alta; mitigação passa a ser a declaração do cliente (G-01), com resíduo declarado | ADR-0014 |
+| 2026-08-08 | **R-001** | Reescrito: de "pode invalidar o Caminho B" para exposição alocada ao cliente, com resíduo de infraestrutura operada por terceiro. Severidade de Crítica para Alta | ADR-0014 |
+| 2026-08-08 | **CS-01 a CS-05** | Datas atualizadas pelo replanejamento em duas etapas do MVP-0 e piloto em abr–jun/2027 — ver `ROADMAP.md` §2 | ADR-0013 |

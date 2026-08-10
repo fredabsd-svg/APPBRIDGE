@@ -1,7 +1,8 @@
 # ARQUITETURA — AppBridge
 > Entregável 3 de 7 da fase de Design · Sessão S001 · 2026-08-08
-> Status: **submetido — aguardando aprovação de Frederico** (RP-04)
-> Depende de: `VISAO.md` (aprovado), `REQUISITOS.md` (submetido), ADR-0001 a ADR-0010
+> Status: **✅ aprovado por Frederico em 2026-08-08** (RP-04)
+> Depende de: `VISAO.md` e `REQUISITOS.md` (aprovados), ADR-0001 a ADR-0010
+> Decisões posteriores que a afetam: ADR-0011 (modelo de dados), ADR-0012 (API)
 
 ---
 

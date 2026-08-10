@@ -1,6 +1,6 @@
 # ROADMAP e BACKLOG — AppBridge
 > Entregável 7 de 7 da fase de Design · Sessão S001 · 2026-08-08
-> Status: **submetido — aguardando aprovação de Frederico** (RP-04)
+> Status: **✅ aprovado por Frederico em 2026-08-08** (RP-04)
 > Depende de: todos os entregáveis anteriores e ADR-0001 a ADR-0012
 > Alterado após aprovação: ADR-0013 (marcos, §2 e §5) e ADR-0014 (portão G-01)
 

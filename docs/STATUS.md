@@ -1,14 +1,14 @@
 # STATUS — AppBridge
 > Estado vivo do projeto. Atualizado ao fim de toda sessão (RA-02).
 
-**Última atualização:** 2026-08-08 · **Sessão atual:** S005 · **Fase:** ✅ Design concluído → **implementação do MVP-0a**
+**Última atualização:** 2026-08-08 · **Sessão atual:** S006 · **Fase:** ✅ Design concluído → **implementação do MVP-0a**
 
 ---
 
 ## 1. Onde estamos
 
 > **FASE DE DESIGN ENCERRADA em 2026-08-08.** Os 7 entregáveis foram **aprovados por Frederico** e
-> **13 ADRs** estão aceitos. O replanejamento do cronograma foi aprovado na **opção A** e ratificado
+> **14 ADRs** estão aceitos (13 no fechamento do design + ADR-0014). O replanejamento do cronograma foi aprovado na **opção A** e ratificado
 > em **ADR-0013**: MVP-0 dividido em duas etapas, piloto em abr–jun/2027.
 >
 > **O projeto entra agora na implementação do MVP-0a.** A próxima sessão não produz mais documento de
@@ -193,4 +193,19 @@ não de implementação:
 
 ## 10. Violações de processo detectadas (RA-06)
 
-Nenhuma.
+**Auditoria de consistência em 2026-08-08 (S006) — 6 achados de deriva documental, todos corrigidos.**
+
+Nenhuma mudança silenciosa de escopo, stack, modelo de dados ou API. O que se encontrou foi
+documentação que **deixou de refletir decisões já registradas** — deriva, não violação:
+
+| # | Achado | Corrigido |
+|---|--------|-----------|
+| 1 | Os 7 entregáveis mantinham "aguardando aprovação" no cabeçalho, contradizendo este `STATUS.md` | ✅ |
+| 2 | `VISAO.md` descrevia o modelo antigo de licenciamento em NO-04, RM-05 e R-001 | ✅ (nova §11 de emendas) |
+| 3 | Contagem de ADRs desatualizada (13 citados, 14 existentes) | ✅ |
+| 4 | `ARQUITETURA.md` com dependências desatualizadas | ✅ |
+| 5 | `MODELO-DE-DADOS.md` descrevendo `license_notes` pelo conceito extinto | ✅ |
+| 6 | `SEGURANCA.md` sem nota do ADR-0014 | ✅ |
+
+**Recomendação pendente de decisão:** incluir uma checagem de consistência no fechamento de sessão
+(RA-02). Não alterei a regra por conta própria — as Regras de Auditoria são do prompt mestre.
