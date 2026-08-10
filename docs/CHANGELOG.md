@@ -6,6 +6,19 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Revisado — issues e backlog paralelo (S008)
+- `docs/operacao/revisao-issues-e-backlog-paralelo.md` — revisão dos 32 issues abertos e dos dois
+  documentos que os originaram. Confirma **dois gaps reais na documentação aprovada** (coluna
+  `purpose` ausente no modelo de dados e falta de operação de cancelamento em `ISessionBackend`),
+  identifica **3 contradições com ADRs aceitos** (uma delas regressão de segurança sobre a chave de
+  assinatura), a **ausência de issues para o épico de infraestrutura**, uma **colisão de número de
+  ADR** e **14 referências de requisito incorretas**.
+- Riscos R-026 a R-029 e bloqueios B-010 e B-011 registrados. Nenhum issue do GitHub foi alterado.
+
+### Corrigido
+- Logs das sessões S004 a S007 estavam datados 2026-08-08; os commits correspondentes são de 09 e 10
+  de agosto. Arquivos renomeados e datas internas corrigidas.
+
 ### Adicionado — processo (ADR-0015, S007)
 - `scripts/check-docs.sh` — **primeiro arquivo executável do repositório**: checagem mecanizável da
   documentação com 7 verificações (cabeçalho contraditório, contagem de ADRs, ADR inexistente,
