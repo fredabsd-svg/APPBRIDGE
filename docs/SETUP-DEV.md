@@ -102,3 +102,7 @@ preciso rodar `dotnet ef database update` manualmente contra `appbridge_test` an
   `dotnet new webapi`): a 3.x quebra o gerador de OpenAPI que acompanha
   `Microsoft.AspNetCore.OpenApi` 10.0.10. Fixado em `2.11.0` (última correção compatível na linha
   2.x) no `.csproj` da Api.
+- **`dotnet test` falhando com `Connection refused` em `127.0.0.1:5432`**: o PostgreSQL local não
+  sobrevive a um reinício do ambiente/contêiner. Verifique com `sudo service postgresql status` e
+  suba com `sudo service postgresql start` antes de rodar qualquer teste de Infraestrutura — não é
+  um problema de código, é o serviço parado.

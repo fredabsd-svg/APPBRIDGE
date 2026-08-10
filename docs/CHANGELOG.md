@@ -6,6 +6,21 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Adicionado — `AuditWriter` transacional (T-205, S010)
+- **`IAuditWriter`/`AuditWriter`** (`Infrastructure/Auditing`): caminho único pelo qual as operações
+  de segurança (RF-036, RF-037, RF-039, RF-041, RF-042) gravam seu registro de trilha.
+  `ExecuteAsync` adiciona a entrada de auditoria, aplica a mutação de estado da concessão (`grant`,
+  deliberadamente síncrona e só-de-banco — a assinatura do método impede que um efeito colateral
+  externo entre no limite transacional) e faz um único `SaveChangesAsync`. Qualquer falha lança
+  `AuditWriteFailedException` sem persistir nada — nem a auditoria, nem a concessão.
+- **Verificado com uma falha de gravação simulada**: um `SaveChangesInterceptor` de teste lança
+  exatamente no ponto em que o EF Core emitiria o SQL, e a suíte confirma que nem a linha de
+  auditoria nem a mutação da concessão sobrevivem. A falha é sempre logada antes do relançamento
+  (ADR-0007 condição 2). 3 novos testes em `AuditWriterTests.cs`.
+- `AuditWriteFailedException` como tipo próprio, para que o endpoint que futuramente chamar
+  `IAuditWriter` (T-301 em diante) responda com o `503 AUDIT_UNAVAILABLE` estável de `API.md` em vez
+  de um 500 genérico.
+
 ### Adicionado — chaves estrangeiras compostas com `tenant_id` (T-204, S010)
 - **15 chaves estrangeiras compostas** `(tenant_id, x_id) -> tabela(tenant_id, id)`, cobrindo toda
   referência entre tabelas de tenant listada em `MODELO-DE-DADOS.md` — inclusive três que o modelo já

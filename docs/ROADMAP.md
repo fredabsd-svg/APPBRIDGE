@@ -79,7 +79,7 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 | ~~T-202~~ | ✅ EF Core + PostgreSQL + primeira migração **já com `tenant_id` em todas as tabelas** | Migração aplica e reverte (RNF-052, ADR-0011) | 5 |
 | ~~T-203~~ | ✅ `TenantContext` + filtro global no `DbContext` | Consulta sem cláusula explícita não retorna dado de outro tenant (ADR-0004) | 5 |
 | ~~T-204~~ | ✅ **Chaves estrangeiras compostas com `tenant_id`** | Tentativa de gravar referência cruzada é recusada **pelo banco** (ADR-0011 §4) | 3 |
-| T-205 | `AuditWriter` transacional | Falha simulada de gravação **nega** a operação (V-05, ADR-0007) | 5 |
+| ~~T-205~~ | ✅ `AuditWriter` transacional | Falha simulada de gravação **nega** a operação (V-05, ADR-0007) | 5 |
 | T-206 | **Teste automatizado de violação de tenant** | V-02 na suíte; leitura e escrita cruzadas falham (ADR-0004 item 9) | 3 |
 | **T-207** | **Coluna `purpose` na tabela `launch`** (enum `user_initiated \| prelaunch`) e filtro de prelaunch nas consultas de metering | Contagem de RF-062 **não soma prelaunchs**; teste cobre o caso (ADR-0016, Gap 1) | 2 |
 
@@ -167,6 +167,31 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 > fabricado, válido antes de T-204 porque nada verificava — passou a falhar corretamente depois da
 > FK, e foi corrigido para criar um `HostPool` real por tenant. **21 testes automatizados no total**
 > no Control Plane (7 Api + 8 Schema + 4 TenantIsolation + 2 TenantForeignKey), todos passando.
+>
+> **T-205 concluída em 2026-08-10 (S010).** `IAuditWriter`/`AuditWriter`
+> (`Infrastructure/Auditing`): um único caminho pelo qual toda operação de segurança (RF-036,
+> RF-037, RF-039, RF-041, RF-042) grava seu registro de trilha — `ExecuteAsync` adiciona a entrada de
+> auditoria, executa a mutação de estado da concessão (`grant`, síncrona e só-de-banco de propósito:
+> a assinatura em si impede que um efeito colateral externo — assinar `.rdp`, chamar
+> `ISessionBackend` — entre no limite transacional) e chama `SaveChangesAsync` uma única vez. Se
+> qualquer parte falhar, nada é persistido e `AuditWriteFailedException` é lançada — o tipo próprio
+> existe para que o endpoint que a chamar (T-301 em diante) responda com o `503 AUDIT_UNAVAILABLE`
+> estável de `API.md`/ADR-0012, não um 500 genérico. A falha é sempre logada primeiro (ADR-0007
+> condição 2), porque a própria trilha em banco é o que falhou.
+>
+> **Verificado com uma falha de gravação simulada, não hipotética**: um `SaveChangesInterceptor` de
+> teste (`ThrowingSaveChangesInterceptor`) lança exatamente no ponto em que o EF Core emitiria o SQL
+> — a janela específica que o ADR-0007 fecha (banco que lê mas não escreve). Com ele, `ExecuteAsync`
+> lança `AuditWriteFailedException` e, lido de volta por um contexto limpo, **nem a linha de
+> auditoria nem a mutação da concessão foram gravadas** — a negação é da operação inteira, não só da
+> metade da auditoria. Um terceiro teste confirma a linha de log de erro antes do relançamento.
+> 3 novos testes em `AuditWriterTests.cs`. **24 testes automatizados no total** no Control Plane
+> (7 Api + 8 Schema + 4 TenantIsolation + 2 TenantForeignKey + 3 AuditWriter), todos passando.
+>
+> **Interrupção de ambiente nesta tarefa, sem relação com o código:** o PostgreSQL local havia parado
+> entre sessões (`service postgresql status` → `down`); reiniciado (`service postgresql start`) antes
+> de rodar os testes. Não é achado de produto — registrado porque `docs/SETUP-DEV.md` já orienta como
+> subir o banco, mas não como diagnosticar que ele caiu.
 
 ### E-03 · Identidade e autorização — 21 pts
 
