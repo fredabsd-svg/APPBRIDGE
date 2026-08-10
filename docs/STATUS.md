@@ -1,7 +1,7 @@
 # STATUS — AppBridge
 > Estado vivo do projeto. Atualizado ao fim de toda sessão (RA-02).
 
-**Última atualização:** 2026-08-10 · **Sessão atual:** S010 · **Fase:** ✅ Design concluído → **implementação do MVP-0a (E-00 finalizado, E-02 finalizado, E-03 finalizado)**
+**Última atualização:** 2026-08-10 · **Sessão atual:** S010 · **Fase:** ✅ Design concluído → **implementação do MVP-0a (E-00 finalizado, E-02 finalizado, E-03 finalizado, E-04 finalizado)**
 
 ---
 
@@ -68,6 +68,18 @@
 | **T-03.3** | ✅ Concluída (2026-08-10) | DTOs: ApplicationDto, CreateApplicationDto, UpdateApplicationDto, PublishApplicationDto |
 | **T-03.4** | ✅ Concluída (2026-08-10) | ApplicationServiceTests: 10 integration tests (Get, List, Create, Update, Publish, Delete, soft-delete, authorization) |
 | **T-03.5** | ✅ Concluída (2026-08-10) | ApplicationsControllerTests: 14 unit tests (endpoint routing, status codes, context validation, error handling) |
+
+## 6. E-04 (Session Endpoints) — ✅ 100% concluído
+
+| Tarefa | Status | Descrição |
+|--------|--------|-----------|
+| **T-04.1** | ✅ Concluída (2026-08-10) | SessionService: Get, List (by user), Launch (RDP generation + signing), Update, Terminate com multi-tenant validation, authorization, blocker audit pattern (RNF-002) |
+| **T-04.2** | ✅ Concluída (2026-08-10) | SessionsController: REST endpoints ([Authorize], GET/POST/PUT/DELETE), tenant context validation, RDP file returned as LaunchSessionResponseDto |
+| **T-04.3** | ✅ Concluída (2026-08-10) | IRdpFileSigner interface + RdpFileSignerService (stub, Windows only per ADR-0009) |
+| **T-04.4** | ✅ Concluída (2026-08-10) | SessionDto, CreateSessionDto, UpdateSessionDto, LaunchSessionResponseDto |
+| **T-04.5** | ✅ Concluída (2026-08-10) | SessionServiceTests: 10 integration tests (Get, List, Launch authorization/validation, Update, Terminate) |
+| **T-04.6** | ✅ Concluída (2026-08-10) | SessionsControllerTests: 15 unit tests (endpoints, status codes, context validation, error handling) |
+| **T-04.7** | ✅ Concluída (2026-08-10) | Program.cs: Registered ISessionService, IRdpFileSigner, IApplicationService |
 
 ## 4. Próximos passos — implementação do MVP-0a
 
