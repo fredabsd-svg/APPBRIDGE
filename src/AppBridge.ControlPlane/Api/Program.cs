@@ -1,13 +1,17 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 using AppBridge.ControlPlane.Application.Abstractions.Authentication;
+using AppBridge.ControlPlane.Application.Abstractions.Authorization;
 using AppBridge.ControlPlane.Application.Abstractions.Auditing;
 using AppBridge.ControlPlane.Core.Configuration;
+using AppBridge.ControlPlane.Infrastructure.Authorization;
 using AppBridge.ControlPlane.Infrastructure.Middleware;
 using AppBridge.ControlPlane.Infrastructure.Persistence;
 using AppBridge.ControlPlane.Infrastructure.Services.Authentication;
+using AppBridge.ControlPlane.Infrastructure.Services.Authorization;
 using AppBridge.ControlPlane.Infrastructure.Services.Auditing;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
@@ -31,6 +35,10 @@ builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 
 // Add auditing services
 builder.Services.AddScoped<IAuditingService, AuditingService>();
+
+// Add authorization services
+builder.Services.AddScoped<IAuthorizationService, AuthorizationService>();
+builder.Services.AddSingleton<IAuthorizationHandler, ApplicationAccessAuthorizationHandler>();
 
 // Add authentication
 var jwtOptions = builder.Configuration.GetSection("Jwt").Get<JwtOptions>();
@@ -56,6 +64,13 @@ builder.Services.AddAuthentication(options =>
         NameClaimType = JwtRegisteredClaimNames.UniqueName,
         RoleClaimType = "role",
     };
+});
+
+// Add authorization policies
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("ApplicationAccess", policy =>
+        policy.Requirements.Add(new ApplicationAccessRequirement()));
 });
 
 // Add services
