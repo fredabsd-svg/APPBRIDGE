@@ -1,8 +1,11 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/AppBridge.ControlPlane.Api/AppBridge.ControlPlane.Api.csproj" />
+    <Project Path="src/AppBridge.ControlPlane.Domain/AppBridge.ControlPlane.Domain.csproj" />
+    <Project Path="src/AppBridge.ControlPlane.Infrastructure/AppBridge.ControlPlane.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/AppBridge.ControlPlane.Api.Tests/AppBridge.ControlPlane.Api.Tests.csproj" />
+    <Project Path="tests/AppBridge.ControlPlane.Infrastructure.Tests/AppBridge.ControlPlane.Infrastructure.Tests.csproj" />
   </Folder>
 </Solution>

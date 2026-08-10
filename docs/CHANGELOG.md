@@ -6,6 +6,30 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Adicionado — persistência do Control Plane (T-202, S010)
+- **`src/AppBridge.ControlPlane.Domain`** — 15 entidades fiéis a `MODELO-DE-DADOS.md`, com hierarquia
+  de base para colunas de auditoria (`AuditedEntity`, `AppendOnlyEntity`) e escopo de tenant
+  (`ITenantScoped`). `Tenant` e `SigningCertificate` são as duas exceções deliberadas, documentadas
+  no próprio código.
+- **`src/AppBridge.ControlPlane.Infrastructure`** — `AppBridgeDbContext` (EF Core 10 + Npgsql),
+  convenções próprias de `snake_case` e de conversão de enum (sem dependência nova), e mapeamento do
+  `RowVersion` para a coluna de sistema `xmin` do PostgreSQL como token de concorrência otimista.
+  Migração `InitialCreate`: 15 tabelas, `tenant_id NOT NULL` em todas exceto as duas exceções, CHECK
+  constraints e índices parciais nomeados conforme o modelo de dados.
+- **Verificado na prática, não só lido**: migração aplicada e revertida contra PostgreSQL real
+  (`appbridge_dev`); as duas CHECK e a unicidade de `tenant.slug` testadas com dado real e rejeição
+  confirmada pelo nome da constraint. `tests/AppBridge.ControlPlane.Infrastructure.Tests` — 8 testes,
+  banco dedicado `appbridge_test`, migração para cima e para baixo dentro do próprio teste.
+- `docs/SETUP-DEV.md` — novo documento: ambiente de desenvolvimento local (SDK, PostgreSQL, variáveis
+  de ambiente, comandos de migração e teste), referenciado pelas mensagens de erro do próprio código.
+
+### Corrigido — conflito de versão do EF Core (T-202, S010)
+- Build de `tests/AppBridge.ControlPlane.Infrastructure.Tests` emitia `MSB3277`:
+  `Npgsql.EntityFrameworkCore.PostgreSQL` 10.0.3 trazia `Microsoft.EntityFrameworkCore.Relational`
+  10.0.4 transitivamente, em conflito com a 10.0.10 usada diretamente. Sem versão mais nova do Npgsql
+  disponível no NuGet nesta data. Fixado `Microsoft.EntityFrameworkCore.Relational` em 10.0.10 no
+  `.csproj` da Infrastructure, com comentário explicando o motivo.
+
 ### Adicionado — primeiro código do Control Plane (T-201, S010)
 - **`src/AppBridge.ControlPlane.Api`** — esqueleto ASP.NET Core em .NET 10 (`AppBridge.slnx`).
   `CorrelationIdMiddleware` resolve/gera o `X-Correlation-Id` e grava início e fim de cada

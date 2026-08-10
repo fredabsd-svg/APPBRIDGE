@@ -76,7 +76,7 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 | ID | Tarefa | Critério de aceite | Est. |
 |----|--------|--------------------|------|
 | ~~T-201~~ | ✅ Esqueleto ASP.NET Core, health check, log estruturado com `correlationId` | `/health` responde; um lançamento é rastreável ponta a ponta pelo log (RNF-039, RNF-040) | 3 |
-| T-202 | EF Core + PostgreSQL + primeira migração **já com `tenant_id` em todas as tabelas** | Migração aplica e reverte (RNF-052, ADR-0011) | 5 |
+| ~~T-202~~ | ✅ EF Core + PostgreSQL + primeira migração **já com `tenant_id` em todas as tabelas** | Migração aplica e reverte (RNF-052, ADR-0011) | 5 |
 | T-203 | `TenantContext` + filtro global no `DbContext` | Consulta sem cláusula explícita não retorna dado de outro tenant (ADR-0004) | 5 |
 | T-204 | **Chaves estrangeiras compostas com `tenant_id`** | Tentativa de gravar referência cruzada é recusada **pelo banco** (ADR-0011 §4) | 3 |
 | T-205 | `AuditWriter` transacional | Falha simulada de gravação **nega** a operação (V-05, ADR-0007) | 5 |
@@ -100,6 +100,29 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 > PostgreSQL 16 local. E-02 segue **em paralelo** com a aquisição de T-101, não depois dela; o que
 > continua bloqueado por T-101 é o *deploy* real e os testes de integração contra AD DS/RDS
 > verdadeiros (T-301, T-503, T-602).
+>
+> **T-202 concluída em 2026-08-10 (S010).** `AppBridge.ControlPlane.Domain` (15 entidades, fiéis a
+> `MODELO-DE-DADOS.md`) e `AppBridge.ControlPlane.Infrastructure` (EF Core 10 + Npgsql, convenções
+> próprias de `snake_case`, conversor de enum e mapeamento de `xmin` do PostgreSQL como token de
+> concorrência — sem dependência nova para isso). Migração `InitialCreate` gera as 15 tabelas com
+> `tenant_id NOT NULL` em todas exceto `tenant` e `signing_certificate` (as duas exceções
+> deliberadas do modelo). **Verificado na prática, não só lido:** a migração foi aplicada e revertida
+> de fato contra um PostgreSQL real (`appbridge_dev`), com inserção de dado válido e rejeição
+> confirmada — pelo nome da constraint — das duas CHECK (`ck_retention_policy_minimum`,
+> `ck_redirection_policy_exception_reason`) e da unicidade de `tenant.slug`. A suíte
+> `SchemaTests.cs` (8 testes, banco `appbridge_test` dedicado) automatiza essas mesmas verificações
+> e roda `IMigrator` para cima e para baixo dentro do teste — 8 de 8 passando.
+>
+> **Erro corrigido nesta tarefa:** o build do projeto de teste emitiu `MSB3277` — conflito entre
+> `Microsoft.EntityFrameworkCore.Relational` 10.0.4 (trazido transitivamente por
+> `Npgsql.EntityFrameworkCore.PostgreSQL` 10.0.3, ainda não realinhado com o EF Core 10.0.10 usado
+> diretamente) e 10.0.10. Não havia versão mais nova do pacote Npgsql disponível no NuGet no momento
+> desta sessão; corrigido fixando `Microsoft.EntityFrameworkCore.Relational` em 10.0.10 explicitamente
+> no `.csproj` da Infrastructure, com comentário explicando o motivo — ponto a revisitar quando o
+> Npgsql lançar uma versão alinhada.
+>
+> A chave estrangeira composta com `tenant_id` (ADR-0011 §4) fica **para T-204**, como planejado —
+> cada referência entre entidades carrega um comentário `TODO(T-204)` apontando para a decisão.
 
 ### E-03 · Identidade e autorização — 21 pts
 
