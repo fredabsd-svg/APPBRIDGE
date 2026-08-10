@@ -1,7 +1,7 @@
 # STATUS — AppBridge
 > Estado vivo do projeto. Atualizado ao fim de toda sessão (RA-02).
 
-**Última atualização:** 2026-08-09 · **Sessão atual:** S006 · **Fase:** ✅ Design concluído → **implementação do MVP-0a (E-00 em progresso)**
+**Última atualização:** 2026-08-10 · **Sessão atual:** S007 · **Fase:** ✅ Design concluído → **implementação do MVP-0a (E-00 finalizado, E-02 em progresso)**
 
 ---
 
@@ -47,17 +47,17 @@
 | **T-00.4** | ✅ Concluída (2026-08-09) | GitHub Actions: detect-secrets validado, SECRETS-SCANNING.md documentado |
 | **T-00.5** | 🟡 Bloqueada por B-007 | ADR-0015 — encadeamento criptográfico da trilha (PS-03), aguardando Frederico |
 
-## 4. E-02 (Fundação do Control Plane) — 25% concluído
+## 4. E-02 (Fundação do Control Plane) — 50% concluído
 
 | Tarefa | Status | Descrição |
 |--------|--------|-----------|
 | **T-02.1** | ✅ Concluída (2026-08-09) | Schema BD: 6 entities (Tenant, User, Application, Session, Permission, AuditLog) com multi-tenancy |
-| **T-02.2** | 🟡 Planejada | EF Core DbContext finalizado; migrations iniciais (aguardando dotnet CLI) |
-| **T-02.3** | 🟡 Planejada | Autenticação/autorização base (JWT, AD/Entra) |
-| **T-02.4** | 🟡 Planejada | Audit logging framework (blocker, RNF-022) |
-| **T-02.5** | 🟡 Planejada | Autorização por aplicativo (permission checks) |
-| **T-02.6** | ✅ Concluída (2026-08-09) | Multi-tenant isolation: composite FKs, global filters implementados |
-| **T-02.7** | 🟡 Planejada | API base (controllers, middleware, error handling) |
+| **T-02.2** | ✅ Concluída (2026-08-10) | EF Core migrations: Initial.cs com DDL, Designer.cs e ModelSnapshot.cs com 6 tabelas multi-tenant |
+| **T-02.3** | ✅ Concluída (2026-08-10) | JWT token service, authentication service, AuthController + HealthController, Bearer scheme, appsettings |
+| **T-02.4** | 🟡 Planejada | Audit logging middleware/service (blocker pattern, RNF-022) |
+| **T-02.5** | 🟡 Planejada | Autorização por aplicativo (application permission checks, multi-tenant validation) |
+| **T-02.6** | 🟡 Planejada | Multi-tenant request context & middleware (tenant isolation enforcement) |
+| **T-02.7** | 🟡 Planejada | API base (error handling, global exception middleware, response formats) |
 
 ## 4. Próximos passos — implementação do MVP-0a
 
