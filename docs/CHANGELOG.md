@@ -6,6 +6,17 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Adicionado — processo (ADR-0015, S007)
+- `scripts/check-docs.sh` — **primeiro arquivo executável do repositório**: checagem mecanizável da
+  documentação com 7 verificações (cabeçalho contraditório, contagem de ADRs, ADR inexistente,
+  requisito órfão, link morto, prefixo reservado, log de sessão ausente). Sai com código 1 em caso de
+  achado, pronto para integração contínua quando houver pipeline.
+
+### Alterado — processo (ADR-0015)
+- **`CLAUDE.md`, regra RA-02**: o fechamento de sessão passa a exigir uma quarta etapa — a checagem de
+  consistência, mecânica e humana. Deriva documental passa a ser tratada como violação de RA-06 tanto
+  quanto mudança silenciosa. **Primeira alteração do prompt mestre**, precedida de ADR conforme RP-07.
+
 ### Corrigido — auditoria de consistência (S006)
 - **Cabeçalhos dos 7 entregáveis** atualizados de "submetido — aguardando aprovação" para "aprovado",
   alinhando-os ao `STATUS.md`.

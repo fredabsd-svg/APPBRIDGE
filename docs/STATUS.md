@@ -1,14 +1,14 @@
 # STATUS — AppBridge
 > Estado vivo do projeto. Atualizado ao fim de toda sessão (RA-02).
 
-**Última atualização:** 2026-08-08 · **Sessão atual:** S006 · **Fase:** ✅ Design concluído → **implementação do MVP-0a**
+**Última atualização:** 2026-08-08 · **Sessão atual:** S007 · **Fase:** ✅ Design concluído → **implementação do MVP-0a**
 
 ---
 
 ## 1. Onde estamos
 
 > **FASE DE DESIGN ENCERRADA em 2026-08-08.** Os 7 entregáveis foram **aprovados por Frederico** e
-> **14 ADRs** estão aceitos (13 no fechamento do design + ADR-0014). O replanejamento do cronograma foi aprovado na **opção A** e ratificado
+> **15 ADRs** estão aceitos (13 no fechamento do design + ADR-0014 e ADR-0015). O replanejamento do cronograma foi aprovado na **opção A** e ratificado
 > em **ADR-0013**: MVP-0 dividido em duas etapas, piloto em abr–jun/2027.
 >
 > **O projeto entra agora na implementação do MVP-0a.** A próxima sessão não produz mais documento de
@@ -99,6 +99,7 @@ se faz com ADR novo que substitui o anterior.
 | [ADR-0009](adr/ADR-0009-assinatura-do-rdp-e-hospedagem-do-control-plane.md) | Assinatura do `.rdp` | Assinatura via `rdpsign.exe` atrás da interface `IRdpFileSigner`. **Consequência assumida: o Control Plane é componente Windows** — contêiner Linux está fora enquanto esta decisão valer. Caminho de saída registrado para o Caminho A | — (detalha RF-019, RNF-002) |
 | [ADR-0010](adr/ADR-0010-autenticacao-na-sessao-e-ingresso-das-estacoes.md) | Autenticação na sessão | Estações **ingressadas no domínio**, com delegação de credenciais por GPO restrita aos session hosts nominados. A senha de domínio nunca passa pelo Control Plane. Caminho degradado documentado para máquina fora do domínio | — (detalha RNF-042) |
 | [ADR-0011](adr/ADR-0011-convencoes-do-modelo-de-dados.md) | Convenções do modelo de dados | UUID v7 como chave, `timestamptz` em UTC, exclusão lógica para dado de tenant e proibida para trilha, e **chave estrangeira composta com `tenant_id`** — segunda linha de defesa que impede no motor uma linha do tenant A apontar para o tenant B | — (detalha RNF-019, RNF-020, RNF-036) |
+| [ADR-0015](adr/ADR-0015-checagem-de-consistencia-no-fechamento-de-sessao.md) | **Processo — RA-02** | Fechamento de sessão passa a exigir **checagem de consistência**, em duas metades: mecânica (`./scripts/check-docs.sh`, 7 verificações) e humana (o conteúdo ainda reflete as decisões vigentes?). Primeira alteração do prompt mestre | altera `CLAUDE.md` |
 | [ADR-0014](adr/ADR-0014-licenciamento-dos-aplicativos-e-do-cliente.md) | **Licenciamento dos aplicativos** | O cliente adquire, instala e usa suas próprias licenças. O AppBridge **não consulta fornecedor nem intermedia licença**. G-01 deixa de ser confirmação escrita do fornecedor e passa a ser **declaração de titularidade e conformidade assinada pelo cliente**. Restringe NO-04 | nenhuma — não altera RF/RNF |
 | [ADR-0013](adr/ADR-0013-replanejamento-do-mvp-0-e-piloto-no-segundo-trimestre.md) | **Replanejamento** | MVP-0 dividido em **MVP-0a** (esqueleto ambulante, out/2026) e **MVP-0b** (dogfood real, dez/2026–jan/2027); piloto do Caminho B em **abr–jun/2027** com 3–5 escritórios. Portões G-01..G-05 mantidos intransponíveis | marcos, não requisitos |
 | [ADR-0012](adr/ADR-0012-convencoes-da-api.md) | Convenções da API | `/v1` no caminho; erro em Problem Details com código estável; `Idempotency-Key` obrigatório no lançamento; **o `tenant_id` nunca vem do cliente** — não existe parâmetro a verificar; recurso de outro tenant responde `404`; paginação por cursor | — (detalha RF-021, RF-025, RNF-036, RNF-043) |
@@ -207,5 +208,7 @@ documentação que **deixou de refletir decisões já registradas** — deriva, 
 | 5 | `MODELO-DE-DADOS.md` descrevendo `license_notes` pelo conceito extinto | ✅ |
 | 6 | `SEGURANCA.md` sem nota do ADR-0014 | ✅ |
 
-**Recomendação pendente de decisão:** incluir uma checagem de consistência no fechamento de sessão
-(RA-02). Não alterei a regra por conta própria — as Regras de Auditoria são do prompt mestre.
+**Recomendação aprovada e aplicada (ADR-0015):** a RA-02 do `CLAUDE.md` passou a exigir a checagem de
+consistência no fechamento de sessão. A parte mecanizável está em `./scripts/check-docs.sh` — 7
+verificações, código de saída 1 em caso de achado. A parte humana permanece humana: nenhuma expressão
+regular teria detectado o achado nº 2.
