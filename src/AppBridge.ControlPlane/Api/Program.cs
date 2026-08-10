@@ -1,17 +1,21 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
+using AppBridge.ControlPlane.Application.Abstractions.Applications;
 using AppBridge.ControlPlane.Application.Abstractions.Authentication;
 using AppBridge.ControlPlane.Application.Abstractions.Authorization;
 using AppBridge.ControlPlane.Application.Abstractions.Auditing;
 using AppBridge.ControlPlane.Application.Abstractions.Context;
+using AppBridge.ControlPlane.Application.Abstractions.Sessions;
 using AppBridge.ControlPlane.Core.Configuration;
 using AppBridge.ControlPlane.Infrastructure.Authorization;
 using AppBridge.ControlPlane.Infrastructure.Middleware;
 using AppBridge.ControlPlane.Infrastructure.Persistence;
+using AppBridge.ControlPlane.Infrastructure.Services.Applications;
 using AppBridge.ControlPlane.Infrastructure.Services.Authentication;
 using AppBridge.ControlPlane.Infrastructure.Services.Authorization;
 using AppBridge.ControlPlane.Infrastructure.Services.Auditing;
 using AppBridge.ControlPlane.Infrastructure.Services.Context;
+using AppBridge.ControlPlane.Infrastructure.Services.Sessions;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -45,6 +49,13 @@ builder.Services.AddScoped<IAuditingService, AuditingService>();
 // Add authorization services
 builder.Services.AddScoped<IAuthorizationService, AuthorizationService>();
 builder.Services.AddSingleton<IAuthorizationHandler, ApplicationAccessAuthorizationHandler>();
+
+// Add application services
+builder.Services.AddScoped<IApplicationService, ApplicationService>();
+
+// Add session services
+builder.Services.AddScoped<ISessionService, SessionService>();
+builder.Services.AddScoped<IRdpFileSigner, RdpFileSignerService>();
 
 // Add authentication
 var jwtOptions = builder.Configuration.GetSection("Jwt").Get<JwtOptions>();
