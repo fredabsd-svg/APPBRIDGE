@@ -1,9 +1,12 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 using AppBridge.ControlPlane.Application.Abstractions.Authentication;
+using AppBridge.ControlPlane.Application.Abstractions.Auditing;
 using AppBridge.ControlPlane.Core.Configuration;
+using AppBridge.ControlPlane.Infrastructure.Middleware;
 using AppBridge.ControlPlane.Infrastructure.Persistence;
 using AppBridge.ControlPlane.Infrastructure.Services.Authentication;
+using AppBridge.ControlPlane.Infrastructure.Services.Auditing;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -25,6 +28,9 @@ builder.Services.AddDbContext<AppBridgeDbContext>(options =>
 // Add authentication services
 builder.Services.AddScoped<ITokenService, JwtTokenService>();
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
+
+// Add auditing services
+builder.Services.AddScoped<IAuditingService, AuditingService>();
 
 // Add authentication
 var jwtOptions = builder.Configuration.GetSection("Jwt").Get<JwtOptions>();
@@ -92,6 +98,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseAuditing();
 app.MapControllers();
 
 app.Run();
