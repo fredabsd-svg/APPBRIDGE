@@ -1,3 +1,4 @@
+using AppBridge.ControlPlane.Infrastructure.Tenancy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 
@@ -21,6 +22,8 @@ public sealed class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<App
             .UseNpgsql(connectionString)
             .Options;
 
-        return new AppBridgeDbContext(options);
+        // Migrations operate on DDL, not on DbSet queries — the tenant filter never applies to
+        // them, so an unset TenantContext is correct here, not a workaround.
+        return new AppBridgeDbContext(options, new TenantContext());
     }
 }

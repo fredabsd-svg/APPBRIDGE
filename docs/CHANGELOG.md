@@ -6,6 +6,27 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Adicionado — isolamento por tenant no `DbContext` (T-203, S010)
+- **`ITenantContext`/`TenantContext`** (`AppBridge.ControlPlane.Infrastructure.Tenancy`) — o tenant
+  corrente para a unidade de trabalho, resolvido do token por middleware que T-301 adiciona; `null`
+  até algo o definir.
+- **`AppBridgeDbContext` ganhou um filtro global de consulta**, aplicado por reflexão a cada tipo de
+  entidade: `ITenantScoped` + `AuditedEntity` recebe `TenantId == contexto.TenantId && DeletedAt IS
+  NULL`; só uma das duas condições recebe só a cláusula correspondente. A parte de `DeletedAt` não é
+  uma decisão nova — é a consequência que ADR-0011 §5 já registrava ("junto com o filtro de
+  tenant"), agora executada.
+- **Verificado com PostgreSQL real**: consulta sem `Where` só devolve a linha do tenant certo;
+  contexto sem tenant resolvido devolve zero linhas (isolamento falha fechado, não falha aberto);
+  linha com exclusão lógica some da consulta padrão e reaparece com `IgnoreQueryFilters()` — a
+  mesma via que o papel de operador do provedor (RF-075, MVP-1) usará de forma nominal e auditada.
+  4 novos testes em `TenantIsolationTests.cs`.
+
+### Corrigido — corrida entre suítes de teste que migram o mesmo banco (T-203, S010)
+- Rodar `SchemaTests` e `TenantIsolationTests` juntos falhava com `relation "application" does not
+  exist` — corrida, não bug de isolamento: as duas suítes migram o mesmo banco `appbridge_test`
+  para cima e para baixo, e o xUnit paraleliza classes de teste por padrão. Corrigido serializando
+  o assembly de teste (`CollectionBehavior(DisableTestParallelization = true)`).
+
 ### Adicionado — persistência do Control Plane (T-202, S010)
 - **`src/AppBridge.ControlPlane.Domain`** — 15 entidades fiéis a `MODELO-DE-DADOS.md`, com hierarquia
   de base para colunas de auditoria (`AuditedEntity`, `AppendOnlyEntity`) e escopo de tenant

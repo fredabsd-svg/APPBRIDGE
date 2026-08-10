@@ -1,5 +1,6 @@
 using AppBridge.ControlPlane.Domain.Tenancy;
 using AppBridge.ControlPlane.Infrastructure;
+using AppBridge.ControlPlane.Infrastructure.Tenancy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -26,8 +27,11 @@ public sealed class SchemaTests : IAsyncLifetime
             ?? throw new InvalidOperationException(
                 "Set APPBRIDGE_TEST_DB_CONNECTION before running the Infrastructure tests (see docs/SETUP-DEV.md).");
 
+        // Schema tests exercise migrations and raw SQL, not tenant-scoped DbSet queries — an unset
+        // TenantContext (T-203) doesn't affect anything asserted in this file.
         _context = new AppBridgeDbContext(
-            new DbContextOptionsBuilder<AppBridgeDbContext>().UseNpgsql(connectionString).Options);
+            new DbContextOptionsBuilder<AppBridgeDbContext>().UseNpgsql(connectionString).Options,
+            new TenantContext());
 
         var migrator = Migrator();
         await migrator.MigrateAsync(Migration.InitialDatabase); // clean slate, in case a prior run failed mid-test

@@ -77,7 +77,7 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 |----|--------|--------------------|------|
 | ~~T-201~~ | ✅ Esqueleto ASP.NET Core, health check, log estruturado com `correlationId` | `/health` responde; um lançamento é rastreável ponta a ponta pelo log (RNF-039, RNF-040) | 3 |
 | ~~T-202~~ | ✅ EF Core + PostgreSQL + primeira migração **já com `tenant_id` em todas as tabelas** | Migração aplica e reverte (RNF-052, ADR-0011) | 5 |
-| T-203 | `TenantContext` + filtro global no `DbContext` | Consulta sem cláusula explícita não retorna dado de outro tenant (ADR-0004) | 5 |
+| ~~T-203~~ | ✅ `TenantContext` + filtro global no `DbContext` | Consulta sem cláusula explícita não retorna dado de outro tenant (ADR-0004) | 5 |
 | T-204 | **Chaves estrangeiras compostas com `tenant_id`** | Tentativa de gravar referência cruzada é recusada **pelo banco** (ADR-0011 §4) | 3 |
 | T-205 | `AuditWriter` transacional | Falha simulada de gravação **nega** a operação (V-05, ADR-0007) | 5 |
 | T-206 | **Teste automatizado de violação de tenant** | V-02 na suíte; leitura e escrita cruzadas falham (ADR-0004 item 9) | 3 |
@@ -123,6 +123,27 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 >
 > A chave estrangeira composta com `tenant_id` (ADR-0011 §4) fica **para T-204**, como planejado —
 > cada referência entre entidades carrega um comentário `TODO(T-204)` apontando para a decisão.
+>
+> **T-203 concluída em 2026-08-10 (S010).** `ITenantContext`/`TenantContext` (Infrastructure) e um
+> filtro global aplicado por reflexão a cada tipo de entidade em `OnModelCreating`: quem implementa
+> `ITenantScoped` **e** deriva de `AuditedEntity` recebe `TenantId == contexto.TenantId &&
+> DeletedAt == null`; quem só implementa uma das duas recebe só a cláusula correspondente. A
+> combinação dos dois filtros no mesmo lugar não é invenção desta tarefa — é a consequência que
+> ADR-0011 §5 já havia decidido ("toda consulta considere `deleted_at`... junto com o filtro de
+> tenant"), executada agora que o `DbContext` finalmente tem de onde ler o tenant corrente.
+> **Verificado com PostgreSQL real**, não só por leitura do código: consulta sem `Where` devolve
+> só a linha do tenant certo; contexto sem tenant resolvido devolve **zero linhas**, não todas
+> (isolamento falha fechado); linha com exclusão lógica some da consulta padrão e reaparece com
+> `IgnoreQueryFilters()` — o mesmo mecanismo que o papel de operador do provedor (RF-075, MVP-1)
+> vai usar de forma nominal e auditada, não uma trava sem saída. 4 novos testes em
+> `TenantIsolationTests.cs`, 12 de 12 passando no projeto de Infraestrutura.
+>
+> **Erro de infraestrutura de teste corrigido nesta tarefa:** rodar `SchemaTests` e
+> `TenantIsolationTests` juntos falhou com `relation "application" does not exist" — não é bug do
+> filtro, é corrida: os dois conjuntos de teste migram o mesmo banco `appbridge_test` para cima e
+> para baixo, e o xUnit paraleliza classes de teste por padrão. Corrigido serializando o assembly
+> (`CollectionBehavior(DisableTestParallelization = true)`) — o banco real e compartilhado é um
+> recurso inerentemente serial enquanto não houver Testcontainers.
 
 ### E-03 · Identidade e autorização — 21 pts
 
