@@ -68,6 +68,19 @@
 > endpoint HTTP — expor isso como rota seria o início do próprio painel que RF-012 diz que o MVP-0
 > não tem. Idempotente, verificado rodando duas vezes contra `appbridge_dev` real sem duplicar
 > nada. **59 testes automatizados no total.**
+>
+> **T-402 concluída — `GET /v1/applications`, a primeira rota `[Authorize]` do Control Plane.**
+> Trouxe consigo `TenantResolutionMiddleware`, peça de infraestrutura que faltava: até aqui todo
+> endpoint resolvia o tenant consultando o banco dentro do próprio handler; este lê a claim
+> `tenant_id` do JWT já emitido e carimba `TenantContext` antes da execução do endpoint —
+> exatamente o que o comentário em `TenantContext.cs` já previa desde T-203. `IAuthorizationService`
+> ganhou `GetAuthorizedApplicationIdsAsync` (forma em lote de `HasActivePermissionAsync`, T-304),
+> reaproveitada pelo endpoint em vez de duplicar a janela de vigência. **Bug encontrado na própria
+> semeadura manual de verificação** (não no código): literais numéricos gravados em colunas
+> `status`/`launch_mode`/`source`, que na verdade são `text` (EF Core converte o enum para string) —
+> corrigido no dado, não no código; os testes automatizados nunca passariam por esse valor porque
+> usam `DbContext.Applications.Add(...)`, que já grava a string certa. **67 testes automatizados no
+> total.**
 
 
 ## 2. Entregáveis da fase de design — ✅ concluída
@@ -118,7 +131,8 @@ significa que o código espera.
 | ~~—~~ | ~~**`AuthorizationService`**~~ | T-304 | **Concluído em 2026-08-10 (S010)** — 55 testes no total; sem consumidor ainda (E-05) |
 | ~~—~~ | ~~**Vínculo identidade → conta AD por SID**~~ | T-302 | **Concluído em 2026-08-10 (S010)** — 57 testes no total. **E-03 · Identidade e autorização está completo** |
 | ~~—~~ | ~~**Seed de aplicativos**~~ | T-401 | **Concluído em 2026-08-10 (S010)** — 59 testes no total; primeira tarefa de E-04 |
-| **—** | **T-402** (`GET /applications` filtrado por autorização) é a próxima de E-04 | E-04 | Depende do catálogo semeado (T-401) e de `IAuthorizationService` (T-304), ambos prontos |
+| ~~—~~ | ~~**`GET /applications` filtrado por autorização**~~ | T-402 | **Concluído em 2026-08-10 (S010)** — 67 testes no total; primeira rota `[Authorize]` |
+| **—** | **T-403** (`ETag`/`If-None-Match`) é a próxima de E-04 | E-04 | Depende de `GET /applications` (T-402, pronta) |
 
 **Decisões que ainda cabem a Frederico, em paralelo:** B-009 (subconjunto do MVP-1 exigido pelo
 piloto), B-006 (PS-07, cofre) e B-007 (PS-03, encadeamento da trilha).

@@ -23,4 +23,15 @@ public interface IAuthorizationService
     /// </summary>
     Task<bool> HasActivePermissionAsync(
         Guid userAccountId, Guid applicationId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// T-402: the bulk form <c>CatalogService</c> needs to filter a list instead of gating a single
+    /// launch — ARQUITETURA.md §4 draws <c>CatalogService --&gt; AuthorizationService</c> for exactly
+    /// this reason, so the vigência window (same rule as <see cref="HasActivePermissionAsync"/>)
+    /// lives in one place rather than being re-implemented per caller. The catalog endpoint still
+    /// applies its own <c>Application.Status</c> gate on top — an application can be authorized and
+    /// still not <c>Published</c>.
+    /// </summary>
+    Task<IReadOnlySet<Guid>> GetAuthorizedApplicationIdsAsync(
+        Guid userAccountId, CancellationToken cancellationToken = default);
 }

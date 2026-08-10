@@ -422,7 +422,7 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 | ID | Tarefa | Critério de aceite | Est. |
 |----|--------|--------------------|------|
 | ~~T-401~~ | ✅ Seed de aplicativos em JSON/tabela | Catálogo carregado sem painel (RF-012) | 3 |
-| T-402 | `GET /applications` com filtro por autorização | Aplicativo não autorizado **não aparece** (RF-011) | 3 |
+| ~~T-402~~ | ✅ `GET /applications` com filtro por autorização | Aplicativo não autorizado **não aparece** (RF-011) | 3 |
 | T-403 | `ETag` / `If-None-Match` | Segunda sincronização devolve `304` (RF-015) | 2 |
 | T-404 | Endpoint de ícone | Serve PNG com cache; resolve PD-03 | 3 |
 
@@ -458,6 +458,56 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 > com `HostPoolId` válido, num único `HostPool`; rodar duas vezes não duplica nem `application` nem
 > `host_pool`. **59 testes automatizados no total** (24 Api + 35 Infrastructure), todos passando.
 > **Nenhum bug encontrado durante a verificação desta tarefa.**
+
+> **T-402 concluída em 2026-08-10 (S010).** `GET /v1/applications` (API.md §3) — a primeira rota
+> `[Authorize]` do Control Plane. Escopo restrito ao que a linha do `ROADMAP.md` pede: a listagem
+> filtrada por autorização. `ETag`/`If-None-Match` (RF-015) é T-403; o endpoint de ícone (PD-03) é
+> T-404; `GET /v1/applications/{id}` (detalhe) não tem tarefa própria no roadmap e não foi
+> construído — `API.md` já o documenta, mas documentar não é mandato de implementar em toda tarefa
+> da mesma seção (mesmo raciocínio de T-301 não ter implementado `/refresh` só porque `API.md` já o
+> descrevia).
+>
+> **Peça de infraestrutura nova, não antecipada por nenhuma tarefa anterior**:
+> `TenantResolutionMiddleware` (`Api/Middleware/`). Até aqui, todo endpoint resolvia
+> `TenantContext.TenantId` consultando o banco dentro do próprio handler (login resolve por
+> `Tenant.AdDomain`; refresh/logout, pelo hash do token) — não havia ainda uma rota que exigisse
+> **um token de sessão já emitido** como a única fonte de tenant. A claim `tenant_id` já existe no
+> JWT desde `JwtSessionTokenIssuer` (ADR-0017 §1); o middleware só lê essa claim e carimba
+> `TenantContext` depois de `UseAuthentication()` e antes de `UseAuthorization()`/execução do
+> endpoint — o comentário em `ITenantContext.cs`/`TenantContext.cs` já previa isso desde T-203
+> ("T-301's auth middleware sets it early in the pipeline"), mas nenhuma tarefa antes de T-402 tinha
+> uma rota que precisasse dele de verdade.
+>
+> **`IAuthorizationService` ganhou um segundo método**, `GetAuthorizedApplicationIdsAsync` — a forma
+> em lote que `CatalogService` precisa (`ARQUITETURA.md` §4 desenha `CatalogService --> 
+> AuthorizationService`), reaproveitando a mesma janela de vigência de `HasActivePermissionAsync`
+> (T-304) em vez de duplicá-la. O endpoint ainda aplica seu próprio filtro de `Application.Status ==
+> Published` por cima — um aplicativo pode estar autorizado e ainda não publicado.
+>
+> **Bug real encontrado durante a verificação manual — mas na minha própria semeadura via `psql`,
+> não no código**: a primeira tentativa de popular `application`/`group`/`user_group_membership`
+> manualmente usou literais numéricos (`status=1`, `launch_mode=0`, `source=0`) como se as colunas
+> fossem inteiras — na verdade são `text`, porque o EF Core converte esses enums para string
+> minúscula (`'published'`, `'remote_app'`, `'local'`). O resultado gravado foi a string `"1"`, que
+> nunca bate com `a.status = 'published'` na consulta real — o catálogo respondia `200` com
+> `items: []` mesmo com a permissão certa concedida. Diagnosticado comparando o SQL gerado pelo EF
+> Core (log estruturado) com o dado gravado via `psql \d application` (revelou o tipo `text`), não
+> com um `Assert` — os testes automatizados usam `DbContext.Applications.Add(...)`, então nunca
+> passariam por esse valor errado; só a semeadura manual, fora do EF Core, expôs a discrepância entre
+> "o que eu digitei" e "o que o conversor de enum realmente grava". Corrigido a mão no dado de
+> verificação (não é bug de produção); registrado aqui porque é exatamente o tipo de erro que se
+> repetiria em qualquer script de seed manual futuro fora do `CatalogSeeder`.
+>
+> **Verificado rodando a aplicação de verdade**: tenant/usuário/aplicativo/grupo/permissão semeados
+> via `psql` (com o valor de enum corrigido), login real, `GET /v1/applications` sem token → `401`;
+> com token → `Domínio Contábil` aparece, `Alterdata` (nunca autorizado) não aparece.
+>
+> **8 novos testes**: 3 em `AuthorizationServiceTests.cs` (`GetAuthorizedApplicationIdsAsync` —
+> devolve só o autorizado vigente; exclui permissão revogada; usuário sem vínculo nenhum devolve
+> vazio) e 5 em `CatalogEndpointTests.cs` (sem token → `401`; autorizado e publicado aparece;
+> não autorizado não aparece; autorizado mas `Draft` não aparece; token de um tenant nunca vê
+> aplicativo autorizado de outro tenant). **67 testes automatizados no total** (29 Api + 38
+> Infrastructure), todos passando.
 
 ### E-05 · Lançamento — 32 pts · **coração do produto**
 

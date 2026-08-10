@@ -6,6 +6,23 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Adicionado — `GET /v1/applications` filtrado por autorização (T-402, S010)
+- Primeira rota `[Authorize]` do Control Plane. Retorna apenas os aplicativos `Published` para os
+  quais o usuário autenticado tem `ApplicationPermission` vigente (RF-011).
+- `TenantResolutionMiddleware` (`Api/Middleware/`) — novo: lê a claim `tenant_id` do token de
+  sessão já emitido (`JwtSessionTokenIssuer`, ADR-0017 §1) e carimba `TenantContext` depois de
+  `UseAuthentication()` e antes de `UseAuthorization()`/execução do endpoint. Até T-402 todo
+  endpoint resolvia o tenant consultando o banco dentro do próprio handler (login por
+  `Tenant.AdDomain`; refresh/logout pelo hash do token) — esta é a primeira rota cuja única fonte de
+  tenant é o token já emitido.
+- `IAuthorizationService.GetAuthorizedApplicationIdsAsync` — forma em lote de
+  `HasActivePermissionAsync` (T-304), reaproveitando a mesma janela de vigência
+  (`EffectiveFrom`/`EffectiveTo`) em vez de duplicá-la, para o `CatalogService`
+  (`ARQUITETURA.md` §4: `CatalogService --> AuthorizationService`).
+- `ETag`/`If-None-Match` (RF-015, T-403) e o endpoint de ícone (PD-03, T-404) ficam para as
+  próximas tarefas; `GET /v1/applications/{id}` não tem tarefa própria no roadmap e não foi
+  construído.
+
 ### Adicionado — seed de catálogo (T-401, S010)
 - `CatalogSeeder` (`AppBridge.ControlPlane.Infrastructure/Catalog/`) popula `application`/
   `host_pool` diretamente via EF Core com o dataset fixo do dogfood (Domínio Contábil, Alterdata —

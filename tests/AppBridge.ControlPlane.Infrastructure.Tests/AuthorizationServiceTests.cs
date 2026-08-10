@@ -214,4 +214,44 @@ public sealed class AuthorizationServiceTests : IAsyncLifetime
         var service = new AuthorizationService(verify);
         Assert.False(await service.HasActivePermissionAsync(_userAccountId, _applicationId));
     }
+
+    [Fact]
+    public async Task GetAuthorizedApplicationIdsAsync_returns_only_currently_effective_applications()
+    {
+        await using (var context = NewContext())
+        {
+            context.ApplicationPermissions.Add(NewPermission(_applicationId, DateTimeOffset.UtcNow.AddDays(-1)));
+            // _otherApplicationId deliberately gets no permission — must not appear in the result.
+            await context.SaveChangesAsync();
+        }
+
+        await using var verify = NewContext();
+        var service = new AuthorizationService(verify);
+        var ids = await service.GetAuthorizedApplicationIdsAsync(_userAccountId);
+
+        Assert.Equal(new HashSet<Guid> { _applicationId }, ids);
+    }
+
+    [Fact]
+    public async Task GetAuthorizedApplicationIdsAsync_excludes_a_revoked_permission()
+    {
+        await using (var context = NewContext())
+        {
+            context.ApplicationPermissions.Add(NewPermission(
+                _applicationId, DateTimeOffset.UtcNow.AddDays(-2), DateTimeOffset.UtcNow.AddDays(-1)));
+            await context.SaveChangesAsync();
+        }
+
+        await using var verify = NewContext();
+        var service = new AuthorizationService(verify);
+        Assert.Empty(await service.GetAuthorizedApplicationIdsAsync(_userAccountId));
+    }
+
+    [Fact]
+    public async Task GetAuthorizedApplicationIdsAsync_for_a_user_with_no_memberships_returns_empty()
+    {
+        await using var context = NewContext();
+        var service = new AuthorizationService(context);
+        Assert.Empty(await service.GetAuthorizedApplicationIdsAsync(Guid.NewGuid()));
+    }
 }

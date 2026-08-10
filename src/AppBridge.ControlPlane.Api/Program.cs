@@ -95,6 +95,7 @@ if (app.Environment.IsDevelopment())
 app.UseMiddleware<CorrelationIdMiddleware>();
 
 app.UseAuthentication();
+app.UseMiddleware<TenantResolutionMiddleware>();
 app.UseAuthorization();
 
 app.MapHealthChecks("/v1/health", new HealthCheckOptions
@@ -103,6 +104,7 @@ app.MapHealthChecks("/v1/health", new HealthCheckOptions
 });
 
 app.MapAuthEndpoints();
+app.MapCatalogEndpoints();
 
 // RF-012: the catalog is populated by seed, not an admin panel (that's RF-043, MVP-1). A CLI verb
 // instead of an HTTP route so this stays a seed, not the very panel RF-012 says the catalog does
