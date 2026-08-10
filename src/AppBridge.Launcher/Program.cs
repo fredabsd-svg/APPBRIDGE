@@ -1,12 +1,9 @@
-namespace AppBridge.Launcher;
+using AppBridge.Launcher;
 
-static class Program
+[STAThread]
+void Main()
 {
-    [STAThread]
-    static void Main()
-    {
-        var app = new App();
-        app.InitializeComponent();
-        app.Run();
-    }
+    var app = new App();
+    app.InitializeComponent();
+    app.Run();
 }
