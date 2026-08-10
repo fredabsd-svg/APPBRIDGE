@@ -80,7 +80,7 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 | ~~T-203~~ | ✅ `TenantContext` + filtro global no `DbContext` | Consulta sem cláusula explícita não retorna dado de outro tenant (ADR-0004) | 5 |
 | ~~T-204~~ | ✅ **Chaves estrangeiras compostas com `tenant_id`** | Tentativa de gravar referência cruzada é recusada **pelo banco** (ADR-0011 §4) | 3 |
 | ~~T-205~~ | ✅ `AuditWriter` transacional | Falha simulada de gravação **nega** a operação (V-05, ADR-0007) | 5 |
-| T-206 | **Teste automatizado de violação de tenant** | V-02 na suíte; leitura e escrita cruzadas falham (ADR-0004 item 9) | 3 |
+| ~~T-206~~ | ✅ **Teste automatizado de violação de tenant** | V-02 na suíte; leitura e escrita cruzadas falham (ADR-0004 item 9) | 3 |
 | **T-207** | **Coluna `purpose` na tabela `launch`** (enum `user_initiated \| prelaunch`) e filtro de prelaunch nas consultas de metering | Contagem de RF-062 **não soma prelaunchs**; teste cobre o caso (ADR-0016, Gap 1) | 2 |
 
 > **T-201 concluída em 2026-08-10 (S010).** `src/AppBridge.ControlPlane.Api` — .NET 10, `AppBridge.slnx`.
@@ -192,6 +192,24 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 > entre sessões (`service postgresql status` → `down`); reiniciado (`service postgresql start`) antes
 > de rodar os testes. Não é achado de produto — registrado porque `docs/SETUP-DEV.md` já orienta como
 > subir o banco, mas não como diagnosticar que ele caiu.
+>
+> **T-206 concluída em 2026-08-10 (S010).** `TenantViolationTests.cs` — o local explícito e nomeado
+> da suíte para **V-02** (`SEGURANCA.md` §7: "tentar ler e gravar dados de outro tenant e exigir
+> falha", AM-07/AM-14). T-203 e T-204 já provavam os dois mecanismos, mas só com `Application` (leitura)
+> e `application`/`host_pool` (escrita); esta tarefa fechou duas lacunas reais de forma, não de
+> volume: (1) nenhum teste anterior havia exercitado `SetTenantFilter` sozinho — o caminho que
+> entidades de trilha (sem `deleted_at`, ADR-0011 §3) percorrem, distinto de
+> `SetTenantAndSoftDeleteFilter` — fechada com um caso em `AccessEvent`; (2) nenhum teste anterior
+> cobria uma FK composta **anulável** nem uma tabela com **duas FKs independentes para o mesmo tipo
+> principal** (`application_permission.granted_by`/`revoked_by`, ambas para `user_account` — o
+> desenho mais propenso a esconder um erro de configuração por cópia-e-cola) — fechadas com
+> `redirection_policy.application_id` e `application_permission.granted_by`. **Cobertura
+> deliberadamente não exaustiva**: as 13 tabelas com escopo de tenant e as 15 FKs compostas não são
+> testadas uma a uma — ADR-0004 item 9 pede casos que provem o mecanismo, não uma matriz
+> combinatória, e os dois mecanismos já foram exercitados em cinco formas distintas de
+> entidade/relacionamento entre este arquivo e T-203/T-204. **28 testes automatizados no total** no
+> Control Plane (7 Api + 8 Schema + 4 TenantIsolation + 2 TenantForeignKey + 3 AuditWriter + 4
+> TenantViolation), todos passando contra PostgreSQL real.
 
 ### E-03 · Identidade e autorização — 21 pts
 

@@ -6,6 +6,21 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Adicionado — suíte nomeada de violação de tenant, V-02 (T-206, S010)
+- `tests/AppBridge.ControlPlane.Infrastructure.Tests/TenantViolationTests.cs` — local explícito e
+  nomeado da suíte para **V-02** (`SEGURANCA.md` §7, AM-07/AM-14, ADR-0004 item 9). T-203 e T-204 já
+  provavam os dois mecanismos (filtro de leitura, FK composta de escrita), mas só com `Application`
+  e `application`/`host_pool`. Esta tarefa fecha duas lacunas de forma:
+  - Nenhum teste anterior exercitava `SetTenantFilter` sozinho — o caminho de filtro que entidades
+    de trilha sem `deleted_at` percorrem (distinto de `SetTenantAndSoftDeleteFilter`). Fechado com
+    um caso em `AccessEvent`.
+  - Nenhum teste anterior cobria uma FK composta **anulável** (`redirection_policy.application_id`)
+    nem uma tabela com **duas FKs independentes para o mesmo tipo principal**
+    (`application_permission.granted_by`/`revoked_by`, ambas para `user_account`) — o desenho mais
+    propenso a esconder um erro de configuração por cópia-e-cola.
+  - Cobertura deliberadamente não exaustiva das 13 tabelas/15 FKs — registrado no próprio arquivo,
+    não implícito.
+
 ### Adicionado — `AuditWriter` transacional (T-205, S010)
 - **`IAuditWriter`/`AuditWriter`** (`Infrastructure/Auditing`): caminho único pelo qual as operações
   de segurança (RF-036, RF-037, RF-039, RF-041, RF-042) gravam seu registro de trilha.
