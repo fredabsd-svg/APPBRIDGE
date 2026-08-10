@@ -12,6 +12,8 @@ public sealed class GroupConfiguration : IEntityTypeConfiguration<Group>
         // "group" is a SQL reserved word; Npgsql quotes it correctly in every generated statement.
         builder.ToTable("group");
         builder.ConfigureAuditedBase();
+        builder.ConfigureTenantForeignKey();
+        builder.ConfigureTenantAlternateKey(); // referenced by application_permission, user_group_membership
 
         builder.Property(e => e.Name).IsRequired();
         builder.Property(e => e.Source).HasConversion(SnakeCaseEnumConverter.For<GroupSource>()).IsRequired();

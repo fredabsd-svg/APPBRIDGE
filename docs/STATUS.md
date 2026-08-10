@@ -12,11 +12,13 @@
 > em **ADR-0013**: MVP-0 dividido em duas etapas, piloto em abr–jun/2027.
 >
 > **O código começou em 2026-08-10 (S010).** `src/AppBridge.ControlPlane.Api` — .NET 10, primeira
-> tarefa (**T-201**) concluída, com testes. **T-202 e T-203 também concluídas na mesma sessão** —
-> EF Core + PostgreSQL + primeira migração (aplicada e revertida contra banco real) e o filtro global
-> de isolamento por tenant (ADR-0004), com 19 testes automatizados no total. Ver `docs/SETUP-DEV.md`
-> para o ambiente de desenvolvimento (.NET 10 SDK e PostgreSQL 16 locais). Ver §3 para a correção de
-> sequenciamento: E-02 não esperava mais o hardware do que a própria estrutura do código exigia.
+> tarefa (**T-201**) concluída, com testes. **T-202, T-203 e T-204 também concluídas na mesma
+> sessão** — EF Core + PostgreSQL + primeira migração (aplicada e revertida contra banco real), o
+> filtro global de isolamento por tenant (ADR-0004) e as chaves estrangeiras compostas que impedem
+> escrita cruzada de tenant no banco (ADR-0011 §4), com 21 testes automatizados no total. Ver
+> `docs/SETUP-DEV.md` para o ambiente de desenvolvimento (.NET 10 SDK e PostgreSQL 16 locais). Ver §3
+> para a correção de sequenciamento: E-02 não esperava mais o hardware do que a própria estrutura do
+> código exigia.
 
 
 ## 2. Entregáveis da fase de design — ✅ concluída
@@ -61,7 +63,7 @@ significa que o código espera.
 | 4 | VMs separadas, domínio, RDS, FSLogix, AppLocker — 🟡 **roteiro pronto** em `operacao/E-01-infraestrutura/roteiro-implantacao.md` | T-102 a T-105 | Épico E-01, caminho crítico. Depende do equipamento |
 | 5 | Ingresso das estações e GPOs — roteiro pronto | T-106 | A tarefa que mais facilmente estoura o prazo; sequenciar cedo |
 | 6 | Varredura externa | T-107 / V-01 | Comprova CS-04. Pode correr em paralelo a partir de T-102 |
-| **—** | **Fundação do Control Plane — ✅ T-201, T-202 e T-203 concluídas (S010); T-204 em diante seguem em paralelo com E-01** | E-02 | Precisa só de Postgres de dev, já instalado nesta sessão |
+| **—** | **Fundação do Control Plane — ✅ T-201 a T-204 concluídas (S010); T-205 em diante seguem em paralelo com E-01** | E-02 | Precisa só de Postgres de dev, já instalado nesta sessão |
 
 **Decisões que ainda cabem a Frederico, em paralelo:** B-009 (subconjunto do MVP-1 exigido pelo
 piloto), B-006 (PS-07, cofre) e B-007 (PS-03, encadeamento da trilha).

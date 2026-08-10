@@ -11,6 +11,8 @@ public sealed class HostPoolConfiguration : IEntityTypeConfiguration<HostPool>
     {
         builder.ToTable("host_pool");
         builder.ConfigureAuditedBase();
+        builder.ConfigureTenantForeignKey();
+        builder.ConfigureTenantAlternateKey(); // referenced by application, session_host
 
         builder.Property(e => e.Name).IsRequired();
         builder.Property(e => e.BackendType).HasConversion(SnakeCaseEnumConverter.For<BackendType>()).IsRequired();

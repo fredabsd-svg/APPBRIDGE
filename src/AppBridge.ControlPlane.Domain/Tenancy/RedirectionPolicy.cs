@@ -9,7 +9,10 @@ namespace AppBridge.ControlPlane.Domain.Tenancy;
 /// </summary>
 public sealed class RedirectionPolicy : TenantScopedEntity
 {
-    /// <summary>Null means this row is the tenant's baseline, not an app-specific override.</summary>
+    /// <summary>
+    /// Null means this row is the tenant's baseline, not an app-specific override. Composite FK
+    /// <c>fk_redirection_policy_application</c> (ADR-0011 §4, T-204) when set.
+    /// </summary>
     public Guid? ApplicationId { get; set; }
 
     public bool AllowPrinter { get; set; } = true;

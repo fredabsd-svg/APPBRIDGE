@@ -5,7 +5,7 @@ namespace AppBridge.ControlPlane.Domain.Sessions;
 /// <summary>MODELO-DE-DADOS.md §6.1.</summary>
 public sealed class SessionHost : TenantScopedEntity
 {
-    // TODO(T-204): ADR-0011 §4 composite FK (tenant_id, host_pool_id) -> host_pool(tenant_id, id).
+    /// <summary>Composite FK <c>fk_session_host_host_pool</c> (ADR-0011 §4, T-204).</summary>
     public Guid HostPoolId { get; set; }
 
     public required string Fqdn { get; set; }

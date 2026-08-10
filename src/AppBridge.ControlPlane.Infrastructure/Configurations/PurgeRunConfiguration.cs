@@ -12,6 +12,7 @@ public sealed class PurgeRunConfiguration : IEntityTypeConfiguration<PurgeRun>
     {
         builder.ToTable("purge_run");
         builder.ConfigureAppendOnlyBase();
+        builder.ConfigureTenantForeignKey();
 
         builder.Property(e => e.Category).HasConversion(SnakeCaseEnumConverter.For<RetentionCategory>()).IsRequired();
         builder.Property(e => e.CutoffDate).IsRequired();

@@ -1,4 +1,5 @@
 using AppBridge.ControlPlane.Domain.Catalog;
+using AppBridge.ControlPlane.Domain.Sessions;
 using AppBridge.ControlPlane.Domain.Tenancy;
 using AppBridge.ControlPlane.Infrastructure;
 using AppBridge.ControlPlane.Infrastructure.Tenancy;
@@ -21,6 +22,8 @@ public sealed class TenantIsolationTests : IAsyncLifetime
     private string _connectionString = null!;
     private Guid _tenantAId;
     private Guid _tenantBId;
+    private Guid _hostPoolAId;
+    private Guid _hostPoolBId;
 
     public async Task InitializeAsync()
     {
@@ -42,6 +45,15 @@ public sealed class TenantIsolationTests : IAsyncLifetime
         await setup.SaveChangesAsync();
         _tenantAId = tenantA.Id;
         _tenantBId = tenantB.Id;
+
+        // Each Application needs a real, same-tenant host_pool since T-204's composite FK
+        // (fk_application_host_pool) now rejects one that doesn't exist for that tenant.
+        var hostPoolA = new HostPool { TenantId = _tenantAId, Name = "Pool A" };
+        var hostPoolB = new HostPool { TenantId = _tenantBId, Name = "Pool B" };
+        setup.HostPools.AddRange(hostPoolA, hostPoolB);
+        await setup.SaveChangesAsync();
+        _hostPoolAId = hostPoolA.Id;
+        _hostPoolBId = hostPoolB.Id;
     }
 
     public Task DisposeAsync() => Task.CompletedTask;
@@ -55,13 +67,13 @@ public sealed class TenantIsolationTests : IAsyncLifetime
     {
         await using (var asTenantA = NewContext(_tenantAId))
         {
-            asTenantA.Applications.Add(NewApplication(_tenantAId, "App da A"));
+            asTenantA.Applications.Add(NewApplication(_tenantAId, _hostPoolAId, "App da A"));
             await asTenantA.SaveChangesAsync();
         }
 
         await using (var asTenantB = NewContext(_tenantBId))
         {
-            asTenantB.Applications.Add(NewApplication(_tenantBId, "App da B"));
+            asTenantB.Applications.Add(NewApplication(_tenantBId, _hostPoolBId, "App da B"));
             await asTenantB.SaveChangesAsync();
         }
 
@@ -78,7 +90,7 @@ public sealed class TenantIsolationTests : IAsyncLifetime
     {
         await using (var asTenantA = NewContext(_tenantAId))
         {
-            asTenantA.Applications.Add(NewApplication(_tenantAId, "App da A"));
+            asTenantA.Applications.Add(NewApplication(_tenantAId, _hostPoolAId, "App da A"));
             await asTenantA.SaveChangesAsync();
         }
 
@@ -94,7 +106,7 @@ public sealed class TenantIsolationTests : IAsyncLifetime
         Guid applicationId;
         await using (var asTenantA = NewContext(_tenantAId))
         {
-            var application = NewApplication(_tenantAId, "App descontinuada");
+            var application = NewApplication(_tenantAId, _hostPoolAId, "App descontinuada");
             asTenantA.Applications.Add(application);
             await asTenantA.SaveChangesAsync();
             applicationId = application.Id;
@@ -118,13 +130,13 @@ public sealed class TenantIsolationTests : IAsyncLifetime
     {
         await using (var asTenantA = NewContext(_tenantAId))
         {
-            asTenantA.Applications.Add(NewApplication(_tenantAId, "App da A"));
+            asTenantA.Applications.Add(NewApplication(_tenantAId, _hostPoolAId, "App da A"));
             await asTenantA.SaveChangesAsync();
         }
 
         await using (var asTenantB = NewContext(_tenantBId))
         {
-            asTenantB.Applications.Add(NewApplication(_tenantBId, "App da B"));
+            asTenantB.Applications.Add(NewApplication(_tenantBId, _hostPoolBId, "App da B"));
             await asTenantB.SaveChangesAsync();
         }
 
@@ -137,11 +149,11 @@ public sealed class TenantIsolationTests : IAsyncLifetime
         Assert.Equal(2, everyone.Count);
     }
 
-    private static Application NewApplication(Guid tenantId, string displayName) => new()
+    private static Application NewApplication(Guid tenantId, Guid hostPoolId, string displayName) => new()
     {
         TenantId = tenantId,
         DisplayName = displayName,
         RemoteAppAlias = Guid.NewGuid().ToString("N"),
-        HostPoolId = Guid.CreateVersion7(), // no FK enforced yet (T-204) — a random id is a valid stand-in here
+        HostPoolId = hostPoolId,
     };
 }

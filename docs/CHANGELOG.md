@@ -6,6 +6,26 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Adicionado — chaves estrangeiras compostas com `tenant_id` (T-204, S010)
+- **15 chaves estrangeiras compostas** `(tenant_id, x_id) -> tabela(tenant_id, id)`, cobrindo toda
+  referência entre tabelas de tenant listada em `MODELO-DE-DADOS.md` — inclusive três que o modelo já
+  documentava mas o código ainda não marcava com `TODO(T-204)`
+  (`redirection_policy.application_id`, `application_permission.granted_by`/`revoked_by`,
+  `launch.session_id`, `access_event.user_account_id`), corrigidas junto.
+- **6 chaves alternativas** `UNIQUE (tenant_id, id)` nas entidades que são alvo de referência
+  (`application`, `group`, `host_pool`, `session_host`, `session`, `user_account`) — a "chave
+  candidata" do exemplo do próprio ADR-0011 §4.
+- **13 chaves estrangeiras simples** `tenant_id -> tenant(id)`, uma por tabela com escopo de tenant —
+  já declaradas como `uuid FK` em `MODELO-DE-DADOS.md`, agora de fato ligadas ao banco. `ON DELETE
+  RESTRICT` em todas: dado de tenant nunca é fisicamente removido (ADR-0011 §3), então a restrição só
+  dispararia diante de um `DELETE` que não deveria acontecer.
+- **Verificado com PostgreSQL real, nas duas direções**: uma escrita cruzada de tenant foi tentada e
+  recusada com o nome de constraint exato (`fk_application_host_pool`); a mesma escrita, correta,
+  foi aceita. 2 novos testes em `TenantForeignKeyTests.cs` fixam essa prova como regressão.
+- `TenantIsolationTests.cs` corrigido: usava um `host_pool_id` fabricado que só era inofensivo por
+  não haver FK ainda — passou a falhar corretamente após esta tarefa, e foi ajustado para criar um
+  `HostPool` real por tenant.
+
 ### Adicionado — isolamento por tenant no `DbContext` (T-203, S010)
 - **`ITenantContext`/`TenantContext`** (`AppBridge.ControlPlane.Infrastructure.Tenancy`) — o tenant
   corrente para a unidade de trabalho, resolvido do token por middleware que T-301 adiciona; `null`

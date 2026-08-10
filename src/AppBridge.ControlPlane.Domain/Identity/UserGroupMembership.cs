@@ -9,10 +9,10 @@ namespace AppBridge.ControlPlane.Domain.Identity;
 /// </summary>
 public sealed class UserGroupMembership : TenantScopedEntity
 {
-    // TODO(T-204): ADR-0011 §4 composite FK (tenant_id, user_account_id) -> user_account(tenant_id, id).
+    /// <summary>Composite FK <c>fk_user_group_membership_user_account</c> (ADR-0011 §4, T-204).</summary>
     public Guid UserAccountId { get; set; }
 
-    // TODO(T-204): ADR-0011 §4 composite FK (tenant_id, group_id) -> group(tenant_id, id).
+    /// <summary>Composite FK <c>fk_user_group_membership_group</c> (ADR-0011 §4, T-204).</summary>
     public Guid GroupId { get; set; }
 
     public GroupSource Source { get; set; } = GroupSource.Local;

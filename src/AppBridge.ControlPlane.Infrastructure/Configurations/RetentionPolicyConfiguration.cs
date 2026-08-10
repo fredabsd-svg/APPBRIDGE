@@ -10,6 +10,7 @@ public sealed class RetentionPolicyConfiguration : IEntityTypeConfiguration<Rete
     public void Configure(EntityTypeBuilder<RetentionPolicy> builder)
     {
         builder.ConfigureAuditedBase();
+        builder.ConfigureTenantForeignKey();
 
         builder.Property(e => e.Category).HasConversion(SnakeCaseEnumConverter.For<RetentionCategory>()).IsRequired();
         builder.Property(e => e.RetentionMonths).IsRequired();

@@ -11,7 +11,8 @@ public sealed class AccessEvent : TenantScopedAppendOnlyEntity
     /// <summary>
     /// Null on a failed login attempt against an unknown user — there is no account to point to
     /// yet, and the attempted identifier goes in <see cref="Payload"/>. Without this row, the
-    /// product would be blind to credential-stuffing attempts (RNF-010).
+    /// product would be blind to credential-stuffing attempts (RNF-010). Composite FK
+    /// <c>fk_access_event_user_account</c> (ADR-0011 §4, T-204) when set.
     /// </summary>
     public Guid? UserAccountId { get; set; }
 

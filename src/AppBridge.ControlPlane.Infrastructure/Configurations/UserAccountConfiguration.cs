@@ -11,6 +11,8 @@ public sealed class UserAccountConfiguration : IEntityTypeConfiguration<UserAcco
     {
         builder.ToTable("user_account");
         builder.ConfigureAuditedBase();
+        builder.ConfigureTenantForeignKey();
+        builder.ConfigureTenantAlternateKey(); // referenced by session, launch, application_permission, user_group_membership, access_event
 
         builder.Property(e => e.ExternalSubject).IsRequired();
         builder.Property(e => e.Upn).IsRequired();

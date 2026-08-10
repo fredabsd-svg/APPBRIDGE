@@ -14,7 +14,7 @@ public sealed class Application : TenantScopedEntity
 
     public required string RemoteAppAlias { get; set; }
 
-    // TODO(T-204): ADR-0011 §4 composite FK (tenant_id, host_pool_id) -> host_pool(tenant_id, id).
+    /// <summary>Composite FK <c>fk_application_host_pool</c> (ADR-0011 §4, T-204).</summary>
     public Guid HostPoolId { get; set; }
 
     public LaunchMode LaunchMode { get; set; } = LaunchMode.RemoteApp;

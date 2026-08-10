@@ -9,10 +9,10 @@ namespace AppBridge.ControlPlane.Domain.Catalog;
 /// </summary>
 public sealed class ApplicationPermission : TenantScopedEntity
 {
-    // TODO(T-204): ADR-0011 §4 composite FK (tenant_id, application_id) -> application(tenant_id, id).
+    /// <summary>Composite FK <c>fk_permission_application</c> (ADR-0011 §4, T-204).</summary>
     public Guid ApplicationId { get; set; }
 
-    // TODO(T-204): ADR-0011 §4 composite FK (tenant_id, group_id) -> group(tenant_id, id).
+    /// <summary>Composite FK <c>fk_permission_group</c> (ADR-0011 §4, T-204).</summary>
     public Guid GroupId { get; set; }
 
     public DateTimeOffset EffectiveFrom { get; set; }
@@ -20,8 +20,10 @@ public sealed class ApplicationPermission : TenantScopedEntity
     /// <summary>Null means currently in force. This is the column the launch path filters on.</summary>
     public DateTimeOffset? EffectiveTo { get; set; }
 
+    /// <summary>Composite FK <c>fk_permission_granted_by</c> (ADR-0011 §4, T-204).</summary>
     public Guid GrantedBy { get; set; }
 
+    /// <summary>Composite FK <c>fk_permission_revoked_by</c> (ADR-0011 §4, T-204).</summary>
     public Guid? RevokedBy { get; set; }
 
     public string? RevocationReason { get; set; }

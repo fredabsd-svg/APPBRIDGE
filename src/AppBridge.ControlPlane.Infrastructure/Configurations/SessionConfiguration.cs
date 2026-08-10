@@ -1,3 +1,4 @@
+using AppBridge.ControlPlane.Domain.Identity;
 using AppBridge.ControlPlane.Domain.Sessions;
 using AppBridge.ControlPlane.Infrastructure.Conventions;
 using Microsoft.EntityFrameworkCore;
@@ -11,6 +12,8 @@ public sealed class SessionConfiguration : IEntityTypeConfiguration<Session>
     {
         builder.ToTable("session");
         builder.ConfigureAuditedBase();
+        builder.ConfigureTenantForeignKey();
+        builder.ConfigureTenantAlternateKey(); // referenced by launch
 
         builder.Property(e => e.BackendSessionId).IsRequired();
         builder.Property(e => e.StartedAt).IsRequired();
@@ -22,5 +25,20 @@ public sealed class SessionConfiguration : IEntityTypeConfiguration<Session>
         builder.HasIndex(e => new { e.TenantId, e.SessionHostId })
             .HasFilter("ended_at IS NULL")
             .HasDatabaseName("ix_session_active");
+
+        // ADR-0011 §4: a session can't be opened for another tenant's user or on another tenant's host.
+        builder.HasOne<UserAccount>()
+            .WithMany()
+            .HasForeignKey(e => new { e.TenantId, e.UserAccountId })
+            .HasPrincipalKey(p => new { p.TenantId, p.Id })
+            .HasConstraintName("fk_session_user_account")
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<SessionHost>()
+            .WithMany()
+            .HasForeignKey(e => new { e.TenantId, e.SessionHostId })
+            .HasPrincipalKey(p => new { p.TenantId, p.Id })
+            .HasConstraintName("fk_session_session_host")
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

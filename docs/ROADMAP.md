@@ -78,7 +78,7 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 | ~~T-201~~ | ✅ Esqueleto ASP.NET Core, health check, log estruturado com `correlationId` | `/health` responde; um lançamento é rastreável ponta a ponta pelo log (RNF-039, RNF-040) | 3 |
 | ~~T-202~~ | ✅ EF Core + PostgreSQL + primeira migração **já com `tenant_id` em todas as tabelas** | Migração aplica e reverte (RNF-052, ADR-0011) | 5 |
 | ~~T-203~~ | ✅ `TenantContext` + filtro global no `DbContext` | Consulta sem cláusula explícita não retorna dado de outro tenant (ADR-0004) | 5 |
-| T-204 | **Chaves estrangeiras compostas com `tenant_id`** | Tentativa de gravar referência cruzada é recusada **pelo banco** (ADR-0011 §4) | 3 |
+| ~~T-204~~ | ✅ **Chaves estrangeiras compostas com `tenant_id`** | Tentativa de gravar referência cruzada é recusada **pelo banco** (ADR-0011 §4) | 3 |
 | T-205 | `AuditWriter` transacional | Falha simulada de gravação **nega** a operação (V-05, ADR-0007) | 5 |
 | T-206 | **Teste automatizado de violação de tenant** | V-02 na suíte; leitura e escrita cruzadas falham (ADR-0004 item 9) | 3 |
 | **T-207** | **Coluna `purpose` na tabela `launch`** (enum `user_initiated \| prelaunch`) e filtro de prelaunch nas consultas de metering | Contagem de RF-062 **não soma prelaunchs**; teste cobre o caso (ADR-0016, Gap 1) | 2 |
@@ -144,6 +144,29 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 > para baixo, e o xUnit paraleliza classes de teste por padrão. Corrigido serializando o assembly
 > (`CollectionBehavior(DisableTestParallelization = true)`) — o banco real e compartilhado é um
 > recurso inerentemente serial enquanto não houver Testcontainers.
+>
+> **T-204 concluída em 2026-08-10 (S010).** 15 chaves estrangeiras compostas `(tenant_id, x_id) ->
+> tabela(tenant_id, id)` — todas as referências entre entidades de tenant listadas em
+> MODELO-DE-DADOS.md, incluindo três que estavam documentadas no modelo mas sem o comentário
+> `TODO(T-204)` no código (`redirection_policy.application_id`, `application_permission.granted_by`/
+> `revoked_by`, `launch.session_id`, `access_event.user_account_id`) — corrigidas junto, não
+> deixadas para trás. Seis chaves alternativas `UNIQUE (tenant_id, id)` nas entidades que são alvo de
+> referência (`application`, `group`, `host_pool`, `session_host`, `session`, `user_account`) — a
+> "chave candidata" que o próprio ADR-0011 §4 nomeia. Mais 13 chaves estrangeiras simples `tenant_id
+> -> tenant(id)`, uma por tabela com escopo de tenant — declaradas em `MODELO-DE-DADOS.md` como
+> `uuid FK` mas nunca antes ligadas ao banco. Todas com `ON DELETE RESTRICT`: um tenant, aplicativo
+> ou usuário nunca é fisicamente removido enquanto tiver dado dependente (ADR-0011 §3), então a
+> restrição nunca deveria disparar em uso normal — se disparar, é sinal de um `DELETE` que não
+> deveria ter sido tentado.
+>
+> **Verificado com PostgreSQL real, nas duas direções:** uma escrita cruzada de tenant (aplicativo do
+> tenant B apontando para o `host_pool` do tenant A) foi tentada por `psql` e recusada com o nome de
+> constraint exato (`fk_application_host_pool`); a mesma escrita, com o par `tenant_id`/`host_pool_id`
+> correto, foi aceita. 2 novos testes automatizados em `TenantForeignKeyTests.cs` fixam essa mesma
+> prova como regressão. `TenantIsolationTests.cs` precisou de correção: usava um `host_pool_id`
+> fabricado, válido antes de T-204 porque nada verificava — passou a falhar corretamente depois da
+> FK, e foi corrigido para criar um `HostPool` real por tenant. **21 testes automatizados no total**
+> no Control Plane (7 Api + 8 Schema + 4 TenantIsolation + 2 TenantForeignKey), todos passando.
 
 ### E-03 · Identidade e autorização — 21 pts
 

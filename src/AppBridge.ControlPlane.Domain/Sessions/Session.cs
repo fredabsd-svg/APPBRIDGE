@@ -8,10 +8,10 @@ namespace AppBridge.ControlPlane.Domain.Sessions;
 /// </summary>
 public sealed class Session : TenantScopedEntity
 {
-    // TODO(T-204): ADR-0011 §4 composite FK (tenant_id, user_account_id) -> user_account(tenant_id, id).
+    /// <summary>Composite FK <c>fk_session_user_account</c> (ADR-0011 §4, T-204).</summary>
     public Guid UserAccountId { get; set; }
 
-    // TODO(T-204): ADR-0011 §4 composite FK (tenant_id, session_host_id) -> session_host(tenant_id, id).
+    /// <summary>Composite FK <c>fk_session_session_host</c> (ADR-0011 §4, T-204).</summary>
     public Guid SessionHostId { get; set; }
 
     /// <summary>Identifier on the RDS side — the bridge to <c>ISessionBackend</c>.</summary>

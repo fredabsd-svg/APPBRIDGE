@@ -9,13 +9,16 @@ namespace AppBridge.ControlPlane.Domain.Trail;
 /// </summary>
 public sealed class Launch : TenantScopedAppendOnlyEntity
 {
-    // TODO(T-204): ADR-0011 §4 composite FK (tenant_id, user_account_id) -> user_account(tenant_id, id).
+    /// <summary>Composite FK <c>fk_launch_user_account</c> (ADR-0011 §4, T-204).</summary>
     public Guid UserAccountId { get; set; }
 
-    // TODO(T-204): ADR-0011 §4 composite FK (tenant_id, application_id) -> application(tenant_id, id).
+    /// <summary>Composite FK <c>fk_launch_application</c> (ADR-0011 §4, T-204).</summary>
     public Guid ApplicationId { get; set; }
 
-    /// <summary>Set once the session is created or reused.</summary>
+    /// <summary>
+    /// Set once the session is created or reused. Composite FK <c>fk_launch_session</c>
+    /// (ADR-0011 §4, T-204).
+    /// </summary>
     public Guid? SessionId { get; set; }
 
     public DateTimeOffset RequestedAt { get; init; }
