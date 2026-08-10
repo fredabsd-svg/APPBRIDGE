@@ -2,7 +2,8 @@
 > Entregável 7 de 7 da fase de Design · Sessão S001 · 2026-08-08
 > Status: **✅ aprovado por Frederico em 2026-08-08** (RP-04)
 > Depende de: todos os entregáveis anteriores e ADR-0001 a ADR-0012
-> Alterado após aprovação: ADR-0013 (marcos, §2 e §5) e ADR-0014 (portão G-01)
+> Alterado após aprovação: ADR-0013 (marcos, §2 e §5), ADR-0014 (portão G-01) e **ADR-0016**
+> (backlog único; incorpora T-207, T-506 e T-1106 da revisão S008)
 
 ---
 
@@ -70,7 +71,7 @@ requisito↔código · nenhuma pendência de segurança nova sem registro.
 **Aceite do épico:** um usuário real abre um RemoteApp a partir da sua estação, sem digitar senha,
 sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 
-### E-02 · Fundação do Control Plane — 24 pts
+### E-02 · Fundação do Control Plane — 26 pts
 
 | ID | Tarefa | Critério de aceite | Est. |
 |----|--------|--------------------|------|
@@ -80,6 +81,7 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 | T-204 | **Chaves estrangeiras compostas com `tenant_id`** | Tentativa de gravar referência cruzada é recusada **pelo banco** (ADR-0011 §4) | 3 |
 | T-205 | `AuditWriter` transacional | Falha simulada de gravação **nega** a operação (V-05, ADR-0007) | 5 |
 | T-206 | **Teste automatizado de violação de tenant** | V-02 na suíte; leitura e escrita cruzadas falham (ADR-0004 item 9) | 3 |
+| **T-207** | **Coluna `purpose` na tabela `launch`** (enum `user_initiated \| prelaunch`) e filtro de prelaunch nas consultas de metering | Contagem de RF-062 **não soma prelaunchs**; teste cobre o caso (ADR-0016, Gap 1) | 2 |
 
 ### E-03 · Identidade e autorização — 21 pts
 
@@ -99,7 +101,7 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 | T-403 | `ETag` / `If-None-Match` | Segunda sincronização devolve `304` (RF-015) | 2 |
 | T-404 | Endpoint de ícone | Serve PNG com cache; resolve PD-03 | 3 |
 
-### E-05 · Lançamento — 29 pts · **coração do produto**
+### E-05 · Lançamento — 32 pts · **coração do produto**
 
 | ID | Tarefa | Critério de aceite | Est. |
 |----|--------|--------------------|------|
@@ -108,6 +110,7 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 | T-503 | `ISessionBackend` + `RdsSessionBackend` (resolução de host e descritor) | Nenhuma regra de negócio referencia tipo do RDS (RNF-035) | 8 |
 | T-504 | `POST /launches` com autorização, trilha e `Idempotency-Key` | Repetir a chave não cria segundo lançamento nem segunda contagem (ADR-0012 §3) | 5 |
 | T-505 | Catálogo de erros com códigos estáveis | Cada situação da tabela de `API.md` §9 devolve o código correto | 3 |
+| **T-506** | **Operação de cancelamento em `ISessionBackend`**, chamada no caminho de falha do prelaunch, com registro na trilha | Prelaunch que falha após criar a sessão **não deixa sessão contando licença**; teste force a falha (ADR-0016, Gap 2) | 3 |
 
 ### E-06 · Sessão e reconciliação — 16 pts
 
@@ -156,7 +159,7 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 | T-1003 | Medição do tempo de abertura | Número real de RNF-027 registrado, com e sem prelaunch; **valida PRE-11** | 3 |
 | T-1004 | Reutilização de sessão no segundo aplicativo | Sem nova sessão, sem nova credencial (RF-024) | 3 |
 
-### E-11 · Segurança e verificação — 16 pts
+### E-11 · Segurança e verificação — 18 pts
 
 | ID | Tarefa | Critério de aceite | Est. |
 |----|--------|--------------------|------|
@@ -165,6 +168,7 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 | T-1103 | **PS-10** — procedimento de comprometimento do certificado de assinatura | Documento com passos de rotação e revogação (AM-02) | 2 |
 | T-1104 | Executar V-01, V-04, V-05, V-06, V-07, V-08 e registrar | Todas as verificações de MVP-0 com resultado arquivado | 5 |
 | T-1105 | Filtro de campos sensíveis no log | Nenhum segredo em log, verificado por amostragem (RNF-004) | 3 |
+| **T-1106** | **PS-04 antecipada** — varredura automática de segredos no repositório | Detecção roda a cada alteração e falha o build ao encontrar (AM-20; era MVP-1, antecipada por ADR-0016) | 2 |
 
 ### E-12 · Operação e dogfood — 16 pts
 
@@ -182,20 +186,23 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 | Épico | Pontos |
 |-------|--------|
 | E-01 Infraestrutura | 34 |
-| E-02 Fundação do Control Plane | 24 |
+| E-02 Fundação do Control Plane | 26 |
 | E-03 Identidade | 21 |
 | E-04 Catálogo | 11 |
-| E-05 Lançamento | 29 |
+| E-05 Lançamento | 32 |
 | E-06 Sessão | 16 |
 | E-07 Trilha | 13 |
 | E-08 Launcher — fundação | 26 |
 | E-09 Launcher — desktop | 16 |
 | E-10 Launcher — lançamento | 19 |
-| E-11 Segurança | 16 |
+| E-11 Segurança | 18 |
 | E-12 Operação | 16 |
-| **Total MVP-0** | **241** |
+| **Total MVP-0** | **248** |
 
-Com a âncora de PRE-25 (1 ponto ≈ meio dia): **≈ 120 dias de trabalho focado**.
+Com a âncora de PRE-25 (1 ponto ≈ meio dia): **≈ 124 dias de trabalho focado**.
+
+> **Atualizado por ADR-0016:** o total subiu de 241 para 248 pontos com a incorporação de T-207,
+> T-506 e T-1106, vindos da revisão S008.
 
 A janela de P8 vai do fim de agosto a meados de outubro: **≈ 32 dias úteis**. E esses dias não são
 integrais — Frederico dirige um escritório de contabilidade, o que reduz a dedicação a uma fração
@@ -221,12 +228,13 @@ projeto de um script.
 
 Preserva a data de outubro **redefinindo o que ela entrega**, e mantém a disciplina.
 
-### MVP-0a · "Esqueleto ambulante" — ≈ 95 pts · alvo: meados de out/2026
+### MVP-0a · "Esqueleto ambulante" — ≈ 100 pts · alvo: meados de out/2026
 
 **Um usuário, um aplicativo, um caminho, ponta a ponta e de verdade.**
 
 E-01 completo (34) · E-02 completo (24) · T-301, T-304 (11) · T-401, T-402 (6) · T-501, T-502, T-503,
-T-504 (26) — do launcher, apenas o mínimo para disparar o lançamento, sem MSIX nem atalhos.
+T-504 (26) · **T-207** (2) e **T-506** (3), os dois gaps do ADR-0016 — do launcher, apenas o mínimo
+para disparar o lançamento, sem MSIX nem atalhos.
 
 **Critério de aceite:** Frederico abre o Domínio Contábil pelo AppBridge, na própria estação, sem
 digitar senha, com `.rdp` assinado, registro em trilha e 3389 comprovadamente fechado (V-01, V-05,
@@ -236,7 +244,7 @@ V-06).
 — PRE-22 (prelaunch), PRE-23 (Connection Broker) e PRE-11 (tempo de abertura). Descobrir em outubro
 que o prelaunch não sustenta a jornada é recuperável; descobrir em janeiro, na véspera do piloto, não é.
 
-### MVP-0b · "Dogfood real" — ≈ 146 pts · alvo: dez/2026 a jan/2027
+### MVP-0b · "Dogfood real" — ≈ 148 pts · alvo: dez/2026 a jan/2027
 
 Todo o restante: launcher empacotado, atalhos, prelaunch, reconciliação, retenção, segurança e a
 semana de dogfood dirigido. **Critério de aceite: CS-01 a CS-04 integralmente.**
@@ -373,6 +381,7 @@ parecer do advogado em T-002 (bloqueia V2, não MVP-0).
 | R-001 | Licenciamento (reescrito por ADR-0014): responsabilidade é do cliente; resta o resíduo de termos que vedam infraestrutura operada por terceiro | G-01 na forma de declaração assinada; resíduo para o advogado de T-002 |
 | R-015 | Prelaunch não medido | T-1002 e T-1003 dentro do MVP-0a/0b, não no fim |
 | R-020 | Cofre sem impedimento técnico ao provedor | E-20 bloqueado por B-006/PS-07 |
+| **R-030** | **O MVP-0a real pode ser maior que qualquer das duas estimativas.** A linha B estimou 96 pts **sem** o épico de infraestrutura; a linha A, ~95 pts **com** ele. O que cada uma cobre, somado, aproxima-se de **130 pts** | Reavaliar contra a data de out/2026 antes de assumir o marco M2a como firme |
 | **R-025** | **O MVP-1 é o novo gargalo:** ~3 meses entre o fim do dogfood (jan/2027) e o piloto (abr/2027) para os épicos E-13 a E-18 | Definir subconjunto mínimo do piloto — **B-009**, com recomendação preliminar na §5 |
 
 ---

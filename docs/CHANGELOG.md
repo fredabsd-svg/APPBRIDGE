@@ -6,6 +6,18 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Reconciliado — backlog único (ADR-0016, S009)
+- **`main` mesclado ao branch.** As duas linhas de trabalho voltaram a ser uma.
+- **`ROADMAP.md` passa a ser o backlog único.** `BACKLOG_MVP0A_PRIORIZADO.md` vira anexo histórico e
+  `ANALISE_BUGS_E_MELHORIAS.md` recebe errata com as 14 referências incorretas; nenhum dos dois corpos
+  foi reescrito.
+- **Os dois gaps foram corrigidos nas fontes:** `MODELO-DE-DADOS.md` §7.1 ganhou a coluna `purpose` na
+  tabela `launch`, e `ARQUITETURA.md` §4.2 ganhou `CancelSessionAsync` em `ISessionBackend`.
+- `ROADMAP.md` incorporou **T-207** (2 pts), **T-506** (3 pts) e **T-1106** (2 pts, PS-04 antecipada).
+  Total do MVP-0: **241 → 248 pontos**; MVP-0a: **~95 → ~100**.
+- Bloqueio B-010 encerrado; risco R-026 fechado. Novos riscos **R-030** (o MVP-0a real aproxima-se de
+  130 pontos, ~35% acima do que o ADR-0013 assumiu) e **R-031** (caminho de falha do prelaunch).
+
 ### Revisado — issues e backlog paralelo (S008)
 - `docs/operacao/revisao-issues-e-backlog-paralelo.md` — revisão dos 32 issues abertos e dos dois
   documentos que os originaram. Confirma **dois gaps reais na documentação aprovada** (coluna

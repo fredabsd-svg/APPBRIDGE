@@ -2,7 +2,8 @@
 > Entregável 3 de 7 da fase de Design · Sessão S001 · 2026-08-08
 > Status: **✅ aprovado por Frederico em 2026-08-08** (RP-04)
 > Depende de: `VISAO.md` e `REQUISITOS.md` (aprovados), ADR-0001 a ADR-0010
-> Decisões posteriores que a afetam: ADR-0011 (modelo de dados), ADR-0012 (API)
+> Decisões posteriores que a afetam: ADR-0011 (modelo de dados), ADR-0012 (API), **ADR-0016**
+> (operação de cancelamento em `ISessionBackend`, §4.2)
 
 ---
 
@@ -247,6 +248,7 @@ RDS.**
 | `ResolveHostAsync(tenant, user, app)` | Escolhe o host do tenant que atenderá o lançamento | MVP-0 · RF-074 |
 | `BuildConnectionDescriptorAsync(...)` | Produz os parâmetros de conexão que viram o `.rdp` | MVP-0 · RF-018 |
 | `ListActiveSessionsAsync(tenant)` | Fonte de verdade para reconciliação e metering | MVP-0 · RF-038, RF-062 |
+| `CancelSessionAsync(sessionId, reason)` | **Cancela sessão recém-criada cujo lançamento falhou** — sem ela, um prelaunch que falha depois de o RDS criar a sessão deixa uma sessão invisível contando licença (ADR-0016, Gap 2) | MVP-0a · R-009 |
 | `TerminateSessionAsync(sessionId)` | Encerramento forçado e revogação | MVP-1 · RF-008, RF-045 |
 | `PublishApplicationAsync(...)` | Publicação de aplicativo | V2 · RF-052 |
 | `GetHostHealthAsync(...)` | Estado do host | V2 · RF-047, RF-054 |
@@ -587,4 +589,5 @@ Auditoria do prompt mestre e não é usado para riscos.)
 | **R-015** | O prelaunch depende de um comportamento de tempo de logoff do RDS que ainda não foi medido; dele depende o número de RNF-027 | PRE-22 |
 | **R-016** | O Control Plane não bloqueia o trabalho em andamento, mas bloqueia começar a trabalhar — e o pico de início é às 8h | §6 |
 | **R-017** | `SessionReconciler` é a única defesa contra contagem inflada de licença antes do Agent chegar | R-009, ADR-0006 |
+| **R-031** | O caminho de falha do prelaunch é o menos exercitado do sistema e o que mais facilmente deixa estado inconsistente — foi onde o Gap 2 se escondeu. Merece teste que **force** a falha, não apenas o caminho feliz | ADR-0016, T-506 |
 | **R-018** | `AvdSessionBackend` nunca foi implementado; a portabilidade prometida por RNF-035 é hipótese até existir uma segunda implementação que a prove | §4.2, RM-07 |

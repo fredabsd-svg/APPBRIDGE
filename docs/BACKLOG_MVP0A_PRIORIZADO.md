@@ -1,3 +1,10 @@
+> ⚠️ **ANEXO HISTÓRICO — NÃO É FONTE DE TAREFAS.**
+> Por **ADR-0016**, o backlog único do projeto é `ROADMAP.md`, que tem rastreabilidade
+> requisito↔tarefa e cobre o épico de infraestrutura, ausente aqui. O que este documento trouxe de
+> novo — os dois gaps arquiteturais e a antecipação da varredura de segredos — foi incorporado ao
+> `ROADMAP.md` como T-207, T-506 e T-1106. Mantido como registro do trabalho e das decisões de
+> priorização. Ver `operacao/revisao-issues-e-backlog-paralelo.md`.
+
 # 📌 BACKLOG MVP-0a — Priorizado por Caminho Crítico
 **Data:** 2026-08-09  
 **Versão:** 1.0  
