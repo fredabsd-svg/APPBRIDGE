@@ -6,6 +6,21 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Adicionado — `AuthorizationService` (T-304, S010)
+- `IAuthorizationService`/`AuthorizationService`
+  (`AppBridge.ControlPlane.Infrastructure/Authorization/`) — o componente de decisão que
+  `ARQUITETURA.md` §5.2 já documentava para "permissão vigente?" (`RF-007, RF-021, RF-039 |
+  ADR-0004`). Contrato mínimo: `HasActivePermissionAsync(userAccountId, applicationId)` devolve
+  `bool`, sem enum de motivo — um contrato mais rico só serviria ao futuro `/launch` (E-05), que
+  ainda não existe.
+- Lê vigência (`ApplicationPermission.EffectiveFrom`/`EffectiveTo`) direto do banco a cada chamada,
+  sem cache — o que torna o RNF-030 ("permissão revogada nega o lançamento seguinte em ≤ 60 s")
+  verdadeiro por construção, não por um TTL ajustado para caber sob 60 s.
+- Isolamento entre tenants não é reimplementado: herdado de graça dos `DbSet`s já filtrados por
+  tenant (ADR-0004, T-203) que `UserGroupMemberships`/`ApplicationPermissions` já são.
+- Registrado em `Program.cs` ao lado de `IAuditWriter`/`ISessionTokenIssuer`. Sem consumidor ainda
+  — isso é E-05, que ainda não começou.
+
 ### Adicionado — `POST /v1/auth/refresh` e `POST /v1/auth/logout` (T-303, S010)
 - Refresh com **rotação**: o token apresentado é revogado no mesmo momento em que um novo é
   emitido, então reutilizar um token já trocado — a assinatura de um roubo — passa a falhar a

@@ -39,6 +39,16 @@
 > `docs/SETUP-DEV.md` para o ambiente de desenvolvimento (.NET 10 SDK e PostgreSQL 16 locais). Ver §3
 > para a correção de sequenciamento: E-02 não esperava mais o hardware do que a própria estrutura do
 > código exigia.
+>
+> **T-304 também concluída** — `IAuthorizationService`/`AuthorizationService`
+> (`AppBridge.ControlPlane.Infrastructure/Authorization/`), o componente que `ARQUITETURA.md` §5.2
+> já documentava para decidir "permissão vigente?". Sem cache: lê `EffectiveFrom`/`EffectiveTo` de
+> `ApplicationPermission` direto do banco a cada chamada, o que torna o RNF-030 (revogação nega o
+> lançamento seguinte em ≤ 60 s) verdadeiro por construção, sem necessidade de espera de relógio nos
+> testes. Nenhum endpoint consome o serviço ainda — isso é E-05, que ainda não começou; T-304 é só a
+> lógica de decisão, registrada em `Program.cs` e verificada de pé (`dotnet run`) sem erro de
+> resolução de DI. **55 testes automatizados no total.** Com T-304, **E-03 fica com apenas T-302
+> (vínculo por SID) em aberto.**
 
 
 ## 2. Entregáveis da fase de design — ✅ concluída
@@ -86,7 +96,8 @@ significa que o código espera.
 | ~~—~~ | ~~**Fundação do Control Plane**~~ | E-02 | **Concluído em 2026-08-10 (S010)** — T-201 a T-207, 29 testes |
 | ~~—~~ | ~~**`POST /v1/auth/session`**~~ | T-301 | **Concluído em 2026-08-10 (S010)** — ADR-0017 (token de sessão, `refresh_token`) |
 | ~~—~~ | ~~**`POST /v1/auth/refresh` e `/logout`**~~ | T-303 | **Concluído em 2026-08-10 (S010)** — 49 testes no total; armazenamento cliente (RF-005) continua T-803 |
-| **—** | **T-302** (vínculo por SID) e **T-304** (`AuthorizationService`) seguem E-03, em paralelo com E-01 pelo mesmo motivo já registrado acima | E-03 | T-301/T-303 fecharam a fundação de identidade que as duas precisam |
+| ~~—~~ | ~~**`AuthorizationService`**~~ | T-304 | **Concluído em 2026-08-10 (S010)** — 55 testes no total; sem consumidor ainda (E-05) |
+| **—** | **T-302** (vínculo por SID) segue E-03, em paralelo com E-01 pelo mesmo motivo já registrado acima | E-03 | Última tarefa aberta do épico |
 
 **Decisões que ainda cabem a Frederico, em paralelo:** B-009 (subconjunto do MVP-1 exigido pelo
 piloto), B-006 (PS-07, cofre) e B-007 (PS-03, encadeamento da trilha).

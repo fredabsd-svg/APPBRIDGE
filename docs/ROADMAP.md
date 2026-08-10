@@ -232,7 +232,7 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 | ~~T-301~~ | ✅ `POST /auth/session`, com registro na mesma transação | Login gera `access_event`; falha de trilha devolve `503 AUDIT_UNAVAILABLE` | 8 |
 | T-302 | Vínculo identidade → conta AD por **SID** | Renomear a conta no AD não quebra o vínculo nem a trilha (RF-002) | 5 |
 | ~~T-303~~ | ✅ Refresh, logout **(servidor)** e armazenamento no Credential Manager | Token renova sem login; logout invalida (RF-004..RF-006) | 5 |
-| T-304 | `AuthorizationService` com vigência de permissão | Permissão revogada nega o lançamento seguinte em ≤ 60 s (V-07, RNF-030) | 3 |
+| ~~T-304~~ | ✅ `AuthorizationService` com vigência de permissão | Permissão revogada nega o lançamento seguinte em ≤ 60 s (V-07, RNF-030) | 3 |
 
 > **T-301 concluída em 2026-08-10 (S010).** `POST /v1/auth/session` implementado e verificado de
 > ponta a ponta — construído sobre tudo que E-02 preparou (`AppBridgeDbContext`, `ITenantContext`,
@@ -342,6 +342,37 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 > T-401 a T-404 continuava presente, só sem o título da seção. Corrigido nesta sessão, ao notar a
 > ausência ao navegar o arquivo para esta mesma nota — reforça por que revisar o `diff` antes de
 > commitar, não só confiar que um `Edit` bem-intencionado preservou tudo ao redor.
+
+> **T-304 concluída em 2026-08-10 (S010).** `IAuthorizationService`/`AuthorizationService`
+> (`AppBridge.ControlPlane.Infrastructure/Authorization/`) — o componente `AuthorizationService`
+> que `ARQUITETURA.md` §5.2 já documentava (`RF-007, RF-021, RF-039 | ADR-0004`), agora escrito.
+> **Escopo confirmado antes de codificar**: `ROADMAP.md` não tem nenhuma outra tarefa para
+> conceder/revogar permissão via API (`ApplicationPermission`/`UserGroupMembership` já existem
+> completas desde T-202/T-204) — T-304 é só a lógica de decisão, testada manipulando linhas
+> diretamente, não um endpoint administrativo (isso pertence a E-04/E-05, que ainda não começaram).
+>
+> Contrato deliberadamente mínimo — um único método, `HasActivePermissionAsync(userAccountId,
+> applicationId)`, devolvendo `bool`, sem enum de motivo de negação — porque um contrato mais rico
+> serviria só ao futuro endpoint `/launch` (E-05), que ainda não existe; construir para ele agora
+> seria escopo além do que T-304 pede (RP-05). Isolamento entre tenants não é reimplementado aqui:
+> `UserGroupMemberships` e `ApplicationPermissions` já são `DbSet`s com filtro por tenant (ADR-0004,
+> T-203), então uma consulta cruzando tenants simplesmente não encontra nada, sem código especial
+> para isso — mecanismo já provado por T-203/T-206, não re-testado nesta tarefa.
+>
+> **A leitura de vigência não usa cache** — `EffectiveFrom <= agora && (EffectiveTo == null ||
+> EffectiveTo > agora)` é avaliada direto no banco a cada chamada — e é essa ausência de cache que
+> torna o RNF-030 ("permissão revogada nega o lançamento seguinte em ≤ 60 s") verdadeiro por
+> construção: os testes provam "nega na checagem imediatamente seguinte à revogação", sem precisar
+> de espera de relógio nenhuma, porque não existe janela de staleness a cronometrar.
+>
+> **6 novos testes automatizados** em `AuthorizationServiceTests.cs`: permissão dentro da janela
+> concede; revogar nega a checagem seguinte (a prova literal de V-07/RNF-030); nenhuma permissão
+> nega; permissão de outro aplicativo não concede; permissão ainda não vigente (`EffectiveFrom` no
+> futuro) nega; permissão já revogada no passado nega. **Verificado registrando `IAuthorizationService`
+> no `Program.cs`** (ao lado de `IAuditWriter`/`ISessionTokenIssuer`) e subindo a aplicação real
+> (`dotnet run`) para confirmar que a injeção de dependência resolve sem erro — sem consumidor ainda
+> (isso é E-05), então não há endpoint para exercitar via `curl` nesta tarefa. **55 testes
+> automatizados no total** (22 Api + 33 Infrastructure), todos passando.
 
 ### E-04 · Catálogo — 11 pts
 
