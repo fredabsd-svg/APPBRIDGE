@@ -230,7 +230,7 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 | ID | Tarefa | Critério de aceite | Est. |
 |----|--------|--------------------|------|
 | ~~T-301~~ | ✅ `POST /auth/session`, com registro na mesma transação | Login gera `access_event`; falha de trilha devolve `503 AUDIT_UNAVAILABLE` | 8 |
-| T-302 | Vínculo identidade → conta AD por **SID** | Renomear a conta no AD não quebra o vínculo nem a trilha (RF-002) | 5 |
+| ~~T-302~~ | ✅ Vínculo identidade → conta AD por **SID** | Renomear a conta no AD não quebra o vínculo nem a trilha (RF-002) | 5 |
 | ~~T-303~~ | ✅ Refresh, logout **(servidor)** e armazenamento no Credential Manager | Token renova sem login; logout invalida (RF-004..RF-006) | 5 |
 | ~~T-304~~ | ✅ `AuthorizationService` com vigência de permissão | Permissão revogada nega o lançamento seguinte em ≤ 60 s (V-07, RNF-030) | 3 |
 
@@ -373,6 +373,49 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 > (`dotnet run`) para confirmar que a injeção de dependência resolve sem erro — sem consumidor ainda
 > (isso é E-05), então não há endpoint para exercitar via `curl` nesta tarefa. **55 testes
 > automatizados no total** (22 Api + 33 Infrastructure), todos passando.
+
+> **T-302 concluída em 2026-08-10 (S010) — E-03 completo.** `MODELO-DE-DADOS.md` §4.1 já guardava
+> `ad_object_sid` desde T-202 e já explicava por quê ("SID, não `sAMAccountName`: sobrevive a
+> renomeação"), mas nenhum código lia, verificava ou atualizava esse campo — ele existia só como
+> coluna. T-302 é o que faz o vínculo que ADR-0001 item 4 promete ("o vínculo... já existe desde o
+> primeiro dia") funcionar de verdade dentro do fluxo de login.
+>
+> **Desenho:** `IdentityValidationResult` (`IIdentityProvider`) ganhou `Upn`/`DisplayName`
+> opcionais — os valores atuais do diretório, lidos frescos a cada validação, não em cache.
+> `AuthEndpoints.Login` agora chama `SyncDirectoryAttributes` depois de resolver o usuário: se o
+> `Upn`/`DisplayName` que o provedor devolveu diverge do que está gravado, atualiza **a mesma
+> linha**, na mesma transação que já grava `LastLoginAt`/`RefreshToken`. **`AdObjectSid` nunca é
+> escrito por este caminho** — é `required` na provisão, MVP-0 não tem endpoint de provisão ainda
+> (isso é E-04+), e é exatamente o campo que `MODELO-DE-DADOS.md` já documentava como imune a
+> renomeação; sincronizar algo que uma renomeação legítima não muda seria inventar um mecanismo
+> sem motivo (RP-05).
+>
+> **Por que não trocar a chave de busca do login para SID**: `ExternalSubject` (Entra `oid`) já é,
+> por desenho do próprio Entra ID, estável a renomeação — ADR-0001 descreve os dois papéis como
+> distintos (`external_subject` é "quem autentica no Control Plane"; `ad_object_sid` é "qual conta
+> abre a sessão RDS"). Trocar a chave de resolução misturaria os dois papéis sem que nenhum
+> requisito pedisse isso. Nenhuma verificação/negação de divergência de SID foi construída — `
+> API.md` não documenta um código de erro para esse caso, e inventar um agora seria alterar o
+> contrato de API sem que a tarefa pedisse (RA-06).
+>
+> `DevIdentityProvider` ganhou uma forma estendida de token —
+> `dev:{externalSubject}:{adDomain}:{upn}:{displayName}` — que simula uma leitura fresca do
+> diretório sem tocar no formato de três partes que todo teste anterior desta sessão já usa
+> (`Split(':', 5)`; `parts.Length < 3` continua a única condição de invalidez, então tokens de 3
+> partes continuam se comportando exatamente como antes).
+>
+> **Verificado rodando a aplicação de verdade** (`dotnet run` + `curl` + `psql`), o próprio cenário
+> do critério de aceite: login, "renomeação" (segundo login com UPN/nome novos, mesmo
+> `external_subject`/SID), e conferência direta no banco — **uma única linha** de `user_account`
+> (mesmo `id`), `ad_object_sid` inalterado, `upn`/`display_name` atualizados, e os **dois**
+> `access_event` de login (antes e depois da renomeação) apontando para o mesmo `user_account_id` —
+> a trilha não quebrou.
+>
+> **2 novos testes** em `UserAccountSidLinkTests.cs`: renomear atualiza `Upn`/`DisplayName` na
+> mesma linha sem duplicar conta e sem quebrar a trilha; um login sem atributos de diretório no
+> token (forma curta) não altera o que já estava gravado. **57 testes automatizados no total** (24
+> Api + 33 Infrastructure), todos passando. **Nenhum bug encontrado durante a verificação.** Com
+> T-302, **E-03 · Identidade e autorização está com as 4 tarefas concluídas.**
 
 ### E-04 · Catálogo — 11 pts
 

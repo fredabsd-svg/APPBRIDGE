@@ -1,7 +1,7 @@
 # STATUS — AppBridge
 > Estado vivo do projeto. Atualizado ao fim de toda sessão (RA-02).
 
-**Última atualização:** 2026-08-10 · **Sessão atual:** S010 · **Fase:** implementação do MVP-0a — **código iniciado**
+**Última atualização:** 2026-08-10 · **Sessão atual:** S010 · **Fase:** implementação do MVP-0a — **E-02 e E-03 completos em código**
 
 ---
 
@@ -49,6 +49,17 @@
 > lógica de decisão, registrada em `Program.cs` e verificada de pé (`dotnet run`) sem erro de
 > resolução de DI. **55 testes automatizados no total.** Com T-304, **E-03 fica com apenas T-302
 > (vínculo por SID) em aberto.**
+>
+> **T-302 também concluída — E-03 completo.** O campo `ad_object_sid` existia desde T-202
+> (`MODELO-DE-DADOS.md` §4.1 já documentava "sobrevive a renomeação"), mas nenhum código o lia ou
+> atualizava. `AuthEndpoints.Login` agora sincroniza `Upn`/`DisplayName` — os campos que uma
+> renomeação de AD de fato muda — na mesma linha e na mesma transação do login, sem nunca reescrever
+> `AdObjectSid` (que é `required` na provisão e imune a renomeação por desenho). Chave de resolução
+> do login continua `ExternalSubject` (Entra `oid`, já estável por natureza) — trocá-la por SID
+> misturaria os dois papéis que ADR-0001 distingue, sem nenhum requisito pedir a troca. **Verificado
+> rodando a aplicação real**: login, "renomeação" (segundo login com UPN/nome novos), e conferência
+> no banco — uma única linha de `user_account`, `ad_object_sid` inalterado, e os dois `access_event`
+> apontando para o mesmo `user_account_id`. **57 testes automatizados no total.**
 
 
 ## 2. Entregáveis da fase de design — ✅ concluída
@@ -97,7 +108,7 @@ significa que o código espera.
 | ~~—~~ | ~~**`POST /v1/auth/session`**~~ | T-301 | **Concluído em 2026-08-10 (S010)** — ADR-0017 (token de sessão, `refresh_token`) |
 | ~~—~~ | ~~**`POST /v1/auth/refresh` e `/logout`**~~ | T-303 | **Concluído em 2026-08-10 (S010)** — 49 testes no total; armazenamento cliente (RF-005) continua T-803 |
 | ~~—~~ | ~~**`AuthorizationService`**~~ | T-304 | **Concluído em 2026-08-10 (S010)** — 55 testes no total; sem consumidor ainda (E-05) |
-| **—** | **T-302** (vínculo por SID) segue E-03, em paralelo com E-01 pelo mesmo motivo já registrado acima | E-03 | Última tarefa aberta do épico |
+| ~~—~~ | ~~**Vínculo identidade → conta AD por SID**~~ | T-302 | **Concluído em 2026-08-10 (S010)** — 57 testes no total. **E-03 · Identidade e autorização está completo** |
 
 **Decisões que ainda cabem a Frederico, em paralelo:** B-009 (subconjunto do MVP-1 exigido pelo
 piloto), B-006 (PS-07, cofre) e B-007 (PS-03, encadeamento da trilha).

@@ -20,11 +20,19 @@ public interface IIdentityProvider
 /// (<c>Tenant.AdDomain</c>) — independent of whether <paramref name="ExternalSubject"/> matches a
 /// provisioned <c>UserAccount</c>, so an unknown-user failure can still be attributed to a tenant
 /// for the audit trail (MODELO-DE-DADOS.md §7.2's "user_account_id nulo é intencional").
+///
+/// <paramref name="Upn"/> and <paramref name="DisplayName"/> are the directory's current values
+/// for those fields — read fresh on every validation, not cached — so a login can refresh a
+/// <c>UserAccount</c> row whose AD-side presentation attributes drifted since the last one (T-302,
+/// RF-002). Null means the provider didn't resolve one (e.g. <see cref="DevIdentityProvider"/>'s
+/// short token form); a caller must not treat null as "clear the stored value".
 /// </summary>
-public sealed record IdentityValidationResult(bool IsValid, string? ExternalSubject, string? AdDomain)
+public sealed record IdentityValidationResult(
+    bool IsValid, string? ExternalSubject, string? AdDomain, string? Upn = null, string? DisplayName = null)
 {
-    public static IdentityValidationResult Valid(string externalSubject, string adDomain) =>
-        new(true, externalSubject, adDomain);
+    public static IdentityValidationResult Valid(
+        string externalSubject, string adDomain, string? upn = null, string? displayName = null) =>
+        new(true, externalSubject, adDomain, upn, displayName);
 
     public static IdentityValidationResult Invalid() => new(false, null, null);
 }

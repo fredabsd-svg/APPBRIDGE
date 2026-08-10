@@ -96,6 +96,7 @@ public static class AuthEndpoints
                 ctx =>
                 {
                     user.LastLoginAt = DateTimeOffset.UtcNow;
+                    SyncDirectoryAttributes(user, identity);
                     ctx.RefreshTokens.Add(new RefreshToken
                     {
                         TenantId = tenant.Id,
@@ -230,6 +231,28 @@ public static class AuthEndpoints
         }
 
         return Results.NoContent();
+    }
+
+    /// <summary>
+    /// T-302 / RF-002 / ADR-0001 item 4: keeps the <c>UserAccount</c> row's AD-sourced presentation
+    /// fields current on every successful login, so the vínculo — the same row, anchored by
+    /// <see cref="UserAccount.AdObjectSid"/> — never needs re-establishing after a rename in AD.
+    /// <c>AdObjectSid</c> itself is deliberately never written here: it's <c>required</c> at
+    /// provisioning, MVP-0 has no provisioning endpoint yet (that arrives with a later epic), and
+    /// MODELO-DE-DADOS.md §4.1 documents it as exactly the field a legitimate rename does not
+    /// touch — <c>Upn</c>/<c>DisplayName</c> are.
+    /// </summary>
+    private static void SyncDirectoryAttributes(UserAccount user, IdentityValidationResult identity)
+    {
+        if (identity.Upn is not null && identity.Upn != user.Upn)
+        {
+            user.Upn = identity.Upn;
+        }
+
+        if (identity.DisplayName is not null && identity.DisplayName != user.DisplayName)
+        {
+            user.DisplayName = identity.DisplayName;
+        }
     }
 
     /// <summary>

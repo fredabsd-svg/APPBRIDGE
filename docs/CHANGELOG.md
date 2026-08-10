@@ -6,6 +6,26 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Adicionado — vínculo identidade → conta AD por SID (T-302, S010)
+- `IIdentityProvider.ValidateAsync` passa a devolver `Upn`/`DisplayName` opcionais — os valores
+  atuais do diretório, lidos frescos a cada validação — e `AuthEndpoints.Login` sincroniza esses
+  campos na `UserAccount` já resolvida sempre que divergem do que está gravado, na mesma transação
+  que já grava `LastLoginAt`/`RefreshToken`.
+- **`AdObjectSid` nunca é escrito por este caminho** — é `required` na provisão (que MVP-0 ainda não
+  tem endpoint para fazer) e é exatamente o campo que `MODELO-DE-DADOS.md` §4.1 já documentava como
+  imune a renomeação desde T-202; só `Upn`/`DisplayName`, os campos que uma renomeação de AD de fato
+  muda, são sincronizados.
+- Chave de resolução do login continua `ExternalSubject` (Entra `oid`) — decisão deliberada de não
+  misturar os dois papéis que ADR-0001 distingue ("quem autentica" vs. "qual conta abre a sessão").
+  Nenhum código de erro novo foi adicionado para divergência de SID: `API.md` não documenta um, e
+  inventar um agora seria alterar o contrato de API sem que a tarefa pedisse.
+- `DevIdentityProvider` ganhou uma forma estendida de token opcional
+  (`dev:{externalSubject}:{adDomain}:{upn}:{displayName}`), compatível com todo token de três partes
+  já usado por testes anteriores.
+- **Verificado rodando a aplicação real**: login, "renomeação" simulada (segundo login com
+  UPN/nome novos), conferência no banco confirmando uma única linha de `user_account` e os dois
+  `access_event` apontando para o mesmo `user_account_id`.
+
 ### Adicionado — `AuthorizationService` (T-304, S010)
 - `IAuthorizationService`/`AuthorizationService`
   (`AppBridge.ControlPlane.Infrastructure/Authorization/`) — o componente de decisão que
