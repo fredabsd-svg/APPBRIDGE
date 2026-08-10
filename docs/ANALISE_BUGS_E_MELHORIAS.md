@@ -1,3 +1,15 @@
+> ⚠️ **ERRATA — leia antes de usar como referência.**
+> Esta análise contribuiu com **dois defeitos reais** confirmados na documentação aprovada (coluna
+> `purpose` ausente no modelo de dados e falta de operação de cancelamento em `ISessionBackend`), hoje
+> incorporados ao `ROADMAP.md` como T-207 e T-506.
+>
+> Contém, porém, **14 referências de requisito incorretas** — entre elas, atribuir ao ADR-0009 um
+> reconhecimento que está em `SEGURANCA.md` (AM-33), tratar AM-02 como abuso de cofre quando é
+> comprometimento da chave de assinatura, e inverter RNF-034 com RNF-040. A lista completa está em
+> `operacao/revisao-issues-e-backlog-paralelo.md` §6.
+>
+> O corpo **não foi reescrito**: é registro do que foi analisado nesta data (ADR-0016 §3).
+
 # 🔍 ANÁLISE TÉCNICA — AppBridge
 ## Bugs Potenciais, Riscos Não Mitigados e Oportunidades de Melhoria
 

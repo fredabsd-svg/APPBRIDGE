@@ -1,6 +1,6 @@
 # API — Control Plane AppBridge · contrato v0
 > Entregável 5 de 7 da fase de Design · Sessão S001 · 2026-08-08
-> Status: **submetido — aguardando aprovação de Frederico** (RP-04)
+> Status: **✅ aprovado por Frederico em 2026-08-08** (RP-04)
 > Depende de: `ARQUITETURA.md`, `MODELO-DE-DADOS.md`, ADR-0012 (convenções da API)
 
 ---

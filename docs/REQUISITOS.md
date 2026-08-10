@@ -1,6 +1,6 @@
 # REQUISITOS — AppBridge
 > Entregável 2 de 7 da fase de Design · Sessão S001 · 2026-08-08
-> Status: **submetido — aguardando aprovação de Frederico** (RP-04)
+> Status: **✅ aprovado por Frederico em 2026-08-08** (RP-04)
 > Depende de: `VISAO.md` (aprovado em 2026-08-08)
 > Emendado em 2026-08-08 pelos ADR-0001 a ADR-0008 — ver §8
 

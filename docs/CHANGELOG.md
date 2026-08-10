@@ -6,6 +6,51 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Reconciliado — backlog único (ADR-0016, S009)
+- **`main` mesclado ao branch.** As duas linhas de trabalho voltaram a ser uma.
+- **`ROADMAP.md` passa a ser o backlog único.** `BACKLOG_MVP0A_PRIORIZADO.md` vira anexo histórico e
+  `ANALISE_BUGS_E_MELHORIAS.md` recebe errata com as 14 referências incorretas; nenhum dos dois corpos
+  foi reescrito.
+- **Os dois gaps foram corrigidos nas fontes:** `MODELO-DE-DADOS.md` §7.1 ganhou a coluna `purpose` na
+  tabela `launch`, e `ARQUITETURA.md` §4.2 ganhou `CancelSessionAsync` em `ISessionBackend`.
+- `ROADMAP.md` incorporou **T-207** (2 pts), **T-506** (3 pts) e **T-1106** (2 pts, PS-04 antecipada).
+  Total do MVP-0: **241 → 248 pontos**; MVP-0a: **~95 → ~100**.
+- Bloqueio B-010 encerrado; risco R-026 fechado. Novos riscos **R-030** (o MVP-0a real aproxima-se de
+  130 pontos, ~35% acima do que o ADR-0013 assumiu) e **R-031** (caminho de falha do prelaunch).
+
+### Revisado — issues e backlog paralelo (S008)
+- `docs/operacao/revisao-issues-e-backlog-paralelo.md` — revisão dos 32 issues abertos e dos dois
+  documentos que os originaram. Confirma **dois gaps reais na documentação aprovada** (coluna
+  `purpose` ausente no modelo de dados e falta de operação de cancelamento em `ISessionBackend`),
+  identifica **3 contradições com ADRs aceitos** (uma delas regressão de segurança sobre a chave de
+  assinatura), a **ausência de issues para o épico de infraestrutura**, uma **colisão de número de
+  ADR** e **14 referências de requisito incorretas**.
+- Riscos R-026 a R-029 e bloqueios B-010 e B-011 registrados. Nenhum issue do GitHub foi alterado.
+
+### Corrigido
+- Logs das sessões S004 a S007 estavam datados 2026-08-08; os commits correspondentes são de 09 e 10
+  de agosto. Arquivos renomeados e datas internas corrigidas.
+
+### Adicionado — processo (ADR-0015, S007)
+- `scripts/check-docs.sh` — **primeiro arquivo executável do repositório**: checagem mecanizável da
+  documentação com 7 verificações (cabeçalho contraditório, contagem de ADRs, ADR inexistente,
+  requisito órfão, link morto, prefixo reservado, log de sessão ausente). Sai com código 1 em caso de
+  achado, pronto para integração contínua quando houver pipeline.
+
+### Alterado — processo (ADR-0015)
+- **`CLAUDE.md`, regra RA-02**: o fechamento de sessão passa a exigir uma quarta etapa — a checagem de
+  consistência, mecânica e humana. Deriva documental passa a ser tratada como violação de RA-06 tanto
+  quanto mudança silenciosa. **Primeira alteração do prompt mestre**, precedida de ADR conforme RP-07.
+
+### Corrigido — auditoria de consistência (S006)
+- **Cabeçalhos dos 7 entregáveis** atualizados de "submetido — aguardando aprovação" para "aprovado",
+  alinhando-os ao `STATUS.md`.
+- **`VISAO.md` emendado por ADR-0014** (nova §11 de emendas): NO-04 restringido para licenciamento
+  sempre do cliente; RM-05 com severidade e mitigação revistas; **R-001 reescrito** — de risco
+  crítico de invalidar o Caminho B para exposição alocada ao cliente, com resíduo declarado.
+- Contagem de ADRs, dependências declaradas em `ARQUITETURA.md` e `SEGURANCA.md`, e a descrição de
+  `license_notes` em `MODELO-DE-DADOS.md` alinhadas às decisões vigentes.
+
 ### Adicionado — execução (S005)
 - `docs/operacao/E-01-infraestrutura/` — material de execução do épico de infraestrutura, primeiro do
   caminho crítico do MVP-0a: visão do épico com ordem e dependências, especificação de aquisição de

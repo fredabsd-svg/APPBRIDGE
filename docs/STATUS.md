@@ -1,14 +1,14 @@
 # STATUS — AppBridge
 > Estado vivo do projeto. Atualizado ao fim de toda sessão (RA-02).
 
-**Última atualização:** 2026-08-08 · **Sessão atual:** S005 · **Fase:** ✅ Design concluído → **implementação do MVP-0a**
+**Última atualização:** 2026-08-10 · **Sessão atual:** S009 · **Fase:** ✅ Design concluído → **implementação do MVP-0a**
 
 ---
 
 ## 1. Onde estamos
 
 > **FASE DE DESIGN ENCERRADA em 2026-08-08.** Os 7 entregáveis foram **aprovados por Frederico** e
-> **13 ADRs** estão aceitos. O replanejamento do cronograma foi aprovado na **opção A** e ratificado
+> **16 ADRs** estão aceitos (13 no fechamento do design + ADR-0014, 0015 e 0016). O replanejamento do cronograma foi aprovado na **opção A** e ratificado
 > em **ADR-0013**: MVP-0 dividido em duas etapas, piloto em abr–jun/2027.
 >
 > **O projeto entra agora na implementação do MVP-0a.** A próxima sessão não produz mais documento de
@@ -66,6 +66,8 @@ piloto), B-006 (PS-07, cofre) e B-007 (PS-03, encadeamento da trilha).
 | ~~B-004~~ | ~~Aprovação dos entregáveis 2 a 7~~ | — | **Encerrado em 2026-08-08 — todos aprovados** |
 | ~~B-008~~ | ~~Replanejamento do MVP-0 e do piloto~~ | — | **Encerrado em 2026-08-08 — opção A, ratificada em ADR-0013** |
 | **B-009** | **Definir o subconjunto do MVP-1 exigido pelo piloto.** Sobram ~3 meses (fev–mar/2027) para os épicos E-13 a E-18, que provavelmente não cabem (R-025). Recomendação preliminar em `ROADMAP.md` §5: priorizar E-15, E-16 e a parte de permissões do E-13 | Planejamento do M2c e do piloto | Frederico |
+| ~~B-010~~ | ~~Duas linhas divergentes e dois backlogs~~ | — | **Encerrado em 2026-08-10 — ADR-0016.** `main` mesclado ao branch; `ROADMAP.md` é o backlog único; T-207, T-506 e T-1106 incorporados |
+| ~~B-011~~ | ~~Issue #5 contradiz o ADR-0009~~ | — | **Encerrado em 2026-08-10** — issue #5 corrigido: só `CertificateThumbprint`, sem PFX nem senha. Risco R-028 fechado |
 | B-006 | **Decisão sobre PS-07** — o que impede tecnicamente o provedor de usar o certificado A1 de um cliente. Hoje: nada. As opções (segunda aprovação, senha sob custódia do titular, módulo de hardware) alteram o produto e custam | Entrada do cofre (DIF-01) em produção na V2 | Frederico + jurídico |
 | B-007 | **Decisão sobre PS-03** — encadeamento criptográfico da trilha, para que ela seja verificável por terceiro. Alteraria ADR-0007 e exige ADR novo | Piloto do Caminho B | Frederico |
 | ~~B-005~~ | ~~Questões abertas de `REQUISITOS.md` §7~~ | — | **Encerrado em 2026-08-08** — 3 de 5 decididas por ADR-0007/0008; as outras 2 dependem de levantamento (T-001, parque de estações), não de decisão |
@@ -99,6 +101,8 @@ se faz com ADR novo que substitui o anterior.
 | [ADR-0009](adr/ADR-0009-assinatura-do-rdp-e-hospedagem-do-control-plane.md) | Assinatura do `.rdp` | Assinatura via `rdpsign.exe` atrás da interface `IRdpFileSigner`. **Consequência assumida: o Control Plane é componente Windows** — contêiner Linux está fora enquanto esta decisão valer. Caminho de saída registrado para o Caminho A | — (detalha RF-019, RNF-002) |
 | [ADR-0010](adr/ADR-0010-autenticacao-na-sessao-e-ingresso-das-estacoes.md) | Autenticação na sessão | Estações **ingressadas no domínio**, com delegação de credenciais por GPO restrita aos session hosts nominados. A senha de domínio nunca passa pelo Control Plane. Caminho degradado documentado para máquina fora do domínio | — (detalha RNF-042) |
 | [ADR-0011](adr/ADR-0011-convencoes-do-modelo-de-dados.md) | Convenções do modelo de dados | UUID v7 como chave, `timestamptz` em UTC, exclusão lógica para dado de tenant e proibida para trilha, e **chave estrangeira composta com `tenant_id`** — segunda linha de defesa que impede no motor uma linha do tenant A apontar para o tenant B | — (detalha RNF-019, RNF-020, RNF-036) |
+| [ADR-0016](adr/ADR-0016-backlog-unico-e-reconciliacao-das-duas-linhas.md) | **Backlog único** | `ROADMAP.md` é a fonte; `BACKLOG_MVP0A_PRIORIZADO.md` vira anexo histórico e `ANALISE_BUGS_E_MELHORIAS.md` recebe errata. Os dois gaps da linha B viram **T-207** (coluna `purpose`) e **T-506** (cancelamento), e PS-04 é antecipada como **T-1106** | ROADMAP, MODELO-DE-DADOS §7.1, ARQUITETURA §4.2 |
+| [ADR-0015](adr/ADR-0015-checagem-de-consistencia-no-fechamento-de-sessao.md) | **Processo — RA-02** | Fechamento de sessão passa a exigir **checagem de consistência**, em duas metades: mecânica (`./scripts/check-docs.sh`, 7 verificações) e humana (o conteúdo ainda reflete as decisões vigentes?). Primeira alteração do prompt mestre | altera `CLAUDE.md` |
 | [ADR-0014](adr/ADR-0014-licenciamento-dos-aplicativos-e-do-cliente.md) | **Licenciamento dos aplicativos** | O cliente adquire, instala e usa suas próprias licenças. O AppBridge **não consulta fornecedor nem intermedia licença**. G-01 deixa de ser confirmação escrita do fornecedor e passa a ser **declaração de titularidade e conformidade assinada pelo cliente**. Restringe NO-04 | nenhuma — não altera RF/RNF |
 | [ADR-0013](adr/ADR-0013-replanejamento-do-mvp-0-e-piloto-no-segundo-trimestre.md) | **Replanejamento** | MVP-0 dividido em **MVP-0a** (esqueleto ambulante, out/2026) e **MVP-0b** (dogfood real, dez/2026–jan/2027); piloto do Caminho B em **abr–jun/2027** com 3–5 escritórios. Portões G-01..G-05 mantidos intransponíveis | marcos, não requisitos |
 | [ADR-0012](adr/ADR-0012-convencoes-da-api.md) | Convenções da API | `/v1` no caminho; erro em Problem Details com código estável; `Idempotency-Key` obrigatório no lançamento; **o `tenant_id` nunca vem do cliente** — não existe parâmetro a verificar; recurso de outro tenant responde `404`; paginação por cursor | — (detalha RF-021, RF-025, RNF-036, RNF-043) |
@@ -161,6 +165,12 @@ se faz com ADR novo que substitui o anterior.
 | R-022 | Sem política de dependências, uma biblioteca comprometida entra no launcher ou no Control Plane sem barreira (AM-32) | Média | Aberto — PS-06 |
 | R-023 | **A infraestrutura (E-01, 34 pts) é o caminho crítico do MVP-0 e não é código** — depende de compra, de terceiros e da agenda das pessoas | **Alta** | Aberto — iniciar E-01 antes de qualquer linha de código |
 | R-024 | O MVP-0 completo não cabe na janela original de P8 | Crítica | **Fechado por ADR-0013** — replanejado em duas etapas, opção A |
+| R-026 | Duas linhas divergentes e dois conjuntos de identificadores | Alta | **Fechado por ADR-0016** |
+| R-027 | O backlog paralelo começava pelo código, sem issue para o épico E-01 | Alta | **Mitigado em 2026-08-10** — issues #35 a #39 criados; #8 marcado como bloqueado por #37 |
+| R-028 | Issue #5 reintroduziria material de chave em arquivo | Alta | **Fechado em 2026-08-10** — issue corrigido |
+| R-030 | **O MVP-0a real pode ser maior que qualquer das duas estimativas.** A linha B estimou 96 pts **sem** infraestrutura; a linha A, ~95 pts **com** ela. Somado o que cada uma cobre, aproxima-se de **130 pts** — contra a data de out/2026 do ADR-0013 | **Alta** | Aberto — reavaliar M2a |
+| R-031 | O caminho de falha do prelaunch é o menos exercitado do sistema e o que mais deixa estado inconsistente — foi onde o Gap 2 se escondeu | Média | Aberto — T-506 exige teste que **force** a falha |
+| R-029 | **Dois gaps confirmados na documentação aprovada:** `purpose` existe em `API.md` e não no modelo de dados (metering contaria prelaunch como uso real); `ISessionBackend` sem operação de cancelamento (prelaunch falho deixa sessão zumbi). | **Média-alta** | **Corrigidos nas fontes por ADR-0016** — `purpose` em `MODELO-DE-DADOS.md` §7.1 e `CancelSessionAsync` em `ARQUITETURA.md` §4.2; implementação em T-207 e T-506 |
 | R-025 | **O MVP-1 é o novo gargalo:** ~3 meses entre o fim do dogfood (jan/2027) e o piloto (abr/2027) para os épicos E-13 a E-18, que provavelmente não cabem | **Alta** | Aberto — B-009 |
 | R-006 | Execução solo de quatro componentes com MVP-0 previsto em ~2 meses | Alta | Aberto |
 | R-007 | O MVP-0 acumula 34 RFs "Must" (RF-001..RF-040 sem os Should/Could) para ~2 meses de execução solo. Se algo tiver de sair, os candidatos naturais são RF-016, RF-026, RF-032, RF-033, RF-034 e RF-040 — todos Should/Could, nenhum Must. Corte de Must exige ADR | Alta | Aberto — decisão de escopo de Frederico |
@@ -193,4 +203,21 @@ não de implementação:
 
 ## 10. Violações de processo detectadas (RA-06)
 
-Nenhuma.
+**Auditoria de consistência em 2026-08-08 (S006) — 6 achados de deriva documental, todos corrigidos.**
+
+Nenhuma mudança silenciosa de escopo, stack, modelo de dados ou API. O que se encontrou foi
+documentação que **deixou de refletir decisões já registradas** — deriva, não violação:
+
+| # | Achado | Corrigido |
+|---|--------|-----------|
+| 1 | Os 7 entregáveis mantinham "aguardando aprovação" no cabeçalho, contradizendo este `STATUS.md` | ✅ |
+| 2 | `VISAO.md` descrevia o modelo antigo de licenciamento em NO-04, RM-05 e R-001 | ✅ (nova §11 de emendas) |
+| 3 | Contagem de ADRs desatualizada (13 citados, 14 existentes) | ✅ |
+| 4 | `ARQUITETURA.md` com dependências desatualizadas | ✅ |
+| 5 | `MODELO-DE-DADOS.md` descrevendo `license_notes` pelo conceito extinto | ✅ |
+| 6 | `SEGURANCA.md` sem nota do ADR-0014 | ✅ |
+
+**Recomendação aprovada e aplicada (ADR-0015):** a RA-02 do `CLAUDE.md` passou a exigir a checagem de
+consistência no fechamento de sessão. A parte mecanizável está em `./scripts/check-docs.sh` — 7
+verificações, código de saída 1 em caso de achado. A parte humana permanece humana: nenhuma expressão
+regular teria detectado o achado nº 2.

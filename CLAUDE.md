@@ -116,7 +116,7 @@ FSLogix (profile containers + App Masking) · prelaunch de sessão · RDP sempre
 ### 6.2 Regras
 
 - **RA-01 · Abertura de sessão.** Toda sessão começa lendo `STATUS.md` e confirmando, em uma linha, o objetivo da sessão.
-- **RA-02 · Fechamento de sessão.** Toda sessão termina gerando/atualizando: (1) o log em `auditoria/AAAA-MM-DD-SNNN.md`; (2) `STATUS.md`; (3) `CHANGELOG.md`, se algo mudou. Sessão sem log de fechamento é sessão que não aconteceu.
+- **RA-02 · Fechamento de sessão.** Toda sessão termina gerando/atualizando: (1) o log em `auditoria/AAAA-MM-DD-SNNN.md`; (2) `STATUS.md`; (3) `CHANGELOG.md`, se algo mudou; (4) a **checagem de consistência** — executar `./scripts/check-docs.sh` e resolver os achados, e confirmar que os documentos afetados pelas decisões da sessão foram atualizados (ADR-0015). Sessão sem log de fechamento é sessão que não aconteceu; documento que deixou de refletir decisão registrada é violação de RA-06 tanto quanto mudança silenciosa.
 - **RA-03 · Log de sessão.** Formato fixo (ver template 6.4). Sem exceções e sem campos vazios — se não houve pendência, escreva "nenhuma".
 - **RA-04 · Rastreabilidade total.** Todo requisito tem ID (`RF-xxx`/`RNF-xxx`). Toda decisão referencia requisitos. Todo componente, entidade e endpoint referencia requisito e, quando aplicável, ADR. Nada existe "solto".
 - **RA-05 · ADR é imutável.** ADR aceito não se edita: cria-se novo ADR com status `substitui ADR-xxxx`, e o antigo recebe status `substituído por ADR-yyyy`.

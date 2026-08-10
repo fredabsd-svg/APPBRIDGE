@@ -1,7 +1,8 @@
 # MODELO DE DADOS — AppBridge (Control Plane)
 > Entregável 4 de 7 da fase de Design · Sessão S001 · 2026-08-08
-> Status: **submetido — aguardando aprovação de Frederico** (RP-04)
+> Status: **✅ aprovado por Frederico em 2026-08-08** (RP-04)
 > Depende de: `ARQUITETURA.md`, ADR-0004 (isolamento), ADR-0007 (auditoria e retenção), ADR-0011 (convenções)
+> Emendado por **ADR-0016**: coluna `purpose` em `launch` (§7.1)
 
 ---
 
@@ -184,13 +185,14 @@ sem que isso seja detectável.
 | `launch_mode` | enum | `remote_app` \| `confined_desktop` (RF-028) |
 | `status` | enum | `draft`, `published`, `retired` |
 | `concurrent_limit` | int NULL | **MVP-1** — teto de licença; `NULL` = sem teto (RF-063) |
-| `license_notes` | text NULL | Referência ao levantamento T-001 |
+| `license_notes` | text NULL | Licença **declarada pelo cliente** (ADR-0014); alimenta T-001 |
 
 `UNIQUE (tenant_id, remote_app_alias, host_pool_id)`.
 
-> `license_notes` existe por um motivo específico: T-001 (a verificação contratual de execução
-> multiusuário) é a pendência mais crítica do projeto (R-001). Sem um lugar no modelo para registrar
-> o resultado dela por aplicativo, essa informação viveria numa planilha e desapareceria.
+> `license_notes` existe por um motivo específico: por **ADR-0014**, a titularidade e a conformidade
+> da licença são do cliente, que as declara. Sem um lugar no modelo para registrar essa declaração por
+> aplicativo, a informação viveria numa planilha e desapareceria — e é ela que sustenta o portão G-01
+> e alimenta o teto de metering de RF-063.
 
 **Requisitos:** RF-011, RF-012, RF-013, RF-028, RF-063 · **ADR:** 0006
 
@@ -295,12 +297,19 @@ correlação com sessão desnecessariamente difíceis, num caminho que é críti
 | `tenant_id` | uuid FK | |
 | `user_account_id`, `application_id` | uuid | FK compostas |
 | `session_id` | uuid NULL | Preenchido quando a sessão é criada ou reutilizada |
+| `purpose` | enum | **`user_initiated` \| `prelaunch`** — espelha o campo de `POST /v1/launches` (ADR-0016, Gap 1) |
 | `requested_at` | timestamptz | |
 | `outcome` | enum | `granted`, `denied_permission`, `denied_quota`, `denied_host_unavailable`, `error_signing`, `error_internal` |
 | `denial_reason` | text NULL | |
 | `source_ip`, `workstation_name` | text | "de onde" (RNF-015) |
 | `rdp_expires_at` | timestamptz | TTL de 60 s (RF-020, PRE-07) |
 | `correlation_id` | uuid | Amarra launcher → Control Plane → host (RNF-039) |
+
+> **`purpose` não é metadado decorativo.** Sem ele, a contagem de RF-062 somaria prelaunchs como uso
+> real: dez pessoas com um prelaunch por dia inflariam o contador de um aplicativo em dez usos/dia que
+> nunca existiram, e o teto de RF-064 passaria a bloquear trabalho legítimo. **Toda consulta de
+> metering filtra `purpose = 'user_initiated'`.** Foi o Gap 1 da revisão S008 — `API.md` definia o
+> campo e este modelo não o tinha.
 
 > **`outcome = denied_permission` é o registro de RF-039.** A negativa de autorização não é uma
 > tabela à parte: é um lançamento que terminou em negativa. Isso garante que toda tentativa apareça
@@ -437,6 +446,7 @@ erDiagram
         text source_ip
         text workstation_name
         uuid correlation_id
+        enum purpose "user_initiated ou prelaunch"
         timestamptz rdp_expires_at
     }
     ACCESS_EVENT {
