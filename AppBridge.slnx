@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AppBridge.ControlPlane.Api/AppBridge.ControlPlane.Api.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/AppBridge.ControlPlane.Api.Tests/AppBridge.ControlPlane.Api.Tests.csproj" />
+  </Folder>
+</Solution>

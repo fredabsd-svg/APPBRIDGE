@@ -1,7 +1,7 @@
 # STATUS — AppBridge
 > Estado vivo do projeto. Atualizado ao fim de toda sessão (RA-02).
 
-**Última atualização:** 2026-08-10 · **Sessão atual:** S009 · **Fase:** ✅ Design concluído → **implementação do MVP-0a**
+**Última atualização:** 2026-08-10 · **Sessão atual:** S010 · **Fase:** implementação do MVP-0a — **código iniciado**
 
 ---
 
@@ -11,9 +11,10 @@
 > **16 ADRs** estão aceitos (13 no fechamento do design + ADR-0014, 0015 e 0016). O replanejamento do cronograma foi aprovado na **opção A** e ratificado
 > em **ADR-0013**: MVP-0 dividido em duas etapas, piloto em abr–jun/2027.
 >
-> **O projeto entra agora na implementação do MVP-0a.** A próxima sessão não produz mais documento de
-> design — executa E-01 (infraestrutura) e G-01 (licenciamento), que são caminho crítico e não
-> dependem de código.
+> **O código começou em 2026-08-10 (S010).** `src/AppBridge.ControlPlane.Api` — .NET 10, primeira
+> tarefa (**T-201**) concluída, com testes. Ambiente de desenvolvimento: .NET 10 SDK e PostgreSQL 16
+> locais. Ver §3 para a correção de sequenciamento: E-02 não esperava mais o hardware do que a
+> própria estrutura do código exigia.
 
 
 ## 2. Entregáveis da fase de design — ✅ concluída
@@ -40,8 +41,15 @@
 
 ## 3. Próximos passos — implementação do MVP-0a
 
-Ordem deliberada: **o que não é código vem primeiro**, porque é caminho crítico (R-023) e porque um
-resultado negativo em G-01 pouparia meses de construção.
+**Correção de sequenciamento (2026-08-10, S010) — não é mudança de escopo, é ordem de execução.**
+A linha 7 desta tabela dizia que E-02 (Control Plane) "depende da infraestrutura existir". Isso vale
+para o *deploy* real e para os testes de integração contra AD DS/RDS verdadeiros — não para o
+esqueleto do código, que só precisa de um PostgreSQL de desenvolvimento. Corrigido: **E-02 corre em
+paralelo com E-01**, não depois.
+
+Ordem do que ainda é sequencial: **o que não é código continua vindo primeiro**, porque é caminho
+crítico (R-023) e porque um resultado negativo em G-01 pouparia meses de construção — mas isso não
+significa que o código espera.
 
 | Ordem | Ação | Tarefa | Por que agora |
 |-------|------|--------|---------------|
@@ -51,7 +59,7 @@ resultado negativo em G-01 pouparia meses de construção.
 | 4 | VMs separadas, domínio, RDS, FSLogix, AppLocker — 🟡 **roteiro pronto** em `operacao/E-01-infraestrutura/roteiro-implantacao.md` | T-102 a T-105 | Épico E-01, caminho crítico. Depende do equipamento |
 | 5 | Ingresso das estações e GPOs — roteiro pronto | T-106 | A tarefa que mais facilmente estoura o prazo; sequenciar cedo |
 | 6 | Varredura externa | T-107 / V-01 | Comprova CS-04. Pode correr em paralelo a partir de T-102 |
-| 7 | Só então: fundação do Control Plane e lançamento assinado | E-02, E-05 | Depende da infraestrutura existir |
+| **—** | **Fundação do Control Plane — ✅ T-201 concluída (S010); T-202 em diante seguem em paralelo com E-01** | E-02 | Precisa só de Postgres de dev, já instalado nesta sessão |
 
 **Decisões que ainda cabem a Frederico, em paralelo:** B-009 (subconjunto do MVP-1 exigido pelo
 piloto), B-006 (PS-07, cofre) e B-007 (PS-03, encadeamento da trilha).

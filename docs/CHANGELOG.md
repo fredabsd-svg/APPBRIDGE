@@ -6,6 +6,24 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Adicionado — primeiro código do Control Plane (T-201, S010)
+- **`src/AppBridge.ControlPlane.Api`** — esqueleto ASP.NET Core em .NET 10 (`AppBridge.slnx`).
+  `CorrelationIdMiddleware` resolve/gera o `X-Correlation-Id` e grava início e fim de cada
+  requisição no log, com o ID no escopo (RNF-039, verificado por teste que captura o log real, não
+  apenas a resposta HTTP). `GET /v1/health` via `Microsoft.Extensions.Diagnostics.HealthChecks`,
+  extensível para as dependências reais que as tarefas seguintes forem adicionando (PostgreSQL em
+  T-202, AD DS em T-301, certificado em T-502), sem checks de fachada criados hoje sem lastro.
+- `tests/AppBridge.ControlPlane.Api.Tests` — 7 testes automatizados.
+- Vulnerabilidade `NU1903` (GHSA-v5pm-xwqc-g5wc) em `Microsoft.OpenApi` 2.0.0 fixada em 2.11.0
+  antes do primeiro commit.
+
+### Corrigido — sequenciamento E-01/E-02 (S010)
+- `STATUS.md` e `ROADMAP.md` diziam que o Control Plane (E-02) "depende da infraestrutura existir"
+  (E-01). Vale para o deploy real e para testes de integração contra AD DS/RDS — não para o
+  esqueleto de código, que só precisa de PostgreSQL de desenvolvimento. E-02 passa a correr **em
+  paralelo** com a aquisição de hardware (T-101), não depois dela. Não é mudança de escopo.
+- Ambiente de desenvolvimento instalado: .NET 10 SDK 10.0.302, PostgreSQL 16 local.
+
 ### Reconciliado — backlog único (ADR-0016, S009)
 - **`main` mesclado ao branch.** As duas linhas de trabalho voltaram a ser uma.
 - **`ROADMAP.md` passa a ser o backlog único.** `BACKLOG_MVP0A_PRIORIZADO.md` vira anexo histórico e

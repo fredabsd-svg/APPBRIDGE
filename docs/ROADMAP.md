@@ -75,13 +75,31 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 
 | ID | Tarefa | Critério de aceite | Est. |
 |----|--------|--------------------|------|
-| T-201 | Esqueleto ASP.NET Core, health check, log estruturado com `correlationId` | `/health` responde; um lançamento é rastreável ponta a ponta pelo log (RNF-039, RNF-040) | 3 |
+| ~~T-201~~ | ✅ Esqueleto ASP.NET Core, health check, log estruturado com `correlationId` | `/health` responde; um lançamento é rastreável ponta a ponta pelo log (RNF-039, RNF-040) | 3 |
 | T-202 | EF Core + PostgreSQL + primeira migração **já com `tenant_id` em todas as tabelas** | Migração aplica e reverte (RNF-052, ADR-0011) | 5 |
 | T-203 | `TenantContext` + filtro global no `DbContext` | Consulta sem cláusula explícita não retorna dado de outro tenant (ADR-0004) | 5 |
 | T-204 | **Chaves estrangeiras compostas com `tenant_id`** | Tentativa de gravar referência cruzada é recusada **pelo banco** (ADR-0011 §4) | 3 |
 | T-205 | `AuditWriter` transacional | Falha simulada de gravação **nega** a operação (V-05, ADR-0007) | 5 |
 | T-206 | **Teste automatizado de violação de tenant** | V-02 na suíte; leitura e escrita cruzadas falham (ADR-0004 item 9) | 3 |
 | **T-207** | **Coluna `purpose` na tabela `launch`** (enum `user_initiated \| prelaunch`) e filtro de prelaunch nas consultas de metering | Contagem de RF-062 **não soma prelaunchs**; teste cobre o caso (ADR-0016, Gap 1) | 2 |
+
+> **T-201 concluída em 2026-08-10 (S010).** `src/AppBridge.ControlPlane.Api` — .NET 10, `AppBridge.slnx`.
+> Health check em `/v1/health`, extensível: cada dependência real (PostgreSQL em T-202, AD DS em
+> T-301, certificado de assinatura em T-502, `ISessionBackend` em T-503) registra seu próprio
+> `IHealthCheck` quando o código que a acessa existir, em vez de um stub sem lastro criado hoje.
+> `CorrelationIdMiddleware` grava duas linhas de log por requisição (início e fim), com o
+> `CorrelationId` no escopo — **verificado na prática**, não só declarado: um teste captura o log
+> real e confirma que o ID aparece nas duas linhas, e que duas requisições concorrentes não
+> misturam seus IDs. 7 testes, build sem warning, sem vulnerabilidade conhecida
+> (`Microsoft.OpenApi` pinado em 2.11.0 — GHSA-v5pm-xwqc-g5wc).
+>
+> **Correção de sequenciamento (não é mudança de escopo — RP-07 não se aplica; é ajuste de ordem de
+> execução):** `STATUS.md` §3 dizia que E-02 "depende da infraestrutura existir" (E-01). Isso vale
+> para o host RDS de produção — não para o esqueleto do Control Plane, que só precisa de um
+> PostgreSQL de desenvolvimento. Ambiente de dev instalado nesta sessão: .NET 10 SDK 10.0.302 e
+> PostgreSQL 16 local. E-02 segue **em paralelo** com a aquisição de T-101, não depois dela; o que
+> continua bloqueado por T-101 é o *deploy* real e os testes de integração contra AD DS/RDS
+> verdadeiros (T-301, T-503, T-602).
 
 ### E-03 · Identidade e autorização — 21 pts
 
