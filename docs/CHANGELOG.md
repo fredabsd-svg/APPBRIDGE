@@ -6,6 +6,16 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Adicionado — `ETag`/`If-None-Match` em `GET /v1/applications` (T-403, S010)
+- `ETag` é um hash de conteúdo (`SHA256` truncado, prefixo `cat-`) sobre a lista de itens já
+  materializada para o usuário — não um contador de versão mantido à parte. O catálogo de um
+  usuário muda por dois motivos independentes (uma `Application` muda, ou o conjunto de
+  `ApplicationPermission` dele muda) e hashear o resultado final captura os dois sem precisar de
+  dois rastreadores sincronizados entre si.
+- `If-None-Match` igual ao `ETag` calculado (ou `*`) devolve `304 Not Modified` sem corpo (RF-015).
+- Verificado que conceder uma nova permissão — sem tocar em nenhuma linha de `Application` — muda
+  o `ETag` e faz um `If-None-Match` antigo voltar a devolver `200` com o catálogo atualizado.
+
 ### Adicionado — `GET /v1/applications` filtrado por autorização (T-402, S010)
 - Primeira rota `[Authorize]` do Control Plane. Retorna apenas os aplicativos `Published` para os
   quais o usuário autenticado tem `ApplicationPermission` vigente (RF-011).

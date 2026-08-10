@@ -81,6 +81,13 @@
 > corrigido no dado, não no código; os testes automatizados nunca passariam por esse valor porque
 > usam `DbContext.Applications.Add(...)`, que já grava a string certa. **67 testes automatizados no
 > total.**
+>
+> **T-403 concluída — `ETag`/`If-None-Match` em `GET /v1/applications`.** O `ETag` é hash de
+> conteúdo sobre a lista já materializada para o usuário, não um contador de versão à parte — o
+> catálogo muda tanto por `Application` quanto por `ApplicationPermission`, e hashear o resultado
+> final captura os dois sem precisar manter dois rastreadores sincronizados. Verificado rodando a
+> aplicação real: segunda sincronização idêntica devolve `304` com corpo de 0 bytes; conceder nova
+> permissão muda o `ETag`. **70 testes automatizados no total.**
 
 
 ## 2. Entregáveis da fase de design — ✅ concluída
@@ -132,7 +139,8 @@ significa que o código espera.
 | ~~—~~ | ~~**Vínculo identidade → conta AD por SID**~~ | T-302 | **Concluído em 2026-08-10 (S010)** — 57 testes no total. **E-03 · Identidade e autorização está completo** |
 | ~~—~~ | ~~**Seed de aplicativos**~~ | T-401 | **Concluído em 2026-08-10 (S010)** — 59 testes no total; primeira tarefa de E-04 |
 | ~~—~~ | ~~**`GET /applications` filtrado por autorização**~~ | T-402 | **Concluído em 2026-08-10 (S010)** — 67 testes no total; primeira rota `[Authorize]` |
-| **—** | **T-403** (`ETag`/`If-None-Match`) é a próxima de E-04 | E-04 | Depende de `GET /applications` (T-402, pronta) |
+| ~~—~~ | ~~**`ETag`/`If-None-Match`**~~ | T-403 | **Concluído em 2026-08-10 (S010)** — 70 testes no total |
+| **—** | **T-404** (endpoint de ícone, resolve PD-03) é a próxima de E-04 | E-04 | Última tarefa aberta do épico |
 
 **Decisões que ainda cabem a Frederico, em paralelo:** B-009 (subconjunto do MVP-1 exigido pelo
 piloto), B-006 (PS-07, cofre) e B-007 (PS-03, encadeamento da trilha).

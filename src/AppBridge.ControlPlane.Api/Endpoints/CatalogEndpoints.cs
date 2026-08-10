@@ -1,5 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 using AppBridge.ControlPlane.Domain.Catalog;
 using AppBridge.ControlPlane.Infrastructure;
 using AppBridge.ControlPlane.Infrastructure.Authorization;
@@ -12,8 +14,14 @@ namespace AppBridge.ControlPlane.Api.Endpoints;
 /// <c>[Authorize]</c>-gated route in the Control Plane — reachable only with a valid access token,
 /// resolved to a tenant by <c>TenantResolutionMiddleware</c> before this handler ever runs.
 ///
-/// <c>ETag</c>/<c>If-None-Match</c> (RF-015) is T-403's job, and the icon endpoint (PD-03) is
-/// T-404's — neither is built here.
+/// T-403 adds <c>ETag</c>/<c>If-None-Match</c> (RF-015): the tag is a content hash of the response
+/// actually being sent for this user, not a version counter tracked separately from it — the
+/// catalog changes for a user for two independent reasons (an <c>Application</c> row changes, or
+/// their <c>ApplicationPermission</c> set does), and hashing the materialized result is the one
+/// place both already show up, instead of trying to track "what changed" in two places that could
+/// drift out of sync with each other.
+///
+/// The icon endpoint (PD-03) is T-404's — not built here.
 /// </summary>
 public static class CatalogEndpoints
 {
@@ -42,7 +50,40 @@ public static class CatalogEndpoints
             .ToListAsync(cancellationToken);
 
         var items = applications.Select(ToCatalogApplication).ToList();
+        var etag = ComputeETag(items);
+        httpContext.Response.Headers.ETag = etag;
+
+        if (RequestHasMatchingETag(httpContext.Request, etag))
+        {
+            // RF-015: nothing beyond the status line and the two headers already set — the
+            // periodic sync this exists for must cost close to nothing when the catalog hasn't
+            // moved.
+            return Results.StatusCode(StatusCodes.Status304NotModified);
+        }
+
         return Results.Ok(new CatalogResponse(items, NextCursor: null));
+    }
+
+    private static bool RequestHasMatchingETag(HttpRequest request, string etag)
+    {
+        var ifNoneMatch = request.Headers.IfNoneMatch;
+        return ifNoneMatch.Count > 0
+            && ifNoneMatch.SelectMany(value => (value ?? string.Empty).Split(','))
+                .Select(value => value.Trim())
+                .Any(value => value == "*" || value == etag);
+    }
+
+    /// <summary>
+    /// A strong validator over exactly what the client would otherwise receive — two responses
+    /// hash the same if and only if they'd render identically, so there's no separate "did
+    /// anything change" tracking to keep honest against the actual response shape.
+    /// </summary>
+    private static string ComputeETag(IReadOnlyList<CatalogApplication> items)
+    {
+        var canonical = string.Join(
+            '|', items.Select(item => $"{item.Id}:{item.DisplayName}:{item.Description}:{item.LaunchMode}:{item.Available}"));
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(canonical));
+        return $"\"cat-{Convert.ToHexString(hash)[..16].ToLowerInvariant()}\"";
     }
 
     private static CatalogApplication ToCatalogApplication(Application application) => new(

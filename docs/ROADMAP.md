@@ -423,7 +423,7 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 |----|--------|--------------------|------|
 | ~~T-401~~ | ✅ Seed de aplicativos em JSON/tabela | Catálogo carregado sem painel (RF-012) | 3 |
 | ~~T-402~~ | ✅ `GET /applications` com filtro por autorização | Aplicativo não autorizado **não aparece** (RF-011) | 3 |
-| T-403 | `ETag` / `If-None-Match` | Segunda sincronização devolve `304` (RF-015) | 2 |
+| ~~T-403~~ | ✅ `ETag` / `If-None-Match` | Segunda sincronização devolve `304` (RF-015) | 2 |
 | T-404 | Endpoint de ícone | Serve PNG com cache; resolve PD-03 | 3 |
 
 > **T-401 concluída em 2026-08-10 (S010).** `CatalogSeeder`
@@ -508,6 +508,30 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 > não autorizado não aparece; autorizado mas `Draft` não aparece; token de um tenant nunca vê
 > aplicativo autorizado de outro tenant). **67 testes automatizados no total** (29 Api + 38
 > Infrastructure), todos passando.
+
+> **T-403 concluída em 2026-08-10 (S010).** `ETag`/`If-None-Match` em `GET /v1/applications`.
+> **Decisão de desenho**: o `ETag` é um hash de conteúdo (`SHA256` truncado, prefixo `cat-`) sobre a
+> própria lista de itens já materializada para aquele usuário — não um contador de versão mantido à
+> parte. Razão: o catálogo de um usuário muda por dois motivos independentes — uma linha de
+> `Application` muda, ou o conjunto de `ApplicationPermission` dele muda — e um contador de versão
+> teria que ser atualizado corretamente nos dois casos sem nunca dessincronizar; hashear o resultado
+> já materializado captura os dois de graça, porque é literalmente o que seria enviado.
+>
+> `If-None-Match` é comparado por igualdade de string exata contra o `ETag` calculado (mais o caso
+> trivial `*`); sem suporte a validadores fracos (`W/"..."`) — não pedido, e o hash de conteúdo já é
+> um validador forte por natureza.
+>
+> **Verificado rodando a aplicação de verdade** (`dotnet run` + `curl`): primeira requisição devolve
+> `200` com `ETag: "cat-4fdb3c35dee7d96f"` e o corpo esperado; segunda requisição com
+> `If-None-Match` igual devolve `304 Not Modified`, mesmo `ETag`, **corpo de 0 bytes** (`curl -w
+> "%{size_download}"` confirmou).
+>
+> **3 novos testes** em `CatalogEndpointTests.cs`: primeira requisição tem `ETag`, segunda idêntica
+> devolve `304`; `If-None-Match` desatualizado devolve `200` com o catálogo atual; conceder uma nova
+> permissão (sem tocar em nenhuma linha de `Application`) muda o `ETag` e o `If-None-Match` antigo
+> volta a devolver `200` com o catálogo atualizado — prova direta de que o `ETag` reflete permissão,
+> não só conteúdo de aplicativo. **70 testes automatizados no total** (32 Api + 38 Infrastructure),
+> todos passando. **Nenhum bug encontrado durante a verificação desta tarefa.**
 
 ### E-05 · Lançamento — 32 pts · **coração do produto**
 

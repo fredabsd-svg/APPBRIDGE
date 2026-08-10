@@ -131,6 +131,18 @@ public sealed class CatalogEndpointTests : IAsyncLifetime
         await context.SaveChangesAsync();
     }
 
+    private async Task<HttpResponseMessage> GetCatalogAsync(string accessToken, string? ifNoneMatch = null)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/v1/applications");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        if (ifNoneMatch is not null)
+        {
+            request.Headers.TryAddWithoutValidation("If-None-Match", ifNoneMatch);
+        }
+
+        return await _client.SendAsync(request);
+    }
+
     [Fact]
     public async Task Request_without_a_token_is_rejected_with_401()
     {
@@ -232,5 +244,61 @@ public sealed class CatalogEndpointTests : IAsyncLifetime
         var body = await response.Content.ReadFromJsonAsync<CatalogResponse>(ReadOptions);
         var item = Assert.Single(body!.Items);
         Assert.Equal(ownApplication.Id, item.Id); // only her own tenant's authorized application
+    }
+
+    [Fact]
+    public async Task First_request_returns_an_ETag_and_a_second_identical_sync_returns_304()
+    {
+        var application = await AddApplicationAsync("Domínio Contábil", "dominio-contabil");
+        await GrantPermissionAsync(application.Id);
+        var accessToken = await LoginAsAnaAsync();
+
+        var first = await GetCatalogAsync(accessToken);
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        var etag = first.Headers.ETag?.Tag;
+        Assert.False(string.IsNullOrWhiteSpace(etag));
+
+        var second = await GetCatalogAsync(accessToken, ifNoneMatch: etag);
+
+        Assert.Equal(HttpStatusCode.NotModified, second.StatusCode);
+        Assert.Equal(etag, second.Headers.ETag?.Tag);
+        Assert.Equal(0, second.Content.Headers.ContentLength ?? 0);
+    }
+
+    [Fact]
+    public async Task A_stale_If_None_Match_returns_200_with_the_current_catalog()
+    {
+        var application = await AddApplicationAsync("Domínio Contábil", "dominio-contabil");
+        await GrantPermissionAsync(application.Id);
+        var accessToken = await LoginAsAnaAsync();
+
+        var response = await GetCatalogAsync(accessToken, ifNoneMatch: "\"cat-0000000000000000\"");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<CatalogResponse>(ReadOptions);
+        Assert.Single(body!.Items);
+    }
+
+    [Fact]
+    public async Task Granting_a_new_permission_after_the_first_ETag_changes_it_and_returns_the_new_catalog()
+    {
+        var firstApplication = await AddApplicationAsync("Domínio Contábil", "dominio-contabil");
+        await GrantPermissionAsync(firstApplication.Id);
+        var accessToken = await LoginAsAnaAsync();
+
+        var first = await GetCatalogAsync(accessToken);
+        var originalETag = first.Headers.ETag?.Tag;
+
+        // The catalog changes for Ana even though no Application row itself was touched — only her
+        // ApplicationPermission set grew. The ETag has to reflect that, not just Application state.
+        var secondApplication = await AddApplicationAsync("Alterdata", "alterdata");
+        await GrantPermissionAsync(secondApplication.Id);
+
+        var afterGrant = await GetCatalogAsync(accessToken, ifNoneMatch: originalETag);
+
+        Assert.Equal(HttpStatusCode.OK, afterGrant.StatusCode);
+        Assert.NotEqual(originalETag, afterGrant.Headers.ETag?.Tag);
+        var body = await afterGrant.Content.ReadFromJsonAsync<CatalogResponse>(ReadOptions);
+        Assert.Equal(2, body!.Items.Count);
     }
 }
