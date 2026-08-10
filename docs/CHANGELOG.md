@@ -6,6 +6,15 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Adicionado — teste de metering exclui prelaunch (T-207, S010)
+- `tests/AppBridge.ControlPlane.Infrastructure.Tests/LaunchPurposeMeteringTests.cs` — a coluna
+  `purpose` e o enum `LaunchPurpose` já existiam desde T-202; faltava o teste que o critério de
+  aceite de T-207 pede. Grava três lançamentos `user_initiated` e dois `prelaunch`, confirma que uma
+  contagem filtrada por `purpose = user_initiated` devolve 3, não 5 (ADR-0016 Gap 1). Não é um
+  serviço de metering — RF-062 é MVP-1 (ADR-0006) e ainda não tem endpoint; o teste prova a garantia
+  na camada de dados que esse serviço vai usar.
+- **E-02 · Fundação do Control Plane está completo** (T-201 a T-207, 29 testes automatizados).
+
 ### Adicionado — suíte nomeada de violação de tenant, V-02 (T-206, S010)
 - `tests/AppBridge.ControlPlane.Infrastructure.Tests/TenantViolationTests.cs` — local explícito e
   nomeado da suíte para **V-02** (`SEGURANCA.md` §7, AM-07/AM-14, ADR-0004 item 9). T-203 e T-204 já

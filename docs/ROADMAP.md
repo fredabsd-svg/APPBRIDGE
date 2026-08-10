@@ -81,7 +81,7 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 | ~~T-204~~ | ✅ **Chaves estrangeiras compostas com `tenant_id`** | Tentativa de gravar referência cruzada é recusada **pelo banco** (ADR-0011 §4) | 3 |
 | ~~T-205~~ | ✅ `AuditWriter` transacional | Falha simulada de gravação **nega** a operação (V-05, ADR-0007) | 5 |
 | ~~T-206~~ | ✅ **Teste automatizado de violação de tenant** | V-02 na suíte; leitura e escrita cruzadas falham (ADR-0004 item 9) | 3 |
-| **T-207** | **Coluna `purpose` na tabela `launch`** (enum `user_initiated \| prelaunch`) e filtro de prelaunch nas consultas de metering | Contagem de RF-062 **não soma prelaunchs**; teste cobre o caso (ADR-0016, Gap 1) | 2 |
+| ~~T-207~~ | ✅ **Coluna `purpose` na tabela `launch`** (enum `user_initiated \| prelaunch`) e filtro de prelaunch nas consultas de metering | Contagem de RF-062 **não soma prelaunchs**; teste cobre o caso (ADR-0016, Gap 1) | 2 |
 
 > **T-201 concluída em 2026-08-10 (S010).** `src/AppBridge.ControlPlane.Api` — .NET 10, `AppBridge.slnx`.
 > Health check em `/v1/health`, extensível: cada dependência real (PostgreSQL em T-202, AD DS em
@@ -210,6 +210,16 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 > entidade/relacionamento entre este arquivo e T-203/T-204. **28 testes automatizados no total** no
 > Control Plane (7 Api + 8 Schema + 4 TenantIsolation + 2 TenantForeignKey + 3 AuditWriter + 4
 > TenantViolation), todos passando contra PostgreSQL real.
+>
+> **T-207 concluída em 2026-08-10 (S010).** A coluna `purpose` e o enum `LaunchPurpose` já existiam
+> desde T-202 — o que faltava era o teste que o próprio critério de aceite pede. `LaunchPurposeMeteringTests.cs`
+> grava três lançamentos `user_initiated` e dois `prelaunch` e confirma que uma contagem filtrada por
+> `purpose = user_initiated` devolve 3, não 5 — exatamente o que ADR-0016 Gap 1 exige de qualquer
+> consulta futura de RF-062. **Não é um serviço de metering** (RF-062 é MVP-1, ADR-0006, e ainda não
+> tem endpoint): o teste prova a garantia na camada de dados que esse serviço vai usar, não simula o
+> serviço em si — inventar um antes da hora seria escopo além do que T-207 pede (RP-05). **29 testes
+> automatizados no total** no Control Plane (7 Api + 22 Infrastructure), todos passando. **E-02 ·
+> Fundação do Control Plane está com todas as suas 7 tarefas concluídas.**
 
 ### E-03 · Identidade e autorização — 21 pts
 
