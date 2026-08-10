@@ -9,15 +9,18 @@ public class AuthenticationService : IAuthenticationService
 {
     private readonly AppBridgeDbContext _dbContext;
     private readonly ITokenService _tokenService;
+    private readonly IPasswordHasher _passwordHasher;
     private readonly ILogger<AuthenticationService> _logger;
 
     public AuthenticationService(
         AppBridgeDbContext dbContext,
         ITokenService tokenService,
+        IPasswordHasher passwordHasher,
         ILogger<AuthenticationService> logger)
     {
         _dbContext = dbContext;
         _tokenService = tokenService;
+        _passwordHasher = passwordHasher;
         _logger = logger;
     }
 
@@ -33,18 +36,24 @@ public class AuthenticationService : IAuthenticationService
             throw new UnauthorizedAccessException("Invalid credentials");
         }
 
-        // TODO: Implement password verification against hashed password (T-02.6)
-        // For MVP-0, this is a placeholder that assumes password validation will be implemented
-        // along with proper credential storage (e.g., bcrypt or identity password hasher)
+        if (!_passwordHasher.VerifyPassword(password, user.PasswordHash))
+        {
+            _logger.LogWarning("Authentication failed: invalid password for user {UserIdentifier} in tenant {TenantId}", userIdentifier, tenantId);
+            throw new UnauthorizedAccessException("Invalid credentials");
+        }
 
         var token = _tokenService.GenerateToken(user.Id.ToString(), user.Identifier, tenantId);
 
         _logger.LogInformation("User {UserIdentifier} authenticated successfully in tenant {TenantId}", userIdentifier, tenantId);
 
+        user.LastLoginAt = DateTimeOffset.UtcNow;
+        _dbContext.Users.Update(user);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
         return new AuthTokenDto
         {
             AccessToken = token,
-            ExpiresIn = 3600, // 1 hour (align with JwtOptions.ExpiryMinutes)
+            ExpiresIn = 3600,
         };
     }
 

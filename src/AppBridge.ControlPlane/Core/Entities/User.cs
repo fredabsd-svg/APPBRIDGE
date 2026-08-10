@@ -31,6 +31,12 @@ public class User
     public string Email { get; set; } = null!;
 
     /// <summary>
+    /// Hashed password (bcrypt). Required for local authentication in MVP-0.
+    /// Future: replace with Entra ID/AD integration.
+    /// </summary>
+    public string PasswordHash { get; set; } = null!;
+
+    /// <summary>
     /// Whether this user is currently active (can launch apps).
     /// </summary>
     public bool IsActive { get; set; } = true;

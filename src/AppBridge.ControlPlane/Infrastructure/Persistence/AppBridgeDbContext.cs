@@ -63,6 +63,7 @@ public class AppBridgeDbContext : DbContext
             entity.Property(e => e.Identifier).HasMaxLength(256).IsRequired();
             entity.Property(e => e.DisplayName).HasMaxLength(255).IsRequired();
             entity.Property(e => e.Email).HasMaxLength(256).IsRequired();
+            entity.Property(e => e.PasswordHash).IsRequired();
             entity.Property(e => e.CreatedAt).HasColumnType("timestamptz");
             entity.Property(e => e.UpdatedAt).HasColumnType("timestamptz");
             entity.Property(e => e.LastLoginAt).HasColumnType("timestamptz");

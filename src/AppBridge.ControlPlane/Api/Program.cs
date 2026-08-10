@@ -3,6 +3,7 @@ using System.Text;
 using AppBridge.ControlPlane.Application.Abstractions.Authentication;
 using AppBridge.ControlPlane.Application.Abstractions.Authorization;
 using AppBridge.ControlPlane.Application.Abstractions.Auditing;
+using AppBridge.ControlPlane.Application.Abstractions.Context;
 using AppBridge.ControlPlane.Core.Configuration;
 using AppBridge.ControlPlane.Infrastructure.Authorization;
 using AppBridge.ControlPlane.Infrastructure.Middleware;
@@ -10,6 +11,7 @@ using AppBridge.ControlPlane.Infrastructure.Persistence;
 using AppBridge.ControlPlane.Infrastructure.Services.Authentication;
 using AppBridge.ControlPlane.Infrastructure.Services.Authorization;
 using AppBridge.ControlPlane.Infrastructure.Services.Auditing;
+using AppBridge.ControlPlane.Infrastructure.Services.Context;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -31,7 +33,11 @@ builder.Services.AddDbContext<AppBridgeDbContext>(options =>
 
 // Add authentication services
 builder.Services.AddScoped<ITokenService, JwtTokenService>();
+builder.Services.AddScoped<IPasswordHasher, BcryptPasswordHasher>();
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
+
+// Add context services
+builder.Services.AddScoped<ITenantContextService, TenantContextService>();
 
 // Add auditing services
 builder.Services.AddScoped<IAuditingService, AuditingService>();
@@ -112,6 +118,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseAuthentication();
+app.UseTenantContext();
 app.UseAuthorization();
 app.UseAuditing();
 app.MapControllers();
