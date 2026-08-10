@@ -1,7 +1,7 @@
 # STATUS — AppBridge
 > Estado vivo do projeto. Atualizado ao fim de toda sessão (RA-02).
 
-**Última atualização:** 2026-08-10 · **Sessão atual:** S009 · **Fase:** ✅ Design concluído → **implementação do MVP-0a (E-00 finalizado, E-02 finalizado)**
+**Última atualização:** 2026-08-10 · **Sessão atual:** S010 · **Fase:** ✅ Design concluído → **implementação do MVP-0a (E-00 finalizado, E-02 finalizado, E-03 finalizado)**
 
 ---
 
@@ -58,6 +58,16 @@
 | **T-02.5** | ✅ Concluída (2026-08-10) | Autorização por aplicativo (application permission checks, multi-tenant validation) |
 | **T-02.6** | ✅ Concluída (2026-08-10) | Tenant context middleware + password hashing (bcrypt, LastLoginAt tracking) |
 | **T-02.7** | ✅ Concluída (2026-08-10) | Global exception handling + response formats (RFC 7807, ProblemDetails, ErrorResponse) |
+
+## 5. E-03 (Application Endpoints) — ✅ 100% concluído
+
+| Tarefa | Status | Descrição |
+|--------|--------|-----------|
+| **T-03.1** | ✅ Concluída (2026-08-10) | ApplicationService: CRUD operations (Get, List, ListUser, Create, Update, Publish, Delete) com multi-tenant validation, authorization checks, soft-delete, logging |
+| **T-03.2** | ✅ Concluída (2026-08-10) | ApplicationsController: REST endpoints ([Authorize], GET/POST/PUT/PATCH/DELETE), tenant context validation, status codes per RFC 7231 |
+| **T-03.3** | ✅ Concluída (2026-08-10) | DTOs: ApplicationDto, CreateApplicationDto, UpdateApplicationDto, PublishApplicationDto |
+| **T-03.4** | ✅ Concluída (2026-08-10) | ApplicationServiceTests: 10 integration tests (Get, List, Create, Update, Publish, Delete, soft-delete, authorization) |
+| **T-03.5** | ✅ Concluída (2026-08-10) | ApplicationsControllerTests: 14 unit tests (endpoint routing, status codes, context validation, error handling) |
 
 ## 4. Próximos passos — implementação do MVP-0a
 
