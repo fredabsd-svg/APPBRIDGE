@@ -6,6 +6,43 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Adicionado — `POST /v1/auth/session` (T-301, S010)
+- Primeiro endpoint real do Control Plane — E-03 · Identidade e autorização começa. Valida a
+  identidade apresentada, resolve o tenant (via `Tenant.AdDomain`), aplica as regras de negação na
+  ordem tenant → usuário, grava `access_event` (sucesso ou falha) e `refresh_token` na mesma
+  transação que emite os tokens (ADR-0007 Part 1), e devolve os códigos de erro exatos de `API.md`
+  (`INVALID_IDENTITY_TOKEN`, `USER_DISABLED`, `TENANT_SUSPENDED`, `AUDIT_UNAVAILABLE`) em Problem
+  Details (ADR-0012).
+- **ADR-0017** — nova decisão, encontrada como lacuna real durante a implementação: `API.md` já
+  prometia `refreshToken` na resposta e um endpoint de refresh (T-303), mas `MODELO-DE-DADOS.md` não
+  tinha onde persistir um, e sem persistência `logout` (RF-006) não teria o que revogar. Decide:
+  `accessToken` em JWT HS256 (chave via `APPBRIDGE_JWT_SIGNING_KEY`, nunca arquivo); `refreshToken`
+  opaco, guardado **só como hash SHA-256**, nunca o valor, em nova tabela `refresh_token`
+  (`MODELO-DE-DADOS.md` §4.3, seguindo ADR-0011 integralmente).
+- `AppBridgeDbContext`/`ITenantContext`/`IAuditWriter` registrados no `Program.cs` da Api pela
+  primeira vez — T-301 é o primeiro consumidor real em tempo de execução que E-02 preparou. Health
+  check ganhou a verificação de PostgreSQL.
+- **Nenhuma implementação real de `IIdentityProvider`** (Entra ID/AD DS) nesta tarefa — não há
+  infraestrutura de E-01 para validar contra. `DevIdentityProvider`, registrado só sob
+  `Development`, viabiliza rodar e testar o endpoint nesta sessão (ADR-0017 §5, risco R-032).
+- **Verificado rodando a aplicação de verdade** (`dotnet run` + `curl`/`psql`), não só nos testes:
+  login bem-sucedido e as quatro negativas documentadas, cada uma com o registro de auditoria
+  esperado. 13 novos testes automatizados: 6 em `AuthEndpointTests.cs` (via `WebApplicationFactory`
+  contra PostgreSQL real, incluindo a falha de gravação simulada devolvendo `503
+  AUDIT_UNAVAILABLE`), 2 em `JwtSessionTokenIssuerTests.cs` (sem banco). As 3 suítes de T-201
+  precisaram de ajuste — ver "Corrigido" abaixo. **37 testes automatizados no total.**
+
+### Corrigido — testes de T-201 e configuração de teste do host (T-301, S010)
+- `HealthCheckTests`, `CorrelationIdMiddlewareTests` e `RequestLoggingTests` quebraram porque
+  `Program.cs` passou a exigir `APPBRIDGE_DB_CONNECTION`/`APPBRIDGE_JWT_SIGNING_KEY` para iniciar —
+  esperado, é dependência real agora. Corrigido centralizando a configuração de teste em
+  `ApiTestFactory.cs`.
+- A primeira versão de `ApiTestFactory` injetava a configuração via `ConfigureAppConfiguration`, que
+  não chega a tempo do `?? throw` que `Program.cs` executa logo após `CreateBuilder(args)` — esse
+  hook só se aplica no momento em que o `WebApplicationFactory` intercepta `Build()`. Corrigido
+  definindo variáveis de ambiente reais no processo, a fonte que `CreateBuilder` já lê de forma
+  síncrona.
+
 ### Adicionado — teste de metering exclui prelaunch (T-207, S010)
 - `tests/AppBridge.ControlPlane.Infrastructure.Tests/LaunchPurposeMeteringTests.cs` — a coluna
   `purpose` e o enum `LaunchPurpose` já existiam desde T-202; faltava o teste que o critério de

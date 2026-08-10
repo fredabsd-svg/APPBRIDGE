@@ -16,6 +16,9 @@
          line until a Npgsql.EntityFrameworkCore.PostgreSQL release aligns on its own. -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.10" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+    <!-- Session token issuance (ADR-0017 §1) — pure JWT creation, no ASP.NET Core dependency, so
+         Infrastructure stays testable without a web host. -->
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.22.0" />
   </ItemGroup>
 
   <PropertyGroup>

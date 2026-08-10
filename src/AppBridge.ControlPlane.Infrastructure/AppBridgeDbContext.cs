@@ -31,6 +31,8 @@ public sealed class AppBridgeDbContext(DbContextOptions<AppBridgeDbContext> opti
 
     public DbSet<UserGroupMembership> UserGroupMemberships => Set<UserGroupMembership>();
 
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+
     public DbSet<Application> Applications => Set<Application>();
 
     public DbSet<ApplicationPermission> ApplicationPermissions => Set<ApplicationPermission>();

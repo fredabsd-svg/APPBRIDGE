@@ -84,9 +84,12 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 | ~~T-207~~ | ✅ **Coluna `purpose` na tabela `launch`** (enum `user_initiated \| prelaunch`) e filtro de prelaunch nas consultas de metering | Contagem de RF-062 **não soma prelaunchs**; teste cobre o caso (ADR-0016, Gap 1) | 2 |
 
 > **T-201 concluída em 2026-08-10 (S010).** `src/AppBridge.ControlPlane.Api` — .NET 10, `AppBridge.slnx`.
-> Health check em `/v1/health`, extensível: cada dependência real (PostgreSQL em T-202, AD DS em
-> T-301, certificado de assinatura em T-502, `ISessionBackend` em T-503) registra seu próprio
-> `IHealthCheck` quando o código que a acessa existir, em vez de um stub sem lastro criado hoje.
+> Health check em `/v1/health`, extensível: cada dependência real (PostgreSQL, AD DS, certificado de
+> assinatura, `ISessionBackend`) registra seu próprio `IHealthCheck` quando o código que a acessa
+> existir, em vez de um stub sem lastro criado hoje. **Nota corrigida em T-301:** esta previsão
+> original dizia "PostgreSQL em T-202" — impreciso; T-202 só construiu o schema, sem nenhum
+> consumidor em tempo de execução no `Program.cs`. O `IHealthCheck` de PostgreSQL só chegou em T-301,
+> a primeira tarefa que de fato conecta ao banco a partir da Api.
 > `CorrelationIdMiddleware` grava duas linhas de log por requisição (início e fim), com o
 > `CorrelationId` no escopo — **verificado na prática**, não só declarado: um teste captura o log
 > real e confirma que o ID aparece nas duas linhas, e que duas requisições concorrentes não
@@ -99,7 +102,8 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 > PostgreSQL de desenvolvimento. Ambiente de dev instalado nesta sessão: .NET 10 SDK 10.0.302 e
 > PostgreSQL 16 local. E-02 segue **em paralelo** com a aquisição de T-101, não depois dela; o que
 > continua bloqueado por T-101 é o *deploy* real e os testes de integração contra AD DS/RDS
-> verdadeiros (T-301, T-503, T-602).
+> verdadeiros (T-503, T-602, e a futura implementação real de `IIdentityProvider` que ADR-0017 §5
+> deixou explicitamente fora de T-301).
 >
 > **T-202 concluída em 2026-08-10 (S010).** `AppBridge.ControlPlane.Domain` (15 entidades, fiéis a
 > `MODELO-DE-DADOS.md`) e `AppBridge.ControlPlane.Infrastructure` (EF Core 10 + Npgsql, convenções
@@ -225,12 +229,63 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 
 | ID | Tarefa | Critério de aceite | Est. |
 |----|--------|--------------------|------|
-| T-301 | `POST /auth/session`, com registro na mesma transação | Login gera `access_event`; falha de trilha devolve `503 AUDIT_UNAVAILABLE` | 8 |
+| ~~T-301~~ | ✅ `POST /auth/session`, com registro na mesma transação | Login gera `access_event`; falha de trilha devolve `503 AUDIT_UNAVAILABLE` | 8 |
 | T-302 | Vínculo identidade → conta AD por **SID** | Renomear a conta no AD não quebra o vínculo nem a trilha (RF-002) | 5 |
 | T-303 | Refresh, logout e armazenamento no Credential Manager | Token renova sem login; logout invalida (RF-004..RF-006) | 5 |
 | T-304 | `AuthorizationService` com vigência de permissão | Permissão revogada nega o lançamento seguinte em ≤ 60 s (V-07, RNF-030) | 3 |
 
-### E-04 · Catálogo — 11 pts
+> **T-301 concluída em 2026-08-10 (S010).** `POST /v1/auth/session` implementado e verificado de
+> ponta a ponta — construído sobre tudo que E-02 preparou (`AppBridgeDbContext`, `ITenantContext`,
+> `IAuditWriter`), agora com consumidor real pela primeira vez.
+>
+> **Lacuna encontrada e fechada durante a implementação, com ADR próprio:** `API.md` já prometia
+> `refreshToken` na resposta e `POST /v1/auth/refresh` (T-303), mas `MODELO-DE-DADOS.md` não tinha
+> tabela para persistir um — sem estado do lado do servidor, `logout` (RF-006) não teria o que
+> revogar. **ADR-0017** decide os dois pontos que faltavam: `accessToken` em JWT HS256 (chave via
+> `APPBRIDGE_JWT_SIGNING_KEY`, nunca arquivo — RP-06), e `refreshToken` opaco guardado **só como hash
+> SHA-256** (nunca o valor), em nova tabela `refresh_token` (`MODELO-DE-DADOS.md` §4.3), seguindo as
+> convenções de sempre (ADR-0011: UUID v7, `timestamptz`, FK composta com `tenant_id`).
+>
+> **Nenhuma integração real com Entra ID/AD DS nesta tarefa** (ADR-0017 §5) — E-01 não tem hardware
+> comprado, não existe domínio nem tenant Entra para validar contra. Escrever uma implementação "real"
+> sem nada para testá-la violaria a disciplina deste projeto de rodar para verificar. `IIdentityProvider`
+> é a interface (Infrastructure); `DevIdentityProvider` (Api, registrado **só sob `Development`**)
+> existe para permitir rodar e testar o endpoint nesta sessão — ver R-032. `AddAuthentication().AddJwtBearer()`
+> também já está registrado em `Program.cs`, sem nenhum endpoint protegido para exercitá-lo ainda —
+> mesmo raciocínio de T-201 para o health check: o mecanismo entra quando a decisão de claims é
+> tomada, não quando o primeiro consumidor aparece.
+>
+> **`AppBridgeDbContext`/`ITenantContext`/`IAuditWriter` finalmente registrados no `Program.cs`** —
+> T-301 é a primeira tarefa com consumidor real em tempo de execução, exatamente como antecipado ao
+> fechar E-02. O health check ganhou `postgresql` como primeira dependência real (a nota de T-201
+> dizia "PostgreSQL em T-202" — impreciso; T-202 só construiu o schema, T-301 é quem de fato conecta
+> em runtime, corrigido aqui).
+>
+> **Verificado rodando a aplicação de verdade** (`dotnet run`, não só os testes): login bem-sucedido
+> grava `access_event` (`result = success`) e `refresh_token`, atualiza `last_login_at`, devolve
+> `201` com os tokens; token inválido, usuário desconhecido (com tenant resolvido), usuário
+> desabilitado e tenant suspenso devolvem os códigos exatos de `API.md` (`INVALID_IDENTITY_TOKEN`,
+> `USER_DISABLED`, `TENANT_SUSPENDED`), cada um com o `access_event` de falha correspondente quando
+> há tenant para atribuir. **13 novos testes automatizados** (6 em `AuthEndpointTests.cs`, contra o
+> host real via `WebApplicationFactory` e PostgreSQL real — incluindo a falha de gravação simulada
+> por `SaveChangesInterceptor` devolvendo `503 AUDIT_UNAVAILABLE`, a mesma técnica de T-205 agora
+> provada na fronteira HTTP; 2 em `JwtSessionTokenIssuerTests.cs`, sem banco, provando que o token
+> emitido valida com a mesma chave e falha com uma diferente; e as 3 suítes pré-existentes de T-201
+> precisaram de ajuste — ver correções abaixo). **37 testes automatizados no total** no Control Plane
+> (13 Api + 24 Infrastructure), todos passando.
+>
+> **Duas correções de teste encontradas rodando a suíte, nenhuma de produto:**
+> 1. Os três arquivos de teste de T-201 (`HealthCheckTests`, `CorrelationIdMiddlewareTests`,
+>    `RequestLoggingTests`) quebraram porque `Program.cs` passou a exigir `APPBRIDGE_DB_CONNECTION`/
+>    `APPBRIDGE_JWT_SIGNING_KEY` para iniciar — correto, é uma dependência real agora. Corrigido
+>    centralizando a configuração de teste em `ApiTestFactory.cs`, reaproveitada pelos quatro
+>    arquivos de teste do projeto Api.
+> 2. `ApiTestFactory` inicialmente injetava a configuração via `ConfigureAppConfiguration` (padrão
+>    comum do `WebApplicationFactory`) — não funcionou, porque `Program.cs` lê a configuração
+>    obrigatória **antes** de `Build()`, e o `ConfigureAppConfiguration` do `WebApplicationFactory`
+>    só se aplica no ponto em que ele intercepta `Build()`, tarde demais para o `?? throw` logo após
+>    `CreateBuilder(args)`. Corrigido definindo variáveis de ambiente reais no processo — que
+>    `CreateBuilder` já lê como uma das suas próprias fontes padrão, de forma síncrona.
 
 | ID | Tarefa | Critério de aceite | Est. |
 |----|--------|--------------------|------|

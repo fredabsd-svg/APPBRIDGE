@@ -2,7 +2,8 @@
 > Entregável 4 de 7 da fase de Design · Sessão S001 · 2026-08-08
 > Status: **✅ aprovado por Frederico em 2026-08-08** (RP-04)
 > Depende de: `ARQUITETURA.md`, ADR-0004 (isolamento), ADR-0007 (auditoria e retenção), ADR-0011 (convenções)
-> Emendado por **ADR-0016**: coluna `purpose` em `launch` (§7.1)
+> Emendado por **ADR-0016**: coluna `purpose` em `launch` (§7.1) · **ADR-0017**: tabela
+> `refresh_token` (§4.3)
 
 ---
 
@@ -167,6 +168,26 @@ login (RF-010). O `synced_at` existe para que uma decisão de autorização nunc
 sem que isso seja detectável.
 
 **Requisitos:** RF-010, RF-044 · **ADR:** 0001
+
+### 4.3 `refresh_token` — MVP-0 · adicionada por ADR-0017
+
+**Não é tabela de trilha** — `revoked_at` precisa ser gravável depois da criação (logout ou rotação
+em `/auth/refresh`, T-303), o que uma tabela append-only, por desenho (ADR-0011 §5), proíbe.
+
+| Coluna | Tipo | Notas |
+|--------|------|-------|
+| `id` | uuid v7 PK | |
+| `tenant_id` | uuid FK | |
+| `user_account_id` | uuid | FK composta |
+| `token_hash` | text UNIQUE | SHA-256 do valor opaco entregue ao cliente — **nunca o valor em si** |
+| `expires_at` | timestamptz | `PREMISSA:` 30 dias (RF-004, "enquanto a sessão do usuário for válida") |
+| `revoked_at` | timestamptz NULL | Campo de domínio próprio, não o `deleted_at` de ADR-0011 §3 |
+
+> Guardar só o hash é a mesma disciplina de nunca guardar senha em texto claro: um vazamento do banco
+> não entrega token utilizável. Um JWT autocontido não serviria aqui — não é revogável antes de
+> expirar, e RF-006 exige que logout invalide de fato.
+
+**Requisitos:** RF-004, RF-005, RF-006 · **ADR:** 0017
 
 ---
 
@@ -589,6 +610,7 @@ precedida de migração de cópia; migração que altera semântica de coluna de
 | `redirection_policy` | RNF-014, RF-048 | MVP-0 |
 | `signing_certificate` | RNF-008 | MVP-0 |
 | `user_account` | RF-001..RF-003, RF-005 | MVP-0 |
+| `refresh_token` | RF-004..RF-006 | MVP-0 |
 | `group`, `user_group_membership` | RF-010, RF-044 | MVP-0 |
 | `application` | RF-011..RF-013, RF-028, RF-063 | MVP-0 |
 | `application_permission` | RF-007, RF-010, RF-021 | MVP-0 |
@@ -613,6 +635,8 @@ lançamento, sem estado persistente no Control Plane além de `launch`). Verific
 | ID | Item | Situação |
 |----|------|----------|
 | **PRE-24** | Retenção de `host_telemetry`: 90 dias | `PREMISSA:` a confirmar quando o Agent existir |
+| **PRE-29** | TTL do `accessToken`: 15 minutos (ADR-0017) | `PREMISSA:` a confirmar no dogfood, mesma natureza de PRE-07 |
+| **PRE-30** | TTL do `refreshToken`: 30 dias (ADR-0017) | `PREMISSA:` a confirmar no dogfood |
 | **PD-01** | **Política de expurgo de linhas com exclusão lógica** (`deleted_at` antigo) não está definida. É distinta da retenção de trilha e ficou pendente em ADR-0011 | Aberta — resolver antes da implementação |
 | **PD-02** | Row-Level Security do PostgreSQL como terceira linha de defesa foi registrada em ADR-0011 como evolução desejável, a reavaliar no piloto | Aberta |
 | **PD-03** | Armazenamento do binário de ícone (`icon_ref`): sistema de arquivos ou objeto externo, não definido | Aberta — decisão de `API.md` |

@@ -8,7 +8,8 @@
 ## 1. Onde estamos
 
 > **FASE DE DESIGN ENCERRADA em 2026-08-08.** Os 7 entregáveis foram **aprovados por Frederico** e
-> **16 ADRs** estão aceitos (13 no fechamento do design + ADR-0014, 0015 e 0016). O replanejamento do cronograma foi aprovado na **opção A** e ratificado
+> **17 ADRs** estão aceitos (13 no fechamento do design + ADR-0014 a ADR-0017, os quatro últimos
+> nascidos durante a implementação do código). O replanejamento do cronograma foi aprovado na **opção A** e ratificado
 > em **ADR-0013**: MVP-0 dividido em duas etapas, piloto em abr–jun/2027.
 >
 > **O código começou em 2026-08-10 (S010).** `src/AppBridge.ControlPlane.Api` — .NET 10, primeira
@@ -17,10 +18,18 @@
 > isolamento por tenant (ADR-0004), as chaves estrangeiras compostas que impedem escrita cruzada de
 > tenant no banco (ADR-0011 §4), o `AuditWriter` transacional que nega a operação inteira quando o
 > registro de auditoria não pode ser gravado (ADR-0007), a suíte nomeada de V-02 (violação de
-> tenant) e o teste de que a contagem de RF-062 não soma prelaunchs (ADR-0016 Gap 1), com 29 testes
-> automatizados no total. **E-02 · Fundação do Control Plane está completo.** Ver `docs/SETUP-DEV.md`
-> para o ambiente de desenvolvimento (.NET 10 SDK e PostgreSQL 16 locais). Ver §3 para a correção de
-> sequenciamento: E-02 não esperava mais o hardware do que a própria estrutura do código exigia.
+> tenant) e o teste de que a contagem de RF-062 não soma prelaunchs (ADR-0016 Gap 1). **E-02 ·
+> Fundação do Control Plane está completo.**
+>
+> **T-301 também concluída na mesma sessão** — `POST /v1/auth/session`, o primeiro endpoint real de
+> E-03. Encontrou e fechou uma lacuna real entre `API.md` e `MODELO-DE-DADOS.md` (nenhuma tabela
+> para o `refreshToken` que o contrato já prometia): **ADR-0017** decide token de sessão em JWT
+> HS256 e `refreshToken` opaco guardado só como hash, em nova tabela `refresh_token`. Nenhuma
+> integração real com Entra ID/AD DS ainda (infraestrutura de E-01 não existe) — um
+> `DevIdentityProvider` viabiliza rodar e testar o endpoint só sob `Development`. **37 testes
+> automatizados no total.** Ver `docs/SETUP-DEV.md` para o ambiente de desenvolvimento (.NET 10 SDK
+> e PostgreSQL 16 locais). Ver §3 para a correção de sequenciamento: E-02 não esperava mais o
+> hardware do que a própria estrutura do código exigia.
 
 
 ## 2. Entregáveis da fase de design — ✅ concluída
@@ -66,7 +75,8 @@ significa que o código espera.
 | 5 | Ingresso das estações e GPOs — roteiro pronto | T-106 | A tarefa que mais facilmente estoura o prazo; sequenciar cedo |
 | 6 | Varredura externa | T-107 / V-01 | Comprova CS-04. Pode correr em paralelo a partir de T-102 |
 | ~~—~~ | ~~**Fundação do Control Plane**~~ | E-02 | **Concluído em 2026-08-10 (S010)** — T-201 a T-207, 29 testes |
-| **—** | **Identidade e autorização — inicia com T-301** (`POST /auth/session`), primeira tarefa a de fato registrar `AppBridgeDbContext`/`ITenantContext`/`IAuditWriter` no `Program.cs` da Api | E-03 | Depende só de E-02, que acabou de fechar; segue em paralelo com E-01 pelo mesmo motivo já registrado acima |
+| ~~—~~ | ~~**`POST /v1/auth/session`**~~ | T-301 | **Concluído em 2026-08-10 (S010)** — 37 testes no total; ADR-0017 (token de sessão, `refresh_token`) |
+| **—** | **T-302** (vínculo por SID), **T-303** (refresh/logout) e **T-304** (`AuthorizationService`) seguem E-03, em paralelo com E-01 pelo mesmo motivo já registrado acima | E-03 | T-301 fechou a fundação de identidade que as três precisam |
 
 **Decisões que ainda cabem a Frederico, em paralelo:** B-009 (subconjunto do MVP-1 exigido pelo
 piloto), B-006 (PS-07, cofre) e B-007 (PS-03, encadeamento da trilha).
@@ -121,6 +131,7 @@ se faz com ADR novo que substitui o anterior.
 | [ADR-0014](adr/ADR-0014-licenciamento-dos-aplicativos-e-do-cliente.md) | **Licenciamento dos aplicativos** | O cliente adquire, instala e usa suas próprias licenças. O AppBridge **não consulta fornecedor nem intermedia licença**. G-01 deixa de ser confirmação escrita do fornecedor e passa a ser **declaração de titularidade e conformidade assinada pelo cliente**. Restringe NO-04 | nenhuma — não altera RF/RNF |
 | [ADR-0013](adr/ADR-0013-replanejamento-do-mvp-0-e-piloto-no-segundo-trimestre.md) | **Replanejamento** | MVP-0 dividido em **MVP-0a** (esqueleto ambulante, out/2026) e **MVP-0b** (dogfood real, dez/2026–jan/2027); piloto do Caminho B em **abr–jun/2027** com 3–5 escritórios. Portões G-01..G-05 mantidos intransponíveis | marcos, não requisitos |
 | [ADR-0012](adr/ADR-0012-convencoes-da-api.md) | Convenções da API | `/v1` no caminho; erro em Problem Details com código estável; `Idempotency-Key` obrigatório no lançamento; **o `tenant_id` nunca vem do cliente** — não existe parâmetro a verificar; recurso de outro tenant responde `404`; paginação por cursor | — (detalha RF-021, RF-025, RNF-036, RNF-043) |
+| [ADR-0017](adr/ADR-0017-token-de-sessao-e-persistencia-do-refresh-token.md) | **Token de sessão e refresh token** | `accessToken` em JWT HS256 (chave por variável de ambiente); `refreshToken` opaco, guardado só como hash SHA-256, em tabela própria (`refresh_token`) — nunca um JWT autocontido, para que logout consiga revogar de fato. Nenhuma implementação real de `IIdentityProvider` nesta tarefa: infraestrutura de E-01 (AD DS/Entra) ainda não existe | MODELO-DE-DADOS §4.3 |
 
 ## 7. Premissas abertas (RP-05)
 
@@ -154,6 +165,8 @@ se faz com ADR novo que substitui o anterior.
 | PRE-28 | 20–30 GB de container FSLogix por usuário | E-01 / T-101 | medição no dogfood |
 | PRE-25 | 1 ponto de estimativa ≈ meio dia de trabalho focado | ROADMAP §1.1 | primeira semana de implementação |
 | PRE-26 | Dedicação de 40% a 60% do tempo útil ao projeto | ROADMAP §4 | Frederico |
+| PRE-29 | TTL do `accessToken`: 15 minutos | ADR-0017 | medição no dogfood, mesma natureza de PRE-07 |
+| PRE-30 | TTL do `refreshToken`: 30 dias | ADR-0017 | medição no dogfood |
 
 ## 8. Riscos registrados
 
@@ -186,6 +199,7 @@ se faz com ADR novo que substitui o anterior.
 | R-030 | **O MVP-0a real pode ser maior que qualquer das duas estimativas.** A linha B estimou 96 pts **sem** infraestrutura; a linha A, ~95 pts **com** ela. Somado o que cada uma cobre, aproxima-se de **130 pts** — contra a data de out/2026 do ADR-0013 | **Alta** | Aberto — reavaliar M2a |
 | R-031 | O caminho de falha do prelaunch é o menos exercitado do sistema e o que mais deixa estado inconsistente — foi onde o Gap 2 se escondeu | Média | Aberto — T-506 exige teste que **force** a falha |
 | R-029 | **Dois gaps confirmados na documentação aprovada:** `purpose` existe em `API.md` e não no modelo de dados (metering contaria prelaunch como uso real); `ISessionBackend` sem operação de cancelamento (prelaunch falho deixa sessão zumbi). | **Média-alta** | **Corrigidos nas fontes por ADR-0016** — `purpose` em `MODELO-DE-DADOS.md` §7.1 e `CancelSessionAsync` em `ARQUITETURA.md` §4.2; implementação em T-207 e T-506 |
+| R-032 | **`DevIdentityProvider` (ADR-0017) autentica sem verificação real.** Existe só para viabilizar `dotnet run` local nesta fase — se vazar para fora de `Development`, autentica qualquer requisição | **Alta, contida** | Aberto — registrado só sob `IHostEnvironment.IsDevelopment()`; revisão de código obrigatória antes de qualquer deploy real, mesma classe de cuidado de um `IgnoreQueryFilters()` mal colocado (ADR-0004 item 7) |
 | R-025 | **O MVP-1 é o novo gargalo:** ~3 meses entre o fim do dogfood (jan/2027) e o piloto (abr/2027) para os épicos E-13 a E-18, que provavelmente não cabem | **Alta** | Aberto — B-009 |
 | R-006 | Execução solo de quatro componentes com MVP-0 previsto em ~2 meses | Alta | Aberto |
 | R-007 | O MVP-0 acumula 34 RFs "Must" (RF-001..RF-040 sem os Should/Could) para ~2 meses de execução solo. Se algo tiver de sair, os candidatos naturais são RF-016, RF-026, RF-032, RF-033, RF-034 e RF-040 — todos Should/Could, nenhum Must. Corte de Must exige ADR | Alta | Aberto — decisão de escopo de Frederico |

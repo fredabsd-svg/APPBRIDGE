@@ -18,7 +18,7 @@ public sealed class RequestLoggingTests
     public async Task A_request_produces_at_least_one_log_line_carrying_its_correlation_id()
     {
         var sink = new CapturingLoggerProvider();
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        await using var factory = new ApiTestFactory().WithWebHostBuilder(builder =>
             builder.ConfigureLogging(logging => logging.AddProvider(sink)));
         var client = factory.CreateClient();
         var correlationId = Guid.NewGuid().ToString();
@@ -38,7 +38,7 @@ public sealed class RequestLoggingTests
     public async Task Two_concurrent_requests_do_not_cross_contaminate_correlation_ids()
     {
         var sink = new CapturingLoggerProvider();
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        await using var factory = new ApiTestFactory().WithWebHostBuilder(builder =>
             builder.ConfigureLogging(logging => logging.AddProvider(sink)));
         var client = factory.CreateClient();
         var idA = Guid.NewGuid().ToString();

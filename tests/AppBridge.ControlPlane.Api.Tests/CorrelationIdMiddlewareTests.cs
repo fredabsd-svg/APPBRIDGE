@@ -1,10 +1,9 @@
-using Microsoft.AspNetCore.Mvc.Testing;
 using Xunit;
 
 namespace AppBridge.ControlPlane.Api.Tests;
 
 // T-201 — RNF-039: a launch (or any request) must be traceable end to end via correlation id.
-public sealed class CorrelationIdMiddlewareTests(WebApplicationFactory<Program> factory) : IClassFixture<WebApplicationFactory<Program>>
+public sealed class CorrelationIdMiddlewareTests(ApiTestFactory factory) : IClassFixture<ApiTestFactory>
 {
     private const string HeaderName = "X-Correlation-Id";
 

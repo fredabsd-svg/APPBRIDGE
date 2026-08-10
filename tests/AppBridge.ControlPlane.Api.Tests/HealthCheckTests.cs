@@ -1,11 +1,10 @@
 using System.Net;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Xunit;
 
 namespace AppBridge.ControlPlane.Api.Tests;
 
 // T-201 — health check acceptance criterion: "/health responde".
-public sealed class HealthCheckTests(WebApplicationFactory<Program> factory) : IClassFixture<WebApplicationFactory<Program>>
+public sealed class HealthCheckTests(ApiTestFactory factory) : IClassFixture<ApiTestFactory>
 {
     [Fact]
     public async Task Health_endpoint_returns_200_and_healthy_status()

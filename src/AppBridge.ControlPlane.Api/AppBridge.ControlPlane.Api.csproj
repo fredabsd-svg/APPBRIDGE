@@ -12,6 +12,11 @@
          Staying on the 2.x line: 3.x is a breaking change incompatible with the OpenApi
          source generator that ships with Microsoft.AspNetCore.OpenApi 10.0.10. -->
     <PackageReference Include="Microsoft.OpenApi" Version="2.11.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.10" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AppBridge.ControlPlane.Infrastructure\AppBridge.ControlPlane.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
