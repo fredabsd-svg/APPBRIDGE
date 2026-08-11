@@ -98,6 +98,17 @@
 > dependência de biblioteca de imagem — não são a identidade visual final. Verificado rodando a
 > aplicação real: bytes devolvidos batem byte a byte com o arquivo original (`diff`). **81 testes
 > automatizados no total.**
+>
+> **Redirecionamento de E-01 para T-501, registrado por transparência.** Pedido "segue com E-01"
+> não é executável deste ambiente — E-01 é compra de hardware e instalação real de
+> Windows Server/AD DS/RDS, nada disso roda numa sandbox Linux de desenvolvimento. Especificações já
+> prontas desde S005 (`docs/operacao/E-01-infraestrutura/`), sem nada novo a revisar. Pergunta de
+> esclarecimento respondida com "você decide"; segui com **T-501** (`RdpDescriptorBuilder`,
+> `AppBridge.ControlPlane.Infrastructure/Rdp/`) — a primeira tarefa de E-05 que não depende de
+> `IRdpFileSigner`/`ISessionBackend` (nenhum construído). Monta o `.rdp` não assinado aplicando
+> ADR-0008 linha por linha (nega unidade local e PnP genérico; permite impressora, smart card A3,
+> área de transferência, áudio de saída; nega COM e áudio de entrada). **91 testes automatizados no
+> total.**
 
 
 ## 2. Entregáveis da fase de design — ✅ concluída
@@ -151,7 +162,8 @@ significa que o código espera.
 | ~~—~~ | ~~**`GET /applications` filtrado por autorização**~~ | T-402 | **Concluído em 2026-08-10 (S010)** — 67 testes no total; primeira rota `[Authorize]` |
 | ~~—~~ | ~~**`ETag`/`If-None-Match`**~~ | T-403 | **Concluído em 2026-08-10 (S010)** — 70 testes no total |
 | ~~—~~ | ~~**Endpoint de ícone**~~ | T-404 | **Concluído em 2026-08-10 (S010)** — 81 testes no total. **E-04 · Catálogo está completo** |
-| **—** | **E-05 · Lançamento** é o próximo épico | E-05 | Depende de `IAuthorizationService` (T-304, pronta), `IRdpFileSigner` (ADR-0009) e `ISessionBackend` — nenhum construído ainda |
+| ~~—~~ | ~~**`RdpDescriptorBuilder`**~~ | T-501 | **Concluído em 2026-08-10 (S010)** — 91 testes no total; redirecionado de "E-01" (não executável nesta sandbox) |
+| **—** | **T-502** (`IRdpFileSigner`) é a próxima de E-05 | E-05 | Depende de `rdpsign.exe` real — Windows, não existe nesta sandbox Linux; avaliar viabilidade antes de aprovar |
 
 **Decisões que ainda cabem a Frederico, em paralelo:** B-009 (subconjunto do MVP-1 exigido pelo
 piloto), B-006 (PS-07, cofre) e B-007 (PS-03, encadeamento da trilha).

@@ -6,6 +6,20 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Adicionado — `RdpDescriptorBuilder` (T-501, S010)
+- `IRdpDescriptorBuilder`/`RdpDescriptorBuilder` (`AppBridge.ControlPlane.Infrastructure/Rdp/`) —
+  monta o texto de um `.rdp` **não assinado** para lançamento em modo RemoteApp, a partir de
+  `RdpConnectionParameters` (host, alias, nome de exibição). Puro e sem estado, sem I/O.
+- Cada propriedade de redirecionamento traça direto para uma linha de ADR-0008: impressora e
+  smart card/token A3 permitidos; área de transferência bidirecional permitida; unidades locais e
+  demais Plug-and-Play negados; portas COM negadas; áudio de saída permitido, entrada negada.
+- Registrado em `Program.cs` como `Singleton`; sem consumidor ainda (chega com T-504,
+  `POST /v1/launches`).
+- **Nota de processo**: esta tarefa nasceu de um redirecionamento — "segue com E-01" foi pedido, mas
+  E-01 é infraestrutura física (hardware, Windows Server, AD DS/RDS reais) inexecutável nesta
+  sandbox de desenvolvimento; após esclarecimento, a sessão seguiu com T-501 (E-05), a primeira
+  tarefa do próximo épico de código sem dependência de peças ainda não construídas.
+
 ### Adicionado — `GET /v1/applications/{id}/icon` (T-404, S010)
 - `IIconStorage`/`FileSystemIconStorage` (`AppBridge.ControlPlane.Infrastructure/Catalog/`) resolvem
   `Application.IconRef` para bytes sob um diretório raiz configurado

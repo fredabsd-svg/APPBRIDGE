@@ -588,12 +588,48 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 
 | ID | Tarefa | Critério de aceite | Est. |
 |----|--------|--------------------|------|
-| T-501 | `RdpDescriptorBuilder` aplicando a política de redirecionamento | `.rdp` gerado nega unidades locais e permite impressora (ADR-0008) | 5 |
+| ~~T-501~~ | ✅ `RdpDescriptorBuilder` aplicando a política de redirecionamento | `.rdp` gerado nega unidades locais e permite impressora (ADR-0008) | 5 |
 | T-502 | `IRdpFileSigner` + `RdpSignExeSigner` | `.rdp` assinado e aceito pela estação; **falha de assinatura devolve `503`** (V-06, RNF-002, ADR-0009) | 8 |
 | T-503 | `ISessionBackend` + `RdsSessionBackend` (resolução de host e descritor) | Nenhuma regra de negócio referencia tipo do RDS (RNF-035) | 8 |
 | T-504 | `POST /launches` com autorização, trilha e `Idempotency-Key` | Repetir a chave não cria segundo lançamento nem segunda contagem (ADR-0012 §3) | 5 |
 | T-505 | Catálogo de erros com códigos estáveis | Cada situação da tabela de `API.md` §9 devolve o código correto | 3 |
 | **T-506** | **Operação de cancelamento em `ISessionBackend`**, chamada no caminho de falha do prelaunch, com registro na trilha | Prelaunch que falha após criar a sessão **não deixa sessão contando licença**; teste force a falha (ADR-0016, Gap 2) | 3 |
+
+> **Redirecionamento de E-01 para T-501 em 2026-08-10/11 (S010), registrado por transparência.**
+> Frederico pediu "segue com E-01" — mas E-01 é infraestrutura física/operacional (comprar host,
+> instalar Hyper-V/AD DS/RDS reais, configurar GPOs, ingressar estações, rodar varredura externa
+> contra o IP público do escritório): nada disso é executável a partir deste ambiente de
+> desenvolvimento Linux em sandbox. As especificações (`docs/operacao/E-01-infraestrutura/`) já
+> estavam prontas desde S005 — não havia nada de documentação para revisar sem informação nova. Após
+> pergunta de esclarecimento ("o que fazer, já que não posso executar E-01 daqui?"), a resposta foi
+> "você decide"; escolhi seguir com **T-501** — a primeira tarefa de E-05 que não depende de
+> `IRdpFileSigner` (T-502) nem `ISessionBackend` (T-503), nenhum dos dois construído ainda.
+>
+> **T-501 concluída.** `IRdpDescriptorBuilder`/`RdpDescriptorBuilder`
+> (`AppBridge.ControlPlane.Infrastructure/Rdp/`) — puro e sem estado, sem I/O: monta o texto do
+> `.rdp` **não assinado** a partir de `RdpConnectionParameters` (host, alias do RemoteApp, nome de
+> exibição), a informação mínima que um futuro `ISessionBackend.BuildConnectionDescriptorAsync`
+> (T-503) forneceria. Cada linha de redirecionamento traça direto para uma linha da tabela de
+> ADR-0008: impressora e token/smart card A3 permitidos (`redirectprinters`, `redirectsmartcards`),
+> área de transferência bidirecional permitida (`redirectclipboard`), unidades locais e demais
+> Plug-and-Play negados (`drivestoredirect`/`devicestoredirect` vazios), portas COM negadas
+> (`redirectcomports`), áudio de saída permitido e entrada negada (`audiomode`/`audiocapturemode`).
+> Nenhuma propriedade além dessas foi incluída — não inventei configuração que ADR-0008 não decidiu.
+>
+> **Namespace `AppBridge.ControlPlane.Infrastructure.Launch` colidia com a entidade `Launch`**
+> (`Domain.Trail.Launch`, de T-202): o compilador resolvia `DbSet<Launch>` em `AppBridgeDbContext`
+> para o namespace novo em vez do tipo, porque um namespace aninhado do mesmo nome dentro do
+> namespace-pai (`Infrastructure`) sombreia um tipo de fora sem precisar de `using`. Renomeado para
+> `AppBridge.ControlPlane.Infrastructure.Rdp` antes de qualquer commit — build limpo confirmou.
+>
+> **10 novos testes** em `RdpDescriptorBuilderTests.cs`, um por propriedade (nega unidade local,
+> permite impressora, permite smart card, permite área de transferência, nega COM, permite áudio de
+> saída, nega áudio de entrada, nega PnP genérico, monta RemoteApp com alias/nome corretos, usa
+> `\r\n` mesmo rodando em Linux — o formato `.rdp` é lido por um cliente Windows independentemente do
+> SO que o gerou). Registrado em `Program.cs` (`Singleton`, sem estado, mesmo padrão de
+> `ISessionTokenIssuer`) e verificado subindo a aplicação real sem erro de resolução de DI — sem
+> consumidor ainda (T-504). **91 testes automatizados no total** (39 Api + 52 Infrastructure), todos
+> passando.
 
 ### E-06 · Sessão e reconciliação — 16 pts
 

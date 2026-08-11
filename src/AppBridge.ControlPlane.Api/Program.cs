@@ -8,6 +8,7 @@ using AppBridge.ControlPlane.Infrastructure.Auditing;
 using AppBridge.ControlPlane.Infrastructure.Authorization;
 using AppBridge.ControlPlane.Infrastructure.Catalog;
 using AppBridge.ControlPlane.Infrastructure.Identity;
+using AppBridge.ControlPlane.Infrastructure.Rdp;
 using AppBridge.ControlPlane.Infrastructure.Tenancy;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -41,6 +42,7 @@ builder.Services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantCon
 
 builder.Services.AddScoped<IAuditWriter, AuditWriter>();
 builder.Services.AddScoped<IAuthorizationService, AuthorizationService>();
+builder.Services.AddSingleton<IRdpDescriptorBuilder, RdpDescriptorBuilder>();
 
 var jwtSigningKey = builder.Configuration["APPBRIDGE_JWT_SIGNING_KEY"]
     ?? throw new InvalidOperationException(
