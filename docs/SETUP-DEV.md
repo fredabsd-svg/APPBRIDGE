@@ -52,6 +52,14 @@ valor fora desta máquina, não um precedente).
 |----------|-----|---------------------------|
 | `APPBRIDGE_DB_CONNECTION` | `dotnet ef` (design-time) e a aplicação em `dotnet run` | `Host=localhost;Database=appbridge_dev;Username=appbridge;Password=appbridge_dev_local_only` |
 | `APPBRIDGE_TEST_DB_CONNECTION` | Suíte `AppBridge.ControlPlane.Infrastructure.Tests` | `Host=localhost;Database=appbridge_test;Username=appbridge;Password=appbridge_dev_local_only` |
+| `APPBRIDGE_JWT_SIGNING_KEY` | Assinatura do token de sessão (ADR-0017 §1) — a aplicação em `dotnet run` | qualquer string ≥ 32 bytes, só para desenvolvimento local |
+| `APPBRIDGE_ICON_STORAGE_PATH` | Raiz de onde `GET /v1/applications/{id}/icon` (T-404, PD-03) lê o binário referenciado por `icon_ref` — a aplicação em `dotnet run` | `assets/catalog-icons` (caminho absoluto até essa pasta na raiz do repositório) |
+
+> Os testes de `AppBridge.ControlPlane.Api.Tests` **não** precisam de `APPBRIDGE_JWT_SIGNING_KEY` nem
+> de `APPBRIDGE_ICON_STORAGE_PATH` definidas manualmente — `ApiTestFactory` define as três
+> (`APPBRIDGE_DB_CONNECTION`, `APPBRIDGE_JWT_SIGNING_KEY` e `APPBRIDGE_ICON_STORAGE_PATH`, esta
+> última apontando para um diretório temporário próprio com os dois PNGs do seed) no próprio
+> construtor. Só `APPBRIDGE_TEST_DB_CONNECTION` precisa estar no ambiente antes de rodar.
 
 ## 4. Migrações
 
@@ -91,7 +99,31 @@ dotnet test tests/AppBridge.ControlPlane.Infrastructure.Tests
 `SchemaTests.cs` migra o banco de teste para cima e para baixo dentro de cada `[Fact]` — não é
 preciso rodar `dotnet ef database update` manualmente contra `appbridge_test` antes.
 
-## 6. Armadilhas já encontradas
+## 6. Semear o catálogo (dev)
+
+`CatalogSeeder` (T-401) popula o dataset fixo do dogfood — Domínio Contábil e Alterdata — para um
+tenant já existente, identificado pelo `ad_domain`:
+
+```bash
+export PATH="$HOME/.dotnet:$PATH"
+export DOTNET_ROOT="$HOME/.dotnet"
+export APPBRIDGE_DB_CONNECTION="Host=localhost;Database=appbridge_dev;Username=appbridge;Password=appbridge_dev_local_only"
+export APPBRIDGE_JWT_SIGNING_KEY="qualquer-string-de-desenvolvimento-com-32-bytes-ou-mais"
+export APPBRIDGE_ICON_STORAGE_PATH="$(pwd)/assets/catalog-icons"
+
+dotnet run --project src/AppBridge.ControlPlane.Api -- seed-catalog <ad-domain-do-tenant>
+```
+
+`APPBRIDGE_JWT_SIGNING_KEY` e `APPBRIDGE_ICON_STORAGE_PATH` são exigidas porque `Program.cs` as lê
+antes de decidir se a execução é `seed-catalog` ou o servidor — o comando de seed em si não usa
+nenhuma das duas, mas falha ao subir sem elas, junto com `APPBRIDGE_DB_CONNECTION`.
+
+Os ícones em `assets/catalog-icons/` (`dominio-contabil.png`, `alterdata.png`) são placeholders de
+64×64 gerados nesta sessão para viabilizar `GET /v1/applications/{id}/icon` (T-404, PD-03) em
+desenvolvimento — não são a identidade visual final dos produtos, decisão que cabe a Frederico
+quando o painel administrativo (RF-043, MVP-1) existir.
+
+## 7. Armadilhas já encontradas
 
 - **Conflito de versão `Microsoft.EntityFrameworkCore.Relational`** (`MSB3277`): em 2026-08-10,
   `Npgsql.EntityFrameworkCore.PostgreSQL` 10.0.3 trazia transitivamente a versão 10.0.4 do pacote

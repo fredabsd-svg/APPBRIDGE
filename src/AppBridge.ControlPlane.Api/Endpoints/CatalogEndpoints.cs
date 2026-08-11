@@ -5,6 +5,7 @@ using System.Text;
 using AppBridge.ControlPlane.Domain.Catalog;
 using AppBridge.ControlPlane.Infrastructure;
 using AppBridge.ControlPlane.Infrastructure.Authorization;
+using AppBridge.ControlPlane.Infrastructure.Catalog;
 using Microsoft.EntityFrameworkCore;
 
 namespace AppBridge.ControlPlane.Api.Endpoints;
@@ -21,13 +22,18 @@ namespace AppBridge.ControlPlane.Api.Endpoints;
 /// place both already show up, instead of trying to track "what changed" in two places that could
 /// drift out of sync with each other.
 ///
-/// The icon endpoint (PD-03) is T-404's — not built here.
+/// T-404 adds <c>GET /v1/applications/{id}/icon</c> (PD-03): serves the PNG bytes
+/// <see cref="IIconStorage"/> resolves from <c>Application.IconRef</c>, with the same
+/// content-hash-as-<c>ETag</c> approach and a long <c>Cache-Control</c> — the icon changes rarely
+/// and the hash already tells a client for certain whether its cached copy is still correct, so a
+/// long freshness window costs nothing it wouldn't already be paying for a stale response.
 /// </summary>
 public static class CatalogEndpoints
 {
     public static IEndpointRouteBuilder MapCatalogEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapGet("/v1/applications", GetApplications).RequireAuthorization();
+        app.MapGet("/v1/applications/{id:guid}/icon", GetApplicationIcon).RequireAuthorization();
         return app;
     }
 
@@ -64,6 +70,44 @@ public static class CatalogEndpoints
         return Results.Ok(new CatalogResponse(items, NextCursor: null));
     }
 
+    private static async Task<IResult> GetApplicationIcon(
+        Guid id,
+        HttpContext httpContext,
+        AppBridgeDbContext dbContext,
+        IIconStorage iconStorage,
+        CancellationToken cancellationToken)
+    {
+        // Tenant-scoped by the same global filter every other query here relies on (ADR-0004): an
+        // id belonging to another tenant simply isn't found, the same "404, not a distinguishable
+        // error" ADR-0012 §5 already applies elsewhere. No authorization-set check beyond that — an
+        // icon is presentation metadata, not the application itself, and API.md's icon section
+        // doesn't ask for the RF-011 filter GET /v1/applications applies to the list.
+        var application = await dbContext.Applications.SingleOrDefaultAsync(a => a.Id == id, cancellationToken);
+        if (application?.IconRef is null)
+        {
+            return Results.NotFound();
+        }
+
+        var icon = await iconStorage.ReadAsync(application.IconRef, cancellationToken);
+        if (icon is null)
+        {
+            return Results.NotFound();
+        }
+
+        var etag = ComputeETag(icon.Content);
+        httpContext.Response.Headers.ETag = etag;
+        // A week: the icon's own content hash is the real freshness check, so a long window costs
+        // nothing a client wouldn't already be correctly caching around via If-None-Match.
+        httpContext.Response.Headers.CacheControl = "public, max-age=604800, immutable";
+
+        if (RequestHasMatchingETag(httpContext.Request, etag))
+        {
+            return Results.StatusCode(StatusCodes.Status304NotModified);
+        }
+
+        return Results.File(icon.Content, icon.ContentType);
+    }
+
     private static bool RequestHasMatchingETag(HttpRequest request, string etag)
     {
         var ifNoneMatch = request.Headers.IfNoneMatch;
@@ -82,9 +126,12 @@ public static class CatalogEndpoints
     {
         var canonical = string.Join(
             '|', items.Select(item => $"{item.Id}:{item.DisplayName}:{item.Description}:{item.LaunchMode}:{item.Available}"));
-        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(canonical));
-        return $"\"cat-{Convert.ToHexString(hash)[..16].ToLowerInvariant()}\"";
+        return $"\"cat-{HashHex(Encoding.UTF8.GetBytes(canonical))}\"";
     }
+
+    private static string ComputeETag(byte[] content) => $"\"icon-{HashHex(content)}\"";
+
+    private static string HashHex(byte[] content) => Convert.ToHexString(SHA256.HashData(content))[..16].ToLowerInvariant();
 
     private static CatalogApplication ToCatalogApplication(Application application) => new(
         Id: application.Id,

@@ -424,7 +424,7 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 | ~~T-401~~ | ✅ Seed de aplicativos em JSON/tabela | Catálogo carregado sem painel (RF-012) | 3 |
 | ~~T-402~~ | ✅ `GET /applications` com filtro por autorização | Aplicativo não autorizado **não aparece** (RF-011) | 3 |
 | ~~T-403~~ | ✅ `ETag` / `If-None-Match` | Segunda sincronização devolve `304` (RF-015) | 2 |
-| T-404 | Endpoint de ícone | Serve PNG com cache; resolve PD-03 | 3 |
+| ~~T-404~~ | ✅ Endpoint de ícone | Serve PNG com cache; resolve PD-03 | 3 |
 
 > **T-401 concluída em 2026-08-10 (S010).** `CatalogSeeder`
 > (`AppBridge.ControlPlane.Infrastructure/Catalog/`) grava direto nas tabelas `application`/
@@ -532,6 +532,57 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 > volta a devolver `200` com o catálogo atualizado — prova direta de que o `ETag` reflete permissão,
 > não só conteúdo de aplicativo. **70 testes automatizados no total** (32 Api + 38 Infrastructure),
 > todos passando. **Nenhum bug encontrado durante a verificação desta tarefa.**
+
+> **T-404 concluída em 2026-08-10 (S010) — E-04 · Catálogo completo.** `GET
+> /v1/applications/{id}/icon` (API.md §3, resolve PD-03). `IIconStorage`/`FileSystemIconStorage`
+> (`AppBridge.ControlPlane.Infrastructure/Catalog/`) resolvem `Application.IconRef` para bytes sob
+> um diretório raiz configurado (`APPBRIDGE_ICON_STORAGE_PATH`) — PD-03 já estava "resolvida" em
+> `API.md` (sistema de arquivos, não banco), mas nenhuma peça de código ainda existia para isso;
+> T-404 é essa peça.
+>
+> **Proteção contra travessia de caminho** (`../../etc/passwd`-style) no `FileSystemIconStorage`:
+> `icon_ref` é hoje definido só pelo `CatalogSeeder` (administrador, não entrada de usuário), mas
+> resolver sob a raiz configurada e rejeitar qualquer caminho que escape dela custa duas linhas e
+> fecha a superfície antes de ela existir de verdade, não depois.
+>
+> **Mesma técnica de `ETag` de conteúdo de T-403**, agora sobre os bytes do ícone — dois arquivos
+> idênticos hasheiam igual, então não há rastreamento de "mudou?" separado do próprio arquivo.
+> `Cache-Control: public, max-age=604800, immutable` (uma semana): o hash de conteúdo já é a
+> verificação de frescor real, então uma janela longa não custa nada que o cliente não devesse já
+> estar aproveitando via `If-None-Match`.
+>
+> **Sem filtro de autorização (RF-011) neste endpoint, deliberado**: um ícone é metadado de
+> apresentação, não o aplicativo em si, e a seção de `API.md` que o documenta não pede o filtro que
+> `GET /v1/applications` aplica à listagem. Isolamento entre tenants continua automático (filtro
+> global do `DbContext`, ADR-0004) — um `id` de outro tenant simplesmente não é encontrado, `404`
+> igual a um `id` inexistente (mesmo raciocínio anti-enumeração de ADR-0012 §5).
+>
+> **`CatalogSeeder` (T-401) atualizado** para preencher `IconRef` com os dois ícones do dogfood
+> (`dominio-contabil.png`, `alterdata.png`) — deixado em aberto de propósito em T-401, "isso é T-404,
+> dono do endpoint de ícone". Os dois arquivos são placeholders PNG 64×64 gerados nesta sessão
+> (`assets/catalog-icons/`), sem dependência de Pillow/ImageMagick — construídos por codificação
+> manual dos chunks PNG (`IHDR`/`IDAT`/`IEND`) via `zlib` da biblioteca padrão do Python. **Não são a
+> identidade visual final** — isso é decisão de produto para quando o painel (RF-043, MVP-1) existir.
+>
+> **`ApiTestFactory` ganhou uma terceira variável obrigatória** (`APPBRIDGE_ICON_STORAGE_PATH`),
+> apontando para um diretório temporário próprio por execução de teste, com os dois PNGs do seed
+> escritos nele — autocontido, sem depender do diretório de trabalho do processo de teste coincidir
+> com o layout do repositório.
+>
+> **Verificado rodando a aplicação de verdade** (`dotnet run -- seed-catalog` + `curl` + `diff`):
+> catálogo semeado, permissão concedida, ícone buscado — os bytes devolvidos batem **byte a byte**
+> (`diff`) com o arquivo original em `assets/catalog-icons/dominio-contabil.png`; segunda requisição
+> com o mesmo `If-None-Match` devolve `304` com 0 bytes; `id` inexistente devolve `404`.
+>
+> **11 novos testes**: 4 em `FileSystemIconStorageTests.cs` (lê bytes de um arquivo sob a raiz;
+> `null` para arquivo inexistente; recusa travessia de caminho relativa e absoluta) — sem PostgreSQL,
+> é comportamento puro de sistema de arquivos — e 7 em `CatalogIconEndpointTests.cs` (sem token →
+> `401`; serve PNG com `ETag`/`Cache-Control`; segunda requisição idêntica → `304` sem corpo;
+> aplicativo sem `IconRef` → `404`; `IconRef` que não resolve a arquivo → `404`; `id` desconhecido →
+> `404`; token de outro tenant não lê o ícone → `404`). **81 testes automatizados no total** (39 Api
+> + 42 Infrastructure), todos passando. **Nenhum bug encontrado durante a verificação desta tarefa**
+> (um bug de traversal foi *prevenido* no desenho, não encontrado depois). **Com T-404, E-04 ·
+> Catálogo está completo — as 4 tarefas concluídas.**
 
 ### E-05 · Lançamento — 32 pts · **coração do produto**
 

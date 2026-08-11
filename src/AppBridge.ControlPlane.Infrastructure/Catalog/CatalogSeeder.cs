@@ -15,6 +15,10 @@ namespace AppBridge.ControlPlane.Infrastructure.Catalog;
 /// Idempotent by design: safe to run more than once against the same tenant (dev restarts, a
 /// re-run after a schema change) without duplicating rows or throwing on the unique index
 /// (<c>uq_application_tenant_alias_pool</c>, MODELO-DE-DADOS.md §5.1).
+///
+/// <c>IconRef</c> (T-404) points at a filename under <c>APPBRIDGE_ICON_STORAGE_PATH</c> — the
+/// placeholder PNGs this seed references live in <c>assets/catalog-icons/</c> (docs/SETUP-DEV.md
+/// §6), not final branding.
 /// </summary>
 public static class CatalogSeeder
 {
@@ -22,8 +26,8 @@ public static class CatalogSeeder
 
     private static readonly IReadOnlyList<SeedApplication> DogfoodApplications =
     [
-        new("Domínio Contábil", "Escrita fiscal e contabilidade", "dominio-contabil"),
-        new("Alterdata", "Sistema contábil e fiscal", "alterdata"),
+        new("Domínio Contábil", "Escrita fiscal e contabilidade", "dominio-contabil", "dominio-contabil.png"),
+        new("Alterdata", "Sistema contábil e fiscal", "alterdata", "alterdata.png"),
     ];
 
     /// <summary>
@@ -60,11 +64,12 @@ public static class CatalogSeeder
                 RemoteAppAlias = seed.RemoteAppAlias,
                 HostPoolId = hostPool.Id,
                 Status = ApplicationStatus.Published,
+                IconRef = seed.IconRef,
             });
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    private sealed record SeedApplication(string DisplayName, string Description, string RemoteAppAlias);
+    private sealed record SeedApplication(string DisplayName, string Description, string RemoteAppAlias, string IconRef);
 }

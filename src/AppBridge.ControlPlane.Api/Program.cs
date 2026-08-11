@@ -48,6 +48,13 @@ var jwtSigningKey = builder.Configuration["APPBRIDGE_JWT_SIGNING_KEY"]
 var jwtSigningOptions = new JwtSigningOptions { SigningKey = jwtSigningKey };
 builder.Services.AddSingleton<ISessionTokenIssuer>(new JwtSessionTokenIssuer(jwtSigningOptions));
 
+// PD-03 (API.md §3/§11): the icon binary lives on disk, referenced by Application.IconRef, not in
+// the database.
+var iconStoragePath = builder.Configuration["APPBRIDGE_ICON_STORAGE_PATH"]
+    ?? throw new InvalidOperationException(
+        "Set APPBRIDGE_ICON_STORAGE_PATH before running the Control Plane (see docs/SETUP-DEV.md).");
+builder.Services.AddSingleton<IIconStorage>(new FileSystemIconStorage(new IconStorageOptions { RootPath = iconStoragePath }));
+
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

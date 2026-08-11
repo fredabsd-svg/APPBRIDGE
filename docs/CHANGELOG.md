@@ -6,6 +6,20 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Adicionado — `GET /v1/applications/{id}/icon` (T-404, S010)
+- `IIconStorage`/`FileSystemIconStorage` (`AppBridge.ControlPlane.Infrastructure/Catalog/`) resolvem
+  `Application.IconRef` para bytes sob um diretório raiz configurado
+  (`APPBRIDGE_ICON_STORAGE_PATH`), com proteção contra travessia de caminho — resolve PD-03
+  (API.md §3/§11).
+- Mesma técnica de `ETag` de conteúdo de T-403, agora sobre os bytes do ícone; `Cache-Control:
+  public, max-age=604800, immutable` — o hash de conteúdo já é a verificação de frescor real.
+- Sem filtro de autorização (RF-011) neste endpoint, deliberado: ícone é metadado de apresentação,
+  não o aplicativo em si. Isolamento entre tenants continua automático pelo filtro global do
+  `DbContext` (ADR-0004) — `id` de outro tenant devolve `404`, igual a um `id` inexistente.
+- `CatalogSeeder` (T-401) atualizado para preencher `IconRef` com dois PNGs placeholder 64×64
+  (`assets/catalog-icons/dominio-contabil.png`, `alterdata.png`) — gerados nesta sessão sem
+  dependência de biblioteca de imagem; não são a identidade visual final.
+
 ### Adicionado — `ETag`/`If-None-Match` em `GET /v1/applications` (T-403, S010)
 - `ETag` é um hash de conteúdo (`SHA256` truncado, prefixo `cat-`) sobre a lista de itens já
   materializada para o usuário — não um contador de versão mantido à parte. O catálogo de um

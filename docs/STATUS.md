@@ -88,6 +88,16 @@
 > final captura os dois sem precisar manter dois rastreadores sincronizados. Verificado rodando a
 > aplicação real: segunda sincronização idêntica devolve `304` com corpo de 0 bytes; conceder nova
 > permissão muda o `ETag`. **70 testes automatizados no total.**
+>
+> **T-404 concluída — `GET /v1/applications/{id}/icon`, E-04 · Catálogo completo.**
+> `IIconStorage`/`FileSystemIconStorage` resolvem `Application.IconRef` para bytes sob um diretório
+> configurado (`APPBRIDGE_ICON_STORAGE_PATH`), com proteção contra travessia de caminho e a mesma
+> técnica de `ETag` de conteúdo de T-403. Sem filtro de autorização (RF-011) — ícone é metadado de
+> apresentação, isolamento entre tenants continua automático pelo filtro global. `CatalogSeeder`
+> atualizado com dois PNGs placeholder gerados nesta sessão (`assets/catalog-icons/`), sem
+> dependência de biblioteca de imagem — não são a identidade visual final. Verificado rodando a
+> aplicação real: bytes devolvidos batem byte a byte com o arquivo original (`diff`). **81 testes
+> automatizados no total.**
 
 
 ## 2. Entregáveis da fase de design — ✅ concluída
@@ -140,7 +150,8 @@ significa que o código espera.
 | ~~—~~ | ~~**Seed de aplicativos**~~ | T-401 | **Concluído em 2026-08-10 (S010)** — 59 testes no total; primeira tarefa de E-04 |
 | ~~—~~ | ~~**`GET /applications` filtrado por autorização**~~ | T-402 | **Concluído em 2026-08-10 (S010)** — 67 testes no total; primeira rota `[Authorize]` |
 | ~~—~~ | ~~**`ETag`/`If-None-Match`**~~ | T-403 | **Concluído em 2026-08-10 (S010)** — 70 testes no total |
-| **—** | **T-404** (endpoint de ícone, resolve PD-03) é a próxima de E-04 | E-04 | Última tarefa aberta do épico |
+| ~~—~~ | ~~**Endpoint de ícone**~~ | T-404 | **Concluído em 2026-08-10 (S010)** — 81 testes no total. **E-04 · Catálogo está completo** |
+| **—** | **E-05 · Lançamento** é o próximo épico | E-05 | Depende de `IAuthorizationService` (T-304, pronta), `IRdpFileSigner` (ADR-0009) e `ISessionBackend` — nenhum construído ainda |
 
 **Decisões que ainda cabem a Frederico, em paralelo:** B-009 (subconjunto do MVP-1 exigido pelo
 piloto), B-006 (PS-07, cofre) e B-007 (PS-03, encadeamento da trilha).
