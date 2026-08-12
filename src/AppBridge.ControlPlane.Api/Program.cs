@@ -57,6 +57,17 @@ var iconStoragePath = builder.Configuration["APPBRIDGE_ICON_STORAGE_PATH"]
         "Set APPBRIDGE_ICON_STORAGE_PATH before running the Control Plane (see docs/SETUP-DEV.md).");
 builder.Services.AddSingleton<IIconStorage>(new FileSystemIconStorage(new IconStorageOptions { RootPath = iconStoragePath }));
 
+// ADR-0009: the .rdp is signed by invoking rdpsign.exe, a real Windows tool — not something this
+// codebase reimplements. The thumbprint identifies which certificate to use; it isn't a secret
+// (the private key never leaves the machine's certificate store).
+var rdpSigningThumbprint = builder.Configuration["APPBRIDGE_RDP_SIGNING_THUMBPRINT"]
+    ?? throw new InvalidOperationException(
+        "Set APPBRIDGE_RDP_SIGNING_THUMBPRINT before running the Control Plane (see docs/SETUP-DEV.md).");
+var rdpSignerOptions = builder.Configuration["APPBRIDGE_RDPSIGN_PATH"] is { Length: > 0 } rdpSignExecutablePath
+    ? new RdpSignerOptions { CertificateThumbprint = rdpSigningThumbprint, ExecutablePath = rdpSignExecutablePath }
+    : new RdpSignerOptions { CertificateThumbprint = rdpSigningThumbprint };
+builder.Services.AddSingleton<IRdpFileSigner>(new RdpSignExeSigner(rdpSignerOptions));
+
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

@@ -4,11 +4,11 @@ using Microsoft.AspNetCore.Mvc.Testing;
 namespace AppBridge.ControlPlane.Api.Tests;
 
 /// <summary>
-/// Program.cs requires <c>APPBRIDGE_DB_CONNECTION</c>, <c>APPBRIDGE_JWT_SIGNING_KEY</c> and (T-404)
-/// <c>APPBRIDGE_ICON_STORAGE_PATH</c> to start — every test that boots the real host needs all
-/// three, even ones that don't touch any directly, since <c>/v1/health</c> itself checks
-/// PostgreSQL. Centralized here instead of repeated per test class. Runs under
-/// <c>Development</c> so <c>DevIdentityProvider</c> (ADR-0017 §5) is registered.
+/// Program.cs requires <c>APPBRIDGE_DB_CONNECTION</c>, <c>APPBRIDGE_JWT_SIGNING_KEY</c>, (T-404)
+/// <c>APPBRIDGE_ICON_STORAGE_PATH</c> and (T-502) <c>APPBRIDGE_RDP_SIGNING_THUMBPRINT</c> to start
+/// — every test that boots the real host needs all four, even ones that don't touch any directly,
+/// since <c>/v1/health</c> itself checks PostgreSQL. Centralized here instead of repeated per test
+/// class. Runs under <c>Development</c> so <c>DevIdentityProvider</c> (ADR-0017 §5) is registered.
 ///
 /// Sets real process environment variables, not a <c>ConfigureAppConfiguration</c> overlay:
 /// <c>WebApplication.CreateBuilder(args)</c> reads environment variables as one of its own default
@@ -42,6 +42,10 @@ public sealed class ApiTestFactory : WebApplicationFactory<Program>
         File.WriteAllBytes(Path.Combine(_iconStoragePath, "dominio-contabil.png"), MinimalPng);
         File.WriteAllBytes(Path.Combine(_iconStoragePath, "alterdata.png"), MinimalPng);
         Environment.SetEnvironmentVariable("APPBRIDGE_ICON_STORAGE_PATH", _iconStoragePath);
+
+        // No Api test exercises real signing yet (nothing calls IRdpFileSigner — that's T-504) —
+        // this only needs to satisfy Program.cs's startup check.
+        Environment.SetEnvironmentVariable("APPBRIDGE_RDP_SIGNING_THUMBPRINT", "test-only-thumbprint");
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder) => builder.UseEnvironment("Development");

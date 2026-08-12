@@ -54,12 +54,15 @@ valor fora desta máquina, não um precedente).
 | `APPBRIDGE_TEST_DB_CONNECTION` | Suíte `AppBridge.ControlPlane.Infrastructure.Tests` | `Host=localhost;Database=appbridge_test;Username=appbridge;Password=appbridge_dev_local_only` |
 | `APPBRIDGE_JWT_SIGNING_KEY` | Assinatura do token de sessão (ADR-0017 §1) — a aplicação em `dotnet run` | qualquer string ≥ 32 bytes, só para desenvolvimento local |
 | `APPBRIDGE_ICON_STORAGE_PATH` | Raiz de onde `GET /v1/applications/{id}/icon` (T-404, PD-03) lê o binário referenciado por `icon_ref` — a aplicação em `dotnet run` | `assets/catalog-icons` (caminho absoluto até essa pasta na raiz do repositório) |
+| `APPBRIDGE_RDP_SIGNING_THUMBPRINT` | Identifica o certificado de assinatura do `.rdp` (T-502, ADR-0009) — a aplicação em `dotnet run` | qualquer string nesta sandbox; **`rdpsign.exe` não existe aqui**, então nenhum lançamento real pode ser assinado de ponta a ponta neste ambiente (ver §7) |
+| `APPBRIDGE_RDPSIGN_PATH` *(opcional)* | Caminho do executável `rdpsign.exe`, se não estiver no `PATH` | não definido nesta sandbox — não há como apontar para um binário real aqui |
 
-> Os testes de `AppBridge.ControlPlane.Api.Tests` **não** precisam de `APPBRIDGE_JWT_SIGNING_KEY` nem
-> de `APPBRIDGE_ICON_STORAGE_PATH` definidas manualmente — `ApiTestFactory` define as três
-> (`APPBRIDGE_DB_CONNECTION`, `APPBRIDGE_JWT_SIGNING_KEY` e `APPBRIDGE_ICON_STORAGE_PATH`, esta
-> última apontando para um diretório temporário próprio com os dois PNGs do seed) no próprio
-> construtor. Só `APPBRIDGE_TEST_DB_CONNECTION` precisa estar no ambiente antes de rodar.
+> Os testes de `AppBridge.ControlPlane.Api.Tests` **não** precisam de `APPBRIDGE_JWT_SIGNING_KEY`,
+> `APPBRIDGE_ICON_STORAGE_PATH` nem `APPBRIDGE_RDP_SIGNING_THUMBPRINT` definidas manualmente —
+> `ApiTestFactory` define as quatro (`APPBRIDGE_DB_CONNECTION`, `APPBRIDGE_JWT_SIGNING_KEY`,
+> `APPBRIDGE_ICON_STORAGE_PATH`, apontando para um diretório temporário próprio com os dois PNGs do
+> seed, e `APPBRIDGE_RDP_SIGNING_THUMBPRINT` com um valor fixo de teste) no próprio construtor. Só
+> `APPBRIDGE_TEST_DB_CONNECTION` precisa estar no ambiente antes de rodar.
 
 ## 4. Migrações
 
@@ -138,3 +141,9 @@ quando o painel administrativo (RF-043, MVP-1) existir.
   sobrevive a um reinício do ambiente/contêiner. Verifique com `sudo service postgresql status` e
   suba com `sudo service postgresql start` antes de rodar qualquer teste de Infraestrutura — não é
   um problema de código, é o serviço parado.
+- **`rdpsign.exe` (T-502, ADR-0009) não existe nesta sandbox** — é um executável do Windows, e este
+  ambiente é Linux. `RdpSignExeSigner` não pode ser verificado de ponta a ponta aqui: os testes de
+  `RdpSignExeSignerTests.cs` usam scripts `fake-rdpsign-*.sh` (`tests/.../fixtures/`) que imitam o
+  contrato de linha de comando (`/sha256 <thumbprint> <arquivo>`), provando a orquestração do
+  processo (argumentos, timeout, leitura do arquivo, limpeza) — não a validade de uma assinatura RDP
+  real. Essa verificação só é possível com um host Windows real (E-01).

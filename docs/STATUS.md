@@ -109,6 +109,14 @@
 > ADR-0008 linha por linha (nega unidade local e PnP genérico; permite impressora, smart card A3,
 > área de transferência, áudio de saída; nega COM e áudio de entrada). **91 testes automatizados no
 > total.**
+>
+> **T-502 concluída — `IRdpFileSigner`/`RdpSignExeSigner`, aprovada explicitamente como "interface +
+> fake testável".** `rdpsign.exe` (ADR-0009) é Windows real, não existe nesta sandbox — mesma classe
+> de limitação de E-01/T-501. Implementação real construída (invoca o processo, timeout, nunca
+> devolve `.rdp` sem assinatura — `RdpSigningFailedException` em vez de resultado degradado), mas
+> testada contra scripts `fake-rdpsign-*.sh` que imitam o contrato de linha de comando, não o
+> binário real — a orquestração do processo está provada, a validade de uma assinatura RDP real não
+> pode ser, aqui. **95 testes automatizados no total.**
 
 
 ## 2. Entregáveis da fase de design — ✅ concluída
@@ -163,7 +171,8 @@ significa que o código espera.
 | ~~—~~ | ~~**`ETag`/`If-None-Match`**~~ | T-403 | **Concluído em 2026-08-10 (S010)** — 70 testes no total |
 | ~~—~~ | ~~**Endpoint de ícone**~~ | T-404 | **Concluído em 2026-08-10 (S010)** — 81 testes no total. **E-04 · Catálogo está completo** |
 | ~~—~~ | ~~**`RdpDescriptorBuilder`**~~ | T-501 | **Concluído em 2026-08-10 (S010)** — 91 testes no total; redirecionado de "E-01" (não executável nesta sandbox) |
-| **—** | **T-502** (`IRdpFileSigner`) é a próxima de E-05 | E-05 | Depende de `rdpsign.exe` real — Windows, não existe nesta sandbox Linux; avaliar viabilidade antes de aprovar |
+| ~~—~~ | ~~**`IRdpFileSigner`/`RdpSignExeSigner`**~~ | T-502 | **Concluído em 2026-08-11 (S010)** — 95 testes no total; testado contra fake, `rdpsign.exe` real não verificável nesta sandbox |
+| **—** | **T-503** (`ISessionBackend` + `RdsSessionBackend`) é a próxima de E-05 | E-05 | Mesma limitação de ambiente: `RdsSessionBackend` fala com um Connection Broker real que não existe aqui |
 
 **Decisões que ainda cabem a Frederico, em paralelo:** B-009 (subconjunto do MVP-1 exigido pelo
 piloto), B-006 (PS-07, cofre) e B-007 (PS-03, encadeamento da trilha).

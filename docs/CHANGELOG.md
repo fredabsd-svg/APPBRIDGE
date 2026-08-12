@@ -6,6 +6,20 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Adicionado — `IRdpFileSigner`/`RdpSignExeSigner` (T-502, S010)
+- `IRdpFileSigner`/`RdpSignExeSigner` (`AppBridge.ControlPlane.Infrastructure/Rdp/`) — assina o
+  `.rdp` invocando `rdpsign.exe` num processo separado, com timeout (ADR-0009). Nunca devolve um
+  `.rdp` sem assinatura: qualquer falha (código de saída ≠ 0, processo que não inicia, timeout) vira
+  `RdpSigningFailedException`, nunca um resultado degradado (RNF-002).
+- `APPBRIDGE_RDP_SIGNING_THUMBPRINT` (obrigatória) e `APPBRIDGE_RDPSIGN_PATH` (opcional) novas
+  variáveis de ambiente.
+- **Nota de processo**: `rdpsign.exe` é um executável Windows real, inexistente nesta sandbox Linux
+  de desenvolvimento — aprovado explicitamente para prosseguir como "interface + fake testável": a
+  implementação real foi construída, mas testada contra scripts que imitam o contrato de linha de
+  comando do `rdpsign.exe`, não o binário verdadeiro. A orquestração do processo (argumentos,
+  timeout, leitura do arquivo, limpeza) está provada; a validade de uma assinatura RDP real só pode
+  ser verificada com um host Windows (E-01).
+
 ### Adicionado — `RdpDescriptorBuilder` (T-501, S010)
 - `IRdpDescriptorBuilder`/`RdpDescriptorBuilder` (`AppBridge.ControlPlane.Infrastructure/Rdp/`) —
   monta o texto de um `.rdp` **não assinado** para lançamento em modo RemoteApp, a partir de

@@ -589,7 +589,7 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 | ID | Tarefa | Critério de aceite | Est. |
 |----|--------|--------------------|------|
 | ~~T-501~~ | ✅ `RdpDescriptorBuilder` aplicando a política de redirecionamento | `.rdp` gerado nega unidades locais e permite impressora (ADR-0008) | 5 |
-| T-502 | `IRdpFileSigner` + `RdpSignExeSigner` | `.rdp` assinado e aceito pela estação; **falha de assinatura devolve `503`** (V-06, RNF-002, ADR-0009) | 8 |
+| ~~T-502~~ | ✅ `IRdpFileSigner` + `RdpSignExeSigner` | `.rdp` assinado e aceito pela estação; **falha de assinatura devolve `503`** (V-06, RNF-002, ADR-0009) | 8 |
 | T-503 | `ISessionBackend` + `RdsSessionBackend` (resolução de host e descritor) | Nenhuma regra de negócio referencia tipo do RDS (RNF-035) | 8 |
 | T-504 | `POST /launches` com autorização, trilha e `Idempotency-Key` | Repetir a chave não cria segundo lançamento nem segunda contagem (ADR-0012 §3) | 5 |
 | T-505 | Catálogo de erros com códigos estáveis | Cada situação da tabela de `API.md` §9 devolve o código correto | 3 |
@@ -630,6 +630,45 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 > `ISessionTokenIssuer`) e verificado subindo a aplicação real sem erro de resolução de DI — sem
 > consumidor ainda (T-504). **91 testes automatizados no total** (39 Api + 52 Infrastructure), todos
 > passando.
+
+> **T-502 concluída em 2026-08-11 (S010), aprovada como "interface + fake testável" — decisão
+> explícita, não invenção de escopo.** `rdpsign.exe` (ADR-0009) é um executável Windows real que
+> não existe nesta sandbox Linux, a mesma classe de limitação já registrada para E-01. Perguntei
+> antes de codificar; a resposta foi construir a interface e uma implementação real
+> (`RdpSignExeSigner`), testadas contra um **fake controlado**, não contra o binário verdadeiro —
+> deixando explícito, em código e documentação, que a assinatura real só pode ser verificada com um
+> host Windows (E-01).
+>
+> `IRdpFileSigner`/`RdpSignExeSigner` (`AppBridge.ControlPlane.Infrastructure/Rdp/`) seguem
+> ADR-0009 item 1 à risca: uma única responsabilidade, receber o `.rdp` e devolver o conteúdo
+> assinado — nenhuma outra parte do sistema sabe como a assinatura acontece. Implementação: grava o
+> conteúdo num arquivo temporário, invoca `rdpsign.exe /sha256 <thumbprint> <arquivo>` num processo
+> separado, com timeout, lê o arquivo de volta (assinado in-place, como o `rdpsign` real opera) e
+> sempre apaga o temporário — sucesso ou falha. Falha (exit code ≠ 0, processo que não inicia, ou
+> timeout) vira `RdpSigningFailedException`, nunca um resultado degradado (RNF-002) — o mapeamento
+> para `503 SIGNING_UNAVAILABLE` de `API.md` é responsabilidade de quem chamar isso (T-504), do
+> mesmo jeito que `AuditWriteFailedException` já funciona para `AuditWriter`.
+>
+> **Os testes usam três scripts `fake-rdpsign-*.sh`** (`tests/.../fixtures/`) que imitam o contrato
+> de linha de comando do `rdpsign.exe` real (`/sha256 <thumbprint> <arquivo>`) sem serem ele:
+> sucesso (grava uma linha com o thumbprint recebido, prova que o argumento certo chegou), falha
+> (código de saída 1, mensagem em `stderr`) e travamento (`sleep 30`, prova que o timeout mata o
+> processo em vez de travar o chamador). O que isso verifica é a orquestração do processo — não a
+> validade de uma assinatura RDP real, que nenhum teste aqui pode provar.
+>
+> `APPBRIDGE_RDP_SIGNING_THUMBPRINT` (obrigatória) e `APPBRIDGE_RDPSIGN_PATH` (opcional, padrão
+> `rdpsign.exe` via `PATH`) registradas em `Program.cs`; `ApiTestFactory` ganhou uma quarta variável
+> de ambiente obrigatória com um valor fixo de teste (nenhum teste de Api ainda chama
+> `IRdpFileSigner` — isso é T-504).
+>
+> **4 novos testes** em `RdpSignExeSignerTests.cs`: assinatura bem-sucedida devolve o conteúdo com o
+> thumbprint correto e não deixa arquivo temporário para trás; código de saída não-zero vira
+> `RdpSigningFailedException` com o `stderr` na mensagem; processo travado é morto e reportado como
+> timeout em bem menos que o `sleep 30` do fake (prova que o timeout de verdade funciona, não só que
+> existe no código); executável inexistente vira `RdpSigningFailedException` na inicialização.
+> **Verificado subindo a aplicação real** com a variável nova definida — DI resolve sem erro.
+> **95 testes automatizados no total** (39 Api + 56 Infrastructure), todos passando. **Nenhum bug
+> encontrado durante a verificação desta tarefa.**
 
 ### E-06 · Sessão e reconciliação — 16 pts
 
