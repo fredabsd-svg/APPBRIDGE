@@ -6,6 +6,27 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Adicionado — `SessionRegistry` (T-601, S010)
+- `ISessionRegistry`/`SessionRegistry` (`Infrastructure/Sessions/`) — reutiliza a sessão ativa do
+  usuário no mesmo host (RF-024) ou registra uma nova, sem chamar `SaveChangesAsync` diretamente:
+  as mudanças ficam rastreadas no mesmo `AppBridgeDbContext` que `LaunchEndpoints` grava, atômico
+  com o `Launch` correspondente, dentro do `IAuditWriter.ExecuteAsync` de T-504.
+- `POST /v1/launches` agora devolve `sessionReused` de verdade (era sempre `false`, provisório
+  desde T-504) e grava `Launch.SessionId`.
+- Novo índice único parcial `ix_session_active_per_user` em `(tenant_id, session_host_id,
+  user_account_id) WHERE ended_at IS NULL` (migração `AddSessionActivePerUserIndex`) — evita duas
+  sessões "ativas" do mesmo usuário no mesmo host numa corrida entre lançamentos simultâneos.
+- **`PREMISSA:`** `Session.BackendSessionId` recebe um placeholder (`"pending:{guid}"`) para uma
+  sessão nova — o identificador real do RDS só é conhecível depois de algo falar com o Connection
+  Broker, o que nenhum membro de `ISessionBackend` faz ainda.
+- **Correção de escopo, registrada por transparência**: a nota de T-506 tinha atribuído a T-601
+  chamar `ISessionBackend.CancelSessionAsync` no caminho de falha do prelaunch. Modelar a transação
+  de `SessionRegistry` mostrou que essa janela síncrona não existe — `Session` e `Launch` gravam
+  atomicamente, então não há "sessão criada, lançamento falhou depois" dentro de uma única
+  requisição. A chamada a `CancelSessionAsync` foi reatribuída a T-602 (`SessionReconciler`), o
+  único componente capaz de observar uma sessão que este banco registra mas que o cliente nunca
+  chegou a estabelecer de verdade no RDS.
+
 ### Corrigido — catálogo de erros com códigos estáveis (T-505, S010)
 - **`GlobalExceptionHandler`** (`Api/Middleware/`, `IExceptionHandler`): substitui a página de
   exceção automática do ASP.NET Core, que devolvia o **stack trace .NET completo, com caminho de

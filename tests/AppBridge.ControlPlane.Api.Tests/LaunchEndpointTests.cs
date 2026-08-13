@@ -212,6 +212,48 @@ public sealed class LaunchEndpointTests : IAsyncLifetime
         var launch = await verify.Launches.SingleAsync(l => l.Id == body.LaunchId);
         Assert.Equal(LaunchOutcome.Granted, launch.Outcome);
         Assert.Equal(_userAccountId, launch.UserAccountId);
+
+        // T-601: a granted launch stages a Session in the same transaction as the Launch row.
+        Assert.NotNull(launch.SessionId);
+        var session = await verify.Sessions.SingleAsync(s => s.Id == launch.SessionId);
+        Assert.Equal(_userAccountId, session.UserAccountId);
+        Assert.Null(session.EndedAt);
+    }
+
+    [Fact]
+    public async Task A_second_launch_by_the_same_user_reuses_the_session_RF_024()
+    {
+        var applicationId = await SeedLaunchableApplicationAsync();
+        var accessToken = await LoginAsAnaAsync();
+
+        var first = await PostLaunchAsync(accessToken, Guid.NewGuid(), applicationId);
+        var firstBody = await first.Content.ReadFromJsonAsync<LaunchResponse>(ReadOptions);
+        Assert.False(firstBody!.SessionReused);
+
+        var second = await PostLaunchAsync(accessToken, Guid.NewGuid(), applicationId);
+        var secondBody = await second.Content.ReadFromJsonAsync<LaunchResponse>(ReadOptions);
+
+        Assert.Equal(HttpStatusCode.Created, second.StatusCode);
+        Assert.True(secondBody!.SessionReused); // the literal acceptance criterion
+
+        await using var verify = NewDbContext(_tenantId);
+        Assert.Single(await verify.Sessions.ToListAsync()); // no second session — reused, not created
+        var launches = await verify.Launches.OrderBy(l => l.RequestedAt).ToListAsync();
+        Assert.Equal(2, launches.Count);
+        Assert.Equal(launches[0].SessionId, launches[1].SessionId); // both launches point at the same session
+    }
+
+    [Fact]
+    public async Task A_prelaunch_followed_by_a_real_launch_reuses_the_prelaunchs_session()
+    {
+        var applicationId = await SeedLaunchableApplicationAsync();
+        var accessToken = await LoginAsAnaAsync();
+
+        await PostLaunchAsync(accessToken, Guid.NewGuid(), applicationId, purpose: "prelaunch");
+        var realLaunch = await PostLaunchAsync(accessToken, Guid.NewGuid(), applicationId, purpose: "user_initiated");
+        var body = await realLaunch.Content.ReadFromJsonAsync<LaunchResponse>(ReadOptions);
+
+        Assert.True(body!.SessionReused); // RF-023/RF-024: the whole point of a prelaunch
     }
 
     [Fact]

@@ -71,6 +71,7 @@ var rdpSignerOptions = builder.Configuration["APPBRIDGE_RDPSIGN_PATH"] is { Leng
 builder.Services.AddSingleton<IRdpFileSigner>(new RdpSignExeSigner(rdpSignerOptions));
 
 builder.Services.AddScoped<ISessionBackend, RdsSessionBackend>();
+builder.Services.AddScoped<ISessionRegistry, SessionRegistry>();
 
 // PD-04 (API.md §11), resolved by T-504: in-process memory, not a table or distributed cache — see
 // IIdempotencyStore's own doc comment for why that's enough for MVP-0's single-instance topology.

@@ -889,9 +889,74 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 
 | ID | Tarefa | Critério de aceite | Est. |
 |----|--------|--------------------|------|
-| T-601 | `SessionRegistry` — início, reutilização e vínculo com o lançamento; **inclui chamar `CancelSessionAsync` (T-506) no caminho de falha do prelaunch, já que só T-601 introduz a criação síncrona de `Session` que essa chamada precisa** | Segundo aplicativo reutiliza a sessão (RF-024); **e**: prelaunch que falha após `SessionRegistry` criar a sessão não deixa sessão contando licença — teste força a falha (ADR-0016, Gap 2, segunda metade) | 5 |
-| T-602 | `SessionReconciler` contra o Connection Broker, com `reconciled_missing` e `stale_expired` | Sessão encerrada fora do AppBridge é fechada em até um ciclo; **valida PRE-23** (R-009) | 8 |
+| ~~T-601~~ | ✅ `SessionRegistry` — início, reutilização e vínculo com o lançamento | Segundo aplicativo reutiliza a sessão (RF-024) | 5 |
+| T-602 | `SessionReconciler` contra o Connection Broker, com `reconciled_missing` e `stale_expired`; **chama `CancelSessionAsync` (T-506) quando a reconciliação descobre uma sessão que não existe mais no Connection Broker — a segunda metade do Gap 2, reatribuída de T-601 (ver nota de T-601 abaixo)** | Sessão encerrada fora do AppBridge é fechada em até um ciclo; **valida PRE-23** (R-009); **e**: uma sessão que `SessionRegistry` registrou mas que o `mstsc` nunca chegou a estabelecer de verdade é limpa por reconciliação, não deixada contando licença (ADR-0016, Gap 2, segunda metade) | 8 |
 | T-603 | `GET /sessions/me` | Launcher exibe sessões ativas | 3 |
+
+> **T-601 concluída em 2026-08-13 (S010) — e uma segunda correção sobre a nota que a própria sessão
+> deixou no fim de T-506, feita ao modelar a transação antes de escrever código, não depois.**
+>
+> A nota de T-506 tinha atribuído a T-601 "chamar `CancelSessionAsync` no caminho de falha do
+> prelaunch", supondo que construir `SessionRegistry` criaria uma janela síncrona onde uma sessão
+> gravada pudesse ficar órfã se algo falhasse logo em seguida. Modelando a transação de verdade,
+> essa suposição não se sustentou: ARQUITETURA.md §5.2 mostra "`SessionRegistry` + auditoria do
+> lançamento" como **um único passo** no diagrama de sequência (a mesma transação, não dois). Segui
+> essa leitura literalmente — `ISessionRegistry.RegisterAsync` só lê e marca mudanças rastreadas
+> (nunca chama `SaveChangesAsync`), e `LaunchEndpoints` grava tudo — `Session` novo ou reutilizado
+> **e** `Launch` — num único `SaveChangesAsync`, dentro do `grant` que `IAuditWriter.ExecuteAsync`
+> já comita atomicamente (T-504). Se a gravação falhar (`AUDIT_UNAVAILABLE`), a mudança de `Session`
+> rastreada nem chega a existir no banco — não há "sessão criada, lançamento falhou depois" possível
+> **dentro de uma única requisição**, porque não há mais de uma gravação para uma falhar entre elas.
+>
+> A situação real que ADR-0016 Gap 2 descreve — uma sessão que este banco registra como ativa, mas
+> que o `mstsc` do cliente nunca chegou a estabelecer de verdade no RDS (falha de rede, host que
+> caiu depois de `ResolveHostAsync` tê-lo marcado `Online`, etc.) — acontece **depois** de o Control
+> Plane já ter respondido (ARQUITETURA.md §5.2: "o Control Plane sai do caminho assim que o `mstsc`
+> conecta"), de forma inteiramente assíncrona e do lado do cliente. `API.md` já é explícito que o
+> cliente nunca é fonte da verdade sobre fim de sessão — não existe endpoint para ele avisar, e não
+> deveria existir um agora só para isso. **Não há nada que `POST /v1/launches` possa observar
+> sincronamente para essa falha específica.** Só um processo externo que consulte o Connection
+> Broker de verdade pode descobrir isso — que é exatamente o que `SessionReconciler` (T-602) é.
+> Reatribuí a chamada de `CancelSessionAsync` para lá (linha de T-602 acima), com a mesma
+> transparência da correção original de T-503: nenhuma suposição vira código sem ser conferida
+> primeiro.
+>
+> **Implementação**: `ISessionRegistry`/`SessionRegistry`
+> (`AppBridge.ControlPlane.Infrastructure/Sessions/`) — deliberadamente **não** um membro de
+> `ISessionBackend` (RNF-035 é especificamente sobre RDS; isto é leitura/escrita da nossa própria
+> tabela `session`, mesma categoria de `IAuthorizationService`). `RegisterAsync(tenantId,
+> userAccountId, host, sourceIp, workstationName)`: procura uma sessão ativa do usuário **no mesmo
+> host** (sessões RDS são por host — dois aplicativos em pools diferentes nunca compartilham
+> sessão), atualiza `LastSeenAt` e reutiliza se achar; senão, monta um `Session` novo (rastreado,
+> não salvo) com `BackendSessionId = "pending:{guid}"` — `PREMISSA:` um identificador de verdade só
+> existe depois de algo falar com o Connection Broker real, o que nenhum membro de `ISessionBackend`
+> faz ainda; o prefixo torna o placeholder óbvio para quem inspecionar a linha, inclusive o próprio
+> `SessionReconciler` quando for escrito.
+>
+> **Novo índice único parcial** `ix_session_active_per_user` em `(tenant_id, session_host_id,
+> user_account_id) WHERE ended_at IS NULL` (migração `AddSessionActivePerUserIndex`) — o índice
+> `ix_session_active` que T-204 já criava é só `(tenant_id, session_host_id)`, sem usuário; sem essa
+> extensão, uma corrida entre dois lançamentos simultâneos do mesmo usuário antes de qualquer sessão
+> existir poderia criar duas sessões "ativas" no mesmo host, e reutilização ficaria ambígua sobre
+> qual estender. Não altera o índice documentado em `MODELO-DE-DADOS.md` §6.2 (que continua servindo
+> a varredura por host de T-602) — soma um novo, mais estreito.
+>
+> `LaunchEndpoints.CreateLaunch` (T-504) ganhou a chamada — busca a sessão ativa antes da transação
+> (uma leitura simples, mesma categoria dos lookups de `application`/`host` já existentes), grava
+> `launch.SessionId` e devolve `sessionReused` de verdade em vez do `false` fixo que T-504 documentou
+> como provisório.
+>
+> **8 novos testes**: 6 em `SessionRegistryTests.cs` (Infrastructure.Tests, PostgreSQL real — cria
+> sessão nova na primeira chamada; segunda chamada do mesmo usuário no mesmo host reutiliza;
+> reutilização atualiza `LastSeenAt`; host diferente não reutiliza; usuário diferente no mesmo host
+> não reutiliza; sessão já encerrada não é reutilizada, uma nova é criada) e 2 em
+> `LaunchEndpointTests.cs` (segundo lançamento do mesmo usuário reutiliza a sessão — o critério de
+> aceite literal de RF-024 — e prelaunch seguido de lançamento real reutiliza a sessão do prelaunch,
+> RF-023). **Verificado subindo a aplicação real** com `curl`: duas requisições `POST /v1/launches`
+> seguidas devolveram `sessionReused: false` e depois `true`, confirmado também por `psql` — uma
+> única linha em `session`, dois `Launch.session_id` apontando para ela. **128 testes automatizados
+> no total** (57 Api + 71 Infrastructure), todos passando. Nenhum bug de produção encontrado — a
+> única correção desta tarefa foi, de novo, de escopo, feita antes de escrever código.
 
 ### E-07 · Trilha e retenção — 13 pts
 

@@ -22,7 +22,8 @@ namespace AppBridge.ControlPlane.Api.Endpoints;
 /// T-504: <c>POST /v1/launches</c> (API.md §4, RF-018..RF-021, RF-025, RF-037, RF-039). The
 /// "coração do produto" endpoint — the first real consumer of <c>IAuthorizationService</c> (T-304),
 /// <c>ISessionBackend</c> (T-503), <c>IRdpDescriptorBuilder</c> (T-501) and <c>IRdpFileSigner</c>
-/// (T-502) together.
+/// (T-502) together. T-601 adds <c>ISessionRegistry</c> (RF-024): every granted launch now stages
+/// a session reuse-or-create alongside the <c>Launch</c> row, committed in the same transaction.
 ///
 /// Every outcome — granted or denied, for any reason — writes exactly one <see cref="Launch"/> row
 /// through <see cref="IAuditWriter"/> (RF-037 is in ADR-0007 Part 1's blocking list, same as
@@ -50,6 +51,7 @@ public static class LaunchEndpoints
         ITenantContext tenantContext,
         IAuthorizationService authorizationService,
         ISessionBackend sessionBackend,
+        ISessionRegistry sessionRegistry,
         IRdpDescriptorBuilder descriptorBuilder,
         IRdpFileSigner rdpFileSigner,
         IAuditWriter auditWriter,
@@ -129,12 +131,22 @@ public static class LaunchEndpoints
                 instance, correlationId, cancellationToken);
         }
 
+        // A plain read, not part of the atomic write below — the same category as the
+        // application/host lookups above it, not the "grant" itself (T-601).
+        var registration = await sessionRegistry.RegisterAsync(
+            tenantId, userAccountId, host, httpContext.Connection.RemoteIpAddress?.ToString(), request.WorkstationName, cancellationToken);
+
         var expiresAt = DateTimeOffset.UtcNow.Add(RdpTtl);
         var launch = NewLaunch(tenantId, userAccountId, application.Id, request, purpose, correlationId, httpContext, LaunchOutcome.Granted, denialReason: null);
         launch.RdpExpiresAt = expiresAt;
+        launch.SessionId = registration.SessionId;
 
         try
         {
+            // The Session change RegisterAsync staged above is still tracked on this same
+            // AppBridgeDbContext (not yet saved) — this SaveChangesAsync commits it together with
+            // the Launch row, one transaction, ADR-0016 Gap 2's reasoning for why that's what rules
+            // out a zombie session here (see ISessionRegistry's doc comment).
             await auditWriter.ExecuteAsync(launch, _ => true, cancellationToken);
         }
         catch (AuditWriteFailedException)
@@ -147,9 +159,7 @@ public static class LaunchEndpoints
 
         var response = new LaunchResponse(
             LaunchId: launch.Id,
-            // No real session tracking exists yet (SessionRegistry is T-601) — always false rather
-            // than a guess this code has no data to back up.
-            SessionReused: false,
+            SessionReused: registration.Reused,
             RdpFile: Convert.ToBase64String(Encoding.UTF8.GetBytes(signedRdp)),
             ExpiresAt: expiresAt,
             // A generic label, not host.Fqdn — RNF-043 forbids leaking internal host detail to the

@@ -26,6 +26,15 @@ public sealed class SessionConfiguration : IEntityTypeConfiguration<Session>
             .HasFilter("ended_at IS NULL")
             .HasDatabaseName("ix_session_active");
 
+        // T-601 (RF-024): at most one active session per user per host. SessionRegistry's reuse
+        // lookup relies on this being true, not just efficient — without it, a race between two
+        // concurrent launches by the same user before any session exists could create two "active"
+        // sessions on the same host, and reuse would then be ambiguous about which one to extend.
+        builder.HasIndex(e => new { e.TenantId, e.SessionHostId, e.UserAccountId })
+            .IsUnique()
+            .HasFilter("ended_at IS NULL")
+            .HasDatabaseName("ix_session_active_per_user");
+
         // ADR-0011 §4: a session can't be opened for another tenant's user or on another tenant's host.
         builder.HasOne<UserAccount>()
             .WithMany()

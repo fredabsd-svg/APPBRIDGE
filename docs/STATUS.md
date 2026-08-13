@@ -177,6 +177,29 @@
 > ou sem infraestrutura) e `DIRECTORY_UNAVAILABLE` (exigiria um `IIdentityProvider` real que não
 > existe). **8 testes novos/fortalecidos. 120 testes automatizados no total. Com T-505, E-05 ·
 > Lançamento está completo.**
+>
+> **T-601 concluída — `SessionRegistry`, e uma segunda correção sobre a própria nota que S010 tinha
+> deixado no fim de T-506.** Aquela nota presumia que construir `SessionRegistry` abriria uma janela
+> síncrona onde "sessão criada, lançamento falhou depois" seria possível, e por isso atribuiu a
+> T-601 chamar `CancelSessionAsync` nesse caminho. Modelando a transação de verdade antes de
+> escrever código: `ARQUITETURA.md` §5.2 mostra `SessionRegistry` e a auditoria do lançamento como
+> **um único passo** — e é assim que foi implementado (`ISessionRegistry.RegisterAsync` só marca
+> mudanças rastreadas; `LaunchEndpoints` grava `Session` e `Launch` num único `SaveChangesAsync`,
+> dentro do mesmo `IAuditWriter.ExecuteAsync` de T-504). Não existe "sessão gravada, lançamento
+> falhou" dentro de uma única requisição, porque não há mais de uma gravação para uma falhar entre
+> elas. A situação real que o Gap 2 descreve — sessão registrada aqui, mas o `mstsc` do cliente
+> nunca a estabeleceu de verdade no RDS — acontece de forma assíncrona, do lado do cliente, depois
+> de o Control Plane já ter respondido; `API.md` já deixa explícito que o cliente nunca é fonte da
+> verdade sobre fim de sessão. Só `SessionReconciler` (T-602), falando com o Connection Broker de
+> verdade, pode descobrir isso — a chamada de `CancelSessionAsync` foi reatribuída para lá
+> (`ROADMAP.md` atualizado). Implementação: reutiliza sessão ativa do usuário **no mesmo host**
+> (sessões RDS são por host); cria uma nova com `BackendSessionId = "pending:{guid}"` quando não há
+> — `PREMISSA:` o identificador real só existe depois de algo falar com o Connection Broker, que
+> nenhum membro de `ISessionBackend` faz ainda. Novo índice único parcial
+> `ix_session_active_per_user` (migração `AddSessionActivePerUserIndex`) evita duas sessões "ativas"
+> do mesmo usuário no mesmo host numa corrida entre lançamentos simultâneos. **Verificado subindo a
+> aplicação real**: duas requisições `POST /v1/launches` seguidas devolveram `sessionReused: false`
+> e depois `true`, confirmado por `psql`. **8 novos testes. 128 testes automatizados no total.**
 
 
 ## 2. Entregáveis da fase de design — ✅ concluída
@@ -234,9 +257,10 @@ significa que o código espera.
 | ~~—~~ | ~~**`IRdpFileSigner`/`RdpSignExeSigner`**~~ | T-502 | **Concluído em 2026-08-11 (S010)** — 95 testes no total; testado contra fake, `rdpsign.exe` real não verificável nesta sandbox |
 | ~~—~~ | ~~**`ISessionBackend`/`RdsSessionBackend`**~~ | T-503 | **Concluído em 2026-08-13 (S010)** — 101 testes no total; sem fake, escopo é leitura de dados próprios, não RDS real |
 | ~~—~~ | ~~**`POST /v1/launches`**~~ | T-504 | **Concluído em 2026-08-13 (S010)** — 113 testes no total; PD-04 resolvida |
-| ~~—~~ | ~~**`CancelSessionAsync` em `ISessionBackend`**~~ | T-506 | **Concluído em 2026-08-13 (S010)** — 116 testes no total; wiring no caminho de falha do prelaunch move para T-601 (ver §1) |
+| ~~—~~ | ~~**`CancelSessionAsync` em `ISessionBackend`**~~ | T-506 | **Concluído em 2026-08-13 (S010)** — 116 testes no total; wiring no caminho de falha do prelaunch reatribuído a T-602 (ver §1) |
 | ~~—~~ | ~~**Catálogo de erros com códigos estáveis**~~ | T-505 | **Concluído em 2026-08-13 (S010)** — 120 testes no total; achou e corrigiu vazamento de stack trace (RNF-043), reachável na instância real (ver §1). **E-05 completo.** |
-| **—** | **E-06** (`SessionRegistry`, `SessionReconciler`) é o próximo épico | E-06 | T-601 carrega a segunda metade do critério de aceite de T-506 (ver §1) |
+| ~~—~~ | ~~**`SessionRegistry`**~~ | T-601 | **Concluído em 2026-08-13 (S010)** — 128 testes no total; RF-024 implementado; wiring de `CancelSessionAsync` move de T-601 para T-602 (ver §1) |
+| **—** | **T-602** (`SessionReconciler`) é a próxima de E-06 | E-06 | Carrega a chamada de `CancelSessionAsync` (T-506) reatribuída de T-601 |
 
 **Decisões que ainda cabem a Frederico, em paralelo:** B-009 (subconjunto do MVP-1 exigido pelo
 piloto), B-006 (PS-07, cofre) e B-007 (PS-03, encadeamento da trilha).
@@ -327,6 +351,7 @@ se faz com ADR novo que substitui o anterior.
 | PRE-26 | Dedicação de 40% a 60% do tempo útil ao projeto | ROADMAP §4 | Frederico |
 | PRE-29 | TTL do `accessToken`: 15 minutos | ADR-0017 | medição no dogfood, mesma natureza de PRE-07 |
 | PRE-30 | TTL do `refreshToken`: 30 dias | ADR-0017 | medição no dogfood |
+| PRE-31 | `Session.BackendSessionId` de uma sessão nova recebe um placeholder (`"pending:{guid}"`) até `SessionReconciler` (T-602) descobrir o identificador real do Connection Broker | T-601 | quando T-602 existir |
 
 ## 8. Riscos registrados
 
@@ -357,8 +382,8 @@ se faz com ADR novo que substitui o anterior.
 | R-027 | O backlog paralelo começava pelo código, sem issue para o épico E-01 | Alta | **Mitigado em 2026-08-10** — issues #35 a #39 criados; #8 marcado como bloqueado por #37 |
 | R-028 | Issue #5 reintroduziria material de chave em arquivo | Alta | **Fechado em 2026-08-10** — issue corrigido |
 | R-030 | **O MVP-0a real pode ser maior que qualquer das duas estimativas.** A linha B estimou 96 pts **sem** infraestrutura; a linha A, ~95 pts **com** ela. Somado o que cada uma cobre, aproxima-se de **130 pts** — contra a data de out/2026 do ADR-0013 | **Alta** | Aberto — reavaliar M2a |
-| R-031 | O caminho de falha do prelaunch é o menos exercitado do sistema e o que mais deixa estado inconsistente — foi onde o Gap 2 se escondeu | Média | **Parcialmente mitigado** — `CancelSessionAsync` existe e está testado (T-506); o teste que **força** uma falha de prelaunch real após criação de sessão só é possível quando T-601 introduzir a criação síncrona de `Session` — permanece aberto até lá |
-| R-029 | **Dois gaps confirmados na documentação aprovada:** `purpose` existe em `API.md` e não no modelo de dados (metering contaria prelaunch como uso real); `ISessionBackend` sem operação de cancelamento (prelaunch falho deixa sessão zumbi). | **Média-alta** | **`purpose` corrigido e implementado** (T-207, `MODELO-DE-DADOS.md` §7.1). **`CancelSessionAsync` construído e testado (T-506)**, mas seu wiring no caminho de falha do prelaunch depende de T-601 (criação de sessão ainda não existe em nenhum código) — risco permanece parcialmente aberto até T-601 |
+| R-031 | O caminho de falha do prelaunch é o menos exercitado do sistema e o que mais deixa estado inconsistente — foi onde o Gap 2 se escondeu | Média | **Reavaliado em T-601**: não é mais "um teste que força uma falha síncrona" — modelar a transação de `SessionRegistry` mostrou que não existe janela síncrona de falha nesse caminho (ver `ROADMAP.md`, nota de T-601). O risco real é assíncrono (sessão registrada, `mstsc` nunca a estabelece) e só `SessionReconciler` (T-602) pode fechá-lo — permanece aberto até lá, com escopo agora corretamente entendido |
+| R-029 | **Dois gaps confirmados na documentação aprovada:** `purpose` existe em `API.md` e não no modelo de dados (metering contaria prelaunch como uso real); `ISessionBackend` sem operação de cancelamento (prelaunch falho deixa sessão zumbi). | **Média-alta** | **`purpose` corrigido e implementado** (T-207, `MODELO-DE-DADOS.md` §7.1). **`CancelSessionAsync` construído e testado (T-506); `SessionRegistry` construído e testado (T-601)** — a peça que faltava para o segundo gap ser fechável é `SessionReconciler` (T-602), o único componente que pode observar de verdade uma sessão nunca estabelecida no RDS |
 | R-032 | **`DevIdentityProvider` (ADR-0017) autentica sem verificação real.** Existe só para viabilizar `dotnet run` local nesta fase — se vazar para fora de `Development`, autentica qualquer requisição | **Alta, contida** | Aberto — registrado só sob `IHostEnvironment.IsDevelopment()`; revisão de código obrigatória antes de qualquer deploy real, mesma classe de cuidado de um `IgnoreQueryFilters()` mal colocado (ADR-0004 item 7). **T-505 confirmou o risco concreto de "roda em Development de verdade"**: a página de exceção automática do ASP.NET Core vazava stack trace completo (RNF-043) na instância real do dogfood, não só em teste — corrigida (`GlobalExceptionHandler`), mas o achado mostra que "só roda em Development" não é uma frase inócua neste projeto |
 | R-025 | **O MVP-1 é o novo gargalo:** ~3 meses entre o fim do dogfood (jan/2027) e o piloto (abr/2027) para os épicos E-13 a E-18, que provavelmente não cabem | **Alta** | Aberto — B-009 |
 | R-006 | Execução solo de quatro componentes com MVP-0 previsto em ~2 meses | Alta | Aberto |
