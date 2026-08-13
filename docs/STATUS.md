@@ -117,6 +117,16 @@
 > testada contra scripts `fake-rdpsign-*.sh` que imitam o contrato de linha de comando, não o
 > binário real — a orquestração do processo está provada, a validade de uma assinatura RDP real não
 > pode ser, aqui. **95 testes automatizados no total.**
+>
+> **T-503 concluída — correção de rota antes de codificar.** A sessão presumiu que T-503
+> precisaria do mesmo padrão "interface + fake" de T-502, por falar com um Connection Broker real —
+> mas o escopo literal da tarefa ("resolução de host e descritor") é leitura da própria tabela
+> `session_host` (T-204), não uma chamada RDS real. Corrigido antes de escrever código.
+> `ISessionBackend`/`RdsSessionBackend` construídos com **apenas os dois membros que o critério de
+> aceite pede** (os demais do C4 de `ARQUITETURA.md` entram quando as tarefas que os usam
+> começarem — T-506, T-601/602, MVP-1, V2 — mesmo padrão de extensão de
+> `IAuthorizationService`). **6 novos testes, todos contra PostgreSQL real, sem fake — 101 testes
+> automatizados no total.**
 
 
 ## 2. Entregáveis da fase de design — ✅ concluída
@@ -172,7 +182,8 @@ significa que o código espera.
 | ~~—~~ | ~~**Endpoint de ícone**~~ | T-404 | **Concluído em 2026-08-10 (S010)** — 81 testes no total. **E-04 · Catálogo está completo** |
 | ~~—~~ | ~~**`RdpDescriptorBuilder`**~~ | T-501 | **Concluído em 2026-08-10 (S010)** — 91 testes no total; redirecionado de "E-01" (não executável nesta sandbox) |
 | ~~—~~ | ~~**`IRdpFileSigner`/`RdpSignExeSigner`**~~ | T-502 | **Concluído em 2026-08-11 (S010)** — 95 testes no total; testado contra fake, `rdpsign.exe` real não verificável nesta sandbox |
-| **—** | **T-503** (`ISessionBackend` + `RdsSessionBackend`) é a próxima de E-05 | E-05 | Mesma limitação de ambiente: `RdsSessionBackend` fala com um Connection Broker real que não existe aqui |
+| ~~—~~ | ~~**`ISessionBackend`/`RdsSessionBackend`**~~ | T-503 | **Concluído em 2026-08-13 (S010)** — 101 testes no total; sem fake, escopo é leitura de dados próprios, não RDS real |
+| **—** | **T-504** (`POST /v1/launches`) é a próxima de E-05 | E-05 | Primeiro consumidor real de `IRdpDescriptorBuilder`, `IRdpFileSigner` e `ISessionBackend` juntos |
 
 **Decisões que ainda cabem a Frederico, em paralelo:** B-009 (subconjunto do MVP-1 exigido pelo
 piloto), B-006 (PS-07, cofre) e B-007 (PS-03, encadeamento da trilha).

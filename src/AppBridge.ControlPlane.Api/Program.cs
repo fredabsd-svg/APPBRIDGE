@@ -9,6 +9,7 @@ using AppBridge.ControlPlane.Infrastructure.Authorization;
 using AppBridge.ControlPlane.Infrastructure.Catalog;
 using AppBridge.ControlPlane.Infrastructure.Identity;
 using AppBridge.ControlPlane.Infrastructure.Rdp;
+using AppBridge.ControlPlane.Infrastructure.Sessions;
 using AppBridge.ControlPlane.Infrastructure.Tenancy;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -67,6 +68,8 @@ var rdpSignerOptions = builder.Configuration["APPBRIDGE_RDPSIGN_PATH"] is { Leng
     ? new RdpSignerOptions { CertificateThumbprint = rdpSigningThumbprint, ExecutablePath = rdpSignExecutablePath }
     : new RdpSignerOptions { CertificateThumbprint = rdpSigningThumbprint };
 builder.Services.AddSingleton<IRdpFileSigner>(new RdpSignExeSigner(rdpSignerOptions));
+
+builder.Services.AddScoped<ISessionBackend, RdsSessionBackend>();
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

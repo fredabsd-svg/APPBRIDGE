@@ -6,6 +6,19 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Adicionado — `ISessionBackend`/`RdsSessionBackend` (T-503, S010)
+- `ISessionBackend`/`RdsSessionBackend` (`AppBridge.ControlPlane.Infrastructure/Sessions/`) — a
+  fronteira de portabilidade de RNF-035. `ResolveHostAsync` escolhe um `SessionHost` `Online` no
+  `HostPool` do aplicativo (ordenado por `Id`, UUID v7, determinístico); `BuildConnectionDescriptorAsync`
+  produz o `RdpConnectionParameters` que `IRdpDescriptorBuilder` (T-501) consome.
+- Interface deliberadamente restrita aos dois membros que o critério de aceite de T-503 pede — os
+  demais que `ARQUITETURA.md` §4.2 lista (`ListActiveSessionsAsync`, `CancelSessionAsync`,
+  `TerminateSessionAsync`, `PublishApplicationAsync`, `GetHostHealthAsync`) entram quando as tarefas
+  que os usam (T-506, T-601/602, MVP-1, V2) começarem.
+- **Nota de processo**: ao contrário de T-502 (`rdpsign.exe`), este escopo não fala com nenhum
+  Connection Broker real — é leitura da própria tabela `session_host` (T-204). Testado inteiramente
+  contra PostgreSQL real, sem fake — correção de suposição feita antes de escrever qualquer código.
+
 ### Adicionado — `IRdpFileSigner`/`RdpSignExeSigner` (T-502, S010)
 - `IRdpFileSigner`/`RdpSignExeSigner` (`AppBridge.ControlPlane.Infrastructure/Rdp/`) — assina o
   `.rdp` invocando `rdpsign.exe` num processo separado, com timeout (ADR-0009). Nunca devolve um

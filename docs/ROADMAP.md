@@ -590,7 +590,7 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 |----|--------|--------------------|------|
 | ~~T-501~~ | ✅ `RdpDescriptorBuilder` aplicando a política de redirecionamento | `.rdp` gerado nega unidades locais e permite impressora (ADR-0008) | 5 |
 | ~~T-502~~ | ✅ `IRdpFileSigner` + `RdpSignExeSigner` | `.rdp` assinado e aceito pela estação; **falha de assinatura devolve `503`** (V-06, RNF-002, ADR-0009) | 8 |
-| T-503 | `ISessionBackend` + `RdsSessionBackend` (resolução de host e descritor) | Nenhuma regra de negócio referencia tipo do RDS (RNF-035) | 8 |
+| ~~T-503~~ | ✅ `ISessionBackend` + `RdsSessionBackend` (resolução de host e descritor) | Nenhuma regra de negócio referencia tipo do RDS (RNF-035) | 8 |
 | T-504 | `POST /launches` com autorização, trilha e `Idempotency-Key` | Repetir a chave não cria segundo lançamento nem segunda contagem (ADR-0012 §3) | 5 |
 | T-505 | Catálogo de erros com códigos estáveis | Cada situação da tabela de `API.md` §9 devolve o código correto | 3 |
 | **T-506** | **Operação de cancelamento em `ISessionBackend`**, chamada no caminho de falha do prelaunch, com registro na trilha | Prelaunch que falha após criar a sessão **não deixa sessão contando licença**; teste force a falha (ADR-0016, Gap 2) | 3 |
@@ -669,6 +669,48 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 > **Verificado subindo a aplicação real** com a variável nova definida — DI resolve sem erro.
 > **95 testes automatizados no total** (39 Api + 56 Infrastructure), todos passando. **Nenhum bug
 > encontrado durante a verificação desta tarefa.**
+
+> **T-503 concluída em 2026-08-13 (S010) — correção de rota registrada antes de codificar, não
+> depois.** A resposta anterior desta sessão presumiu que T-503 precisaria do mesmo padrão de
+> "interface + fake" de T-502, por falar com "um Connection Broker real". Ao reler o escopo literal
+> do `ROADMAP.md` — **"resolução de host e descritor"**, não a interface `ISessionBackend` inteira —
+> ficou claro que essa suposição estava errada: escolher um `SessionHost` e montar os parâmetros de
+> conexão são operações de **leitura da nossa própria tabela `session_host`** (T-204), não uma
+> chamada a um Connection Broker real. Não existe, para este escopo específico, nenhuma dependência
+> Windows a contornar. Corrigido antes de escrever qualquer código — a aprovação do usuário ("mesmo
+> padrão") foi para a estratégia de lidar com dependência inexistente nesta sandbox, e essa
+> dependência simplesmente não existe para T-503 como o `ROADMAP.md` o escopa.
+>
+> `ISessionBackend`/`RdsSessionBackend`
+> (`AppBridge.ControlPlane.Infrastructure/Sessions/`) — **apenas os dois membros que o critério de
+> aceite de T-503 pede**: `ResolveHostAsync(applicationId)` (escolhe um `SessionHost`
+> `Online` no `HostPool` do aplicativo, ordenado por `Id` — UUID v7 ordena por criação, ADR-0011,
+> escolha determinística sem precisar de dado de carga real) e
+> `BuildConnectionDescriptorAsync(host, application)` (produz exatamente o
+> `RdpConnectionParameters` que `IRdpDescriptorBuilder.Build` de T-501 consome — a costura entre as
+> duas tarefas). Os demais membros que `ARQUITETURA.md` §4.2 lista (`ListActiveSessionsAsync`,
+> `CancelSessionAsync`, `TerminateSessionAsync`, `PublishApplicationAsync`, `GetHostHealthAsync`)
+> pertencem a tarefas que ainda não começaram (T-506, T-601/602, MVP-1, V2) e entram na interface
+> quando cada uma precisar — mesmo padrão de extensão que T-402 aplicou a
+> `IAuthorizationService` (T-304 já tinha deixado o contrato deliberadamente mínimo). Construir
+> stubs para trabalho de meses à frente seria escopo inventado (RP-05).
+>
+> **Sem tenant explícito nas assinaturas** — mesmo formato de `IAuthorizationService`: isolamento
+> automático pelo filtro global do `DbContext` (ADR-0004), já que `Application`/`SessionHost` são
+> ambos `TenantScopedEntity`. Sem parâmetro de usuário em `ResolveHostAsync`, mesmo
+> `ARQUITETURA.md` §4.2 desenhando `ResolveHostAsync(tenant, user, app)` no C4: afinidade de sessão
+> por usuário não existe ainda (isso é `SessionRegistry`, T-601) e nada em T-503 o usaria — adicionar
+> um parâmetro morto por fidelidade literal ao diagrama seria pior do que estendê-lo quando T-601
+> precisar dele de verdade.
+>
+> **6 novos testes** em `RdsSessionBackendTests.cs`, todos contra PostgreSQL real, sem fake: resolve
+> um host `Online` do pool certo; exclui `Draining`/`Offline`; escolhe o host mais antigo
+> deterministicamente quando há mais de um elegível; nenhum host elegível devolve `null`; aplicativo
+> desconhecido devolve `null`; o descritor de conexão monta exatamente os campos que
+> `RdpConnectionParameters` espera. **Verificado subindo a aplicação real** — DI resolve sem erro.
+> **101 testes automatizados no total** (39 Api + 62 Infrastructure), todos passando. **Nenhum bug
+> de produção encontrado** — a única correção desta tarefa foi de escopo, feita antes de escrever
+> código, não um bug encontrado depois.
 
 ### E-06 · Sessão e reconciliação — 16 pts
 
