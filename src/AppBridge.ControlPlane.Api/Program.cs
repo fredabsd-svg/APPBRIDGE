@@ -2,6 +2,7 @@ using System.Text;
 using AppBridge.ControlPlane.Api.Endpoints;
 using AppBridge.ControlPlane.Api.HealthChecks;
 using AppBridge.ControlPlane.Api.Identity;
+using AppBridge.ControlPlane.Api.Idempotency;
 using AppBridge.ControlPlane.Api.Middleware;
 using AppBridge.ControlPlane.Infrastructure;
 using AppBridge.ControlPlane.Infrastructure.Auditing;
@@ -71,6 +72,11 @@ builder.Services.AddSingleton<IRdpFileSigner>(new RdpSignExeSigner(rdpSignerOpti
 
 builder.Services.AddScoped<ISessionBackend, RdsSessionBackend>();
 
+// PD-04 (API.md §11), resolved by T-504: in-process memory, not a table or distributed cache — see
+// IIdempotencyStore's own doc comment for why that's enough for MVP-0's single-instance topology.
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<IIdempotencyStore, MemoryIdempotencyStore>();
+
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -128,6 +134,7 @@ app.MapHealthChecks("/v1/health", new HealthCheckOptions
 
 app.MapAuthEndpoints();
 app.MapCatalogEndpoints();
+app.MapLaunchEndpoints();
 
 // RF-012: the catalog is populated by seed, not an admin panel (that's RF-043, MVP-1). A CLI verb
 // instead of an HTTP route so this stays a seed, not the very panel RF-012 says the catalog does

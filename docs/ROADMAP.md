@@ -591,7 +591,7 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 | ~~T-501~~ | ✅ `RdpDescriptorBuilder` aplicando a política de redirecionamento | `.rdp` gerado nega unidades locais e permite impressora (ADR-0008) | 5 |
 | ~~T-502~~ | ✅ `IRdpFileSigner` + `RdpSignExeSigner` | `.rdp` assinado e aceito pela estação; **falha de assinatura devolve `503`** (V-06, RNF-002, ADR-0009) | 8 |
 | ~~T-503~~ | ✅ `ISessionBackend` + `RdsSessionBackend` (resolução de host e descritor) | Nenhuma regra de negócio referencia tipo do RDS (RNF-035) | 8 |
-| T-504 | `POST /launches` com autorização, trilha e `Idempotency-Key` | Repetir a chave não cria segundo lançamento nem segunda contagem (ADR-0012 §3) | 5 |
+| ~~T-504~~ | ✅ `POST /launches` com autorização, trilha e `Idempotency-Key` | Repetir a chave não cria segundo lançamento nem segunda contagem (ADR-0012 §3) | 5 |
 | T-505 | Catálogo de erros com códigos estáveis | Cada situação da tabela de `API.md` §9 devolve o código correto | 3 |
 | **T-506** | **Operação de cancelamento em `ISessionBackend`**, chamada no caminho de falha do prelaunch, com registro na trilha | Prelaunch que falha após criar a sessão **não deixa sessão contando licença**; teste force a falha (ADR-0016, Gap 2) | 3 |
 
@@ -711,6 +711,79 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 > **101 testes automatizados no total** (39 Api + 62 Infrastructure), todos passando. **Nenhum bug
 > de produção encontrado** — a única correção desta tarefa foi de escopo, feita antes de escrever
 > código, não um bug encontrado depois.
+
+> **T-504 concluída em 2026-08-13 (S010) — "coração do produto" (ARQUITETURA.md §5.2), E-05 tem
+> agora seu endpoint central.** `POST /v1/launches` é o primeiro consumidor real, junto, de
+> `IAuthorizationService` (T-304), `ISessionBackend` (T-503), `IRdpDescriptorBuilder` (T-501) e
+> `IRdpFileSigner` (T-502) — as quatro peças que as quatro tarefas anteriores de E-05 construíram
+> isoladamente se encontram aqui pela primeira vez.
+>
+> **PD-04 resolvida** ("onde ficam as respostas de idempotência durante os 60 s de validade",
+> `API.md` §11, pendência aberta desde a fase de design): **memória em processo**, não tabela nem
+> cache distribuído. Justificativa: o MVP-0/dogfood roda uma única instância do Control Plane,
+> coabitando o session host (ADR-0002) — não existe uma segunda instância que pudesse perder o que a
+> primeira gravou. Essa premissa quebra no dia em que o Control Plane rodar em mais de uma
+> instância (V2+); revisar então, atrás da mesma interface (`IIdempotencyStore`), não antes.
+>
+> **Toda saída de `POST /v1/launches` — concedida ou negada, por qualquer motivo — grava uma linha
+> em `Launch` via `IAuditWriter`.** RF-037 está na lista bloqueante do Part 1 de ADR-0007 (junto com
+> RF-036/RF-039/RF-041/RF-042) — mesma disciplina de "um único caminho de código, nenhum ramo que
+> possa esquecer a garantia transacional" que T-301 já tinha estabelecido para negativas de login.
+> **A única exceção deliberada é `AUDIT_UNAVAILABLE` em si**: quando a própria gravação da trilha
+> falha, nada foi persistido — não há o que uma repetição pudesse duplicar — então essa é a única
+> resposta que **não** entra no cache de idempotência: a próxima tentativa do cliente deve tentar de
+> novo de verdade, não receber de volta uma falha transitória congelada por 60 s.
+>
+> **Réplica byte a byte, não apenas equivalente.** O cache de idempotência guarda a resposta exata
+> já serializada (corpo + status + content-type), não um sinalizador "já processado" que reconstrói
+> a resposta na hora — reconstruir custaria uma segunda assinatura real (chamada de processo
+> desperdiçada) e poderia produzir bytes ligeiramente diferentes do que o cliente já recebeu.
+> `LaunchProblems` devolve um record simples (`LaunchProblemBody`), não
+> `Microsoft.AspNetCore.Mvc.ProblemDetails` como `AuthProblems` — a serialização manual que o cache
+> exige não passa de forma confiável pelo conversor específico de `ProblemDetails` que
+> `Results.Problem` usa por baixo dos panos, então este endpoint serializa toda resposta (sucesso ou
+> erro) pelo mesmo caminho próprio, garantindo que o que foi cacheado e o que seria gerado ao vivo
+> são idênticos por construção.
+>
+> **Escopo deliberadamente restrito ao que o critério de aceite pede**: `sessionReused` sempre
+> `false` (não existe rastreamento real de sessão — isso é `SessionRegistry`, T-601); `host.
+> displayName` é a string genérica fixa `"Servidor de aplicativos"`, igual ao exemplo de `API.md`,
+> nunca o FQDN real (RNF-043 proíbe vazar detalhe interno); sem verificação de teto de licença
+> (`409 QUOTA_EXHAUSTED` é MVP-1, ADR-0006) nem de limite de taxa (`429 RATE_LIMITED`, RNF-010,
+> infraestrutura que não existe). Nenhum dos dois nunca será emitido por este código ainda — honesto
+> por construção, não por omissão silenciosa.
+>
+> **Bug real pego rodando a suíte inteira, não só os testes novos** — reforça, de novo, por que
+> `dotnet test` sem filtro é o passo que fecha cada tarefa, não `dotnet test --filter`. A primeira
+> versão de `ApiTestFactory` ganhou um parâmetro opcional (`string? rdpSignExecutable = null`) para
+> as duas tarefas escolherem o executável de assinatura fake — compilou limpo, os testes novos
+> passaram. Só ao rodar a suíte completa, `HealthCheckTests`/`CorrelationIdMiddlewareTests` (que
+> usam `IClassFixture<ApiTestFactory>`) quebraram: o xUnit instancia um tipo usado como fixture de
+> classe por reflexão e exige um construtor **verdadeiramente sem parâmetros** — um valor padrão em
+> C# não conta. Corrigido para dois construtores (um sem parâmetro nenhum, outro com); isso também
+> quebrou ("só pode haver um único construtor público"), porque o xUnit exige exatamente **um**
+> construtor público no tipo inteiro, não zero-ou-mais com uma forma aceitável. Solução final: um
+> único construtor público sem parâmetro, e um método estático `ApiTestFactory.WithRdpSigner(...)`
+> chamando um construtor **privado** por trás — mantém exatamente um construtor público, satisfaz o
+> xUnit, e ainda permite ao teste de falha de assinatura pedir um executável diferente.
+>
+> **Verificado rodando a aplicação de verdade** (`dotnet run` + `curl` + `psql`): tenant, usuário,
+> host `online`, aplicativo publicado e permissão semeados; login real; primeiro `POST /v1/launches`
+> devolve `201` com um `.rdp` que, decodificado, mostra a política de ADR-0008 linha por linha e a
+> marca do assinador fake; **segunda requisição com a mesma `Idempotency-Key` devolve resposta
+> idêntica byte a byte** (`diff` confirmou) e **a tabela `launch` continua com exatamente 1 linha**
+> — a prova literal do critério de aceite; terceira requisição, mesma chave e corpo diferente,
+> devolve `409 IDEMPOTENCY_CONFLICT`. Dados de verificação limpos do banco ao final.
+>
+> **13 novos testes** em `LaunchEndpointTests.cs` (sem token → `401`; sem `Idempotency-Key` → `400`;
+> lançamento concedido devolve `.rdp` assinado e grava `Launch(Outcome=Granted)`; repetir a mesma
+> chave e corpo devolve resposta idêntica e só uma linha; repetir com corpo diferente devolve `409`
+> sem segunda linha; sem permissão devolve `403` e grava `DeniedPermission`; aplicativo desconhecido
+> ou não publicado devolve `404` sem gravar linha nenhuma — o FK composto nem deixaria; sem host
+> `Online` devolve `422` e grava `DeniedHostUnavailable`; `purpose` inválido devolve `400` sem
+> gravar; falha de assinatura — via a fábrica `WithRdpSigner` apontando para o fixture que falha —
+> devolve `503` e grava `ErrorSigning`; `purpose=prelaunch` é gravado corretamente). **113 testes
+> automatizados no total** (51 Api + 62 Infrastructure), todos passando.
 
 ### E-06 · Sessão e reconciliação — 16 pts
 

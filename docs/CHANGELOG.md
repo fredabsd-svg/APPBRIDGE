@@ -6,6 +6,22 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Adicionado — `POST /v1/launches` (T-504, S010)
+- O endpoint central do produto (API.md §4, RF-018..RF-021, RF-025, RF-037, RF-039) — primeiro
+  consumidor real, junto, de `IAuthorizationService`, `ISessionBackend`, `IRdpDescriptorBuilder` e
+  `IRdpFileSigner`.
+- **PD-04 resolvida** (API.md §11): idempotência em memória em processo
+  (`IIdempotencyStore`/`MemoryIdempotencyStore`), justificada pela topologia de instância única do
+  MVP-0 (ADR-0002) — revisar quando o Control Plane rodar em mais de uma instância. Guarda a
+  resposta exata já serializada (réplica byte a byte, não reconstrução) por 60 s (PRE-07,
+  ADR-0012 §3).
+- Toda saída — concedida ou negada, por qualquer motivo — grava uma linha em `Launch` via
+  `IAuditWriter` (RF-037 está na lista bloqueante de ADR-0007 Part 1). Exceção deliberada:
+  `AUDIT_UNAVAILABLE` não é cacheado, porque nada foi persistido para uma repetição duplicar.
+- Escopo restrito ao que o critério de aceite pede: `sessionReused` sempre `false` (sem
+  `SessionRegistry`, T-601, ainda); `host.displayName` fixo em `"Servidor de aplicativos"`
+  (RNF-043); sem `409 QUOTA_EXHAUSTED` (MVP-1) nem `429 RATE_LIMITED` (infraestrutura inexistente).
+
 ### Adicionado — `ISessionBackend`/`RdsSessionBackend` (T-503, S010)
 - `ISessionBackend`/`RdsSessionBackend` (`AppBridge.ControlPlane.Infrastructure/Sessions/`) — a
   fronteira de portabilidade de RNF-035. `ResolveHostAsync` escolhe um `SessionHost` `Online` no

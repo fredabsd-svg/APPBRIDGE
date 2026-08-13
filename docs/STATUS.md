@@ -127,6 +127,19 @@
 > começarem — T-506, T-601/602, MVP-1, V2 — mesmo padrão de extensão de
 > `IAuthorizationService`). **6 novos testes, todos contra PostgreSQL real, sem fake — 101 testes
 > automatizados no total.**
+>
+> **T-504 concluída — `POST /v1/launches`, "coração do produto".** Primeiro consumidor real, junto,
+> das quatro peças de E-05 (T-304, T-501, T-502, T-503). **PD-04 resolvida**: idempotência em
+> memória em processo (justificado pela topologia de instância única do MVP-0, ADR-0002 — revisar
+> quando houver mais de uma instância). Toda saída (concedida ou negada) grava `Launch` via
+> `IAuditWriter`, exceto `AUDIT_UNAVAILABLE` em si (nada foi persistido, nada para repetir). Cache
+> de idempotência guarda a resposta exata já serializada — réplica byte a byte, não reconstrução.
+> **Bug real pego rodando a suíte inteira** (não só os testes novos): `ApiTestFactory` com parâmetro
+> opcional quebrou os testes que usam `IClassFixture<ApiTestFactory>` — xUnit exige exatamente um
+> construtor público, verdadeiramente sem parâmetro; corrigido com um método estático de fábrica por
+> trás de um construtor privado. Verificado rodando a aplicação real: segunda requisição com a mesma
+> `Idempotency-Key` devolve resposta idêntica byte a byte e a tabela `launch` continua com uma única
+> linha — a prova literal do critério de aceite. **113 testes automatizados no total.**
 
 
 ## 2. Entregáveis da fase de design — ✅ concluída
@@ -183,7 +196,8 @@ significa que o código espera.
 | ~~—~~ | ~~**`RdpDescriptorBuilder`**~~ | T-501 | **Concluído em 2026-08-10 (S010)** — 91 testes no total; redirecionado de "E-01" (não executável nesta sandbox) |
 | ~~—~~ | ~~**`IRdpFileSigner`/`RdpSignExeSigner`**~~ | T-502 | **Concluído em 2026-08-11 (S010)** — 95 testes no total; testado contra fake, `rdpsign.exe` real não verificável nesta sandbox |
 | ~~—~~ | ~~**`ISessionBackend`/`RdsSessionBackend`**~~ | T-503 | **Concluído em 2026-08-13 (S010)** — 101 testes no total; sem fake, escopo é leitura de dados próprios, não RDS real |
-| **—** | **T-504** (`POST /v1/launches`) é a próxima de E-05 | E-05 | Primeiro consumidor real de `IRdpDescriptorBuilder`, `IRdpFileSigner` e `ISessionBackend` juntos |
+| ~~—~~ | ~~**`POST /v1/launches`**~~ | T-504 | **Concluído em 2026-08-13 (S010)** — 113 testes no total; PD-04 resolvida |
+| **—** | **T-505** (catálogo de erros) ou **T-506** (cancelamento em `ISessionBackend`) são as próximas de E-05 | E-05 | T-506 exige estender `ISessionBackend` com `CancelSessionAsync` |
 
 **Decisões que ainda cabem a Frederico, em paralelo:** B-009 (subconjunto do MVP-1 exigido pelo
 piloto), B-006 (PS-07, cofre) e B-007 (PS-03, encadeamento da trilha).
