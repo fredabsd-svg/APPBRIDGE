@@ -42,4 +42,22 @@ public sealed class RdsSessionBackend(AppBridgeDbContext dbContext) : ISessionBa
             RemoteAppAlias: application.RemoteAppAlias,
             RemoteAppDisplayName: application.DisplayName));
     }
+
+    public async Task CancelSessionAsync(
+        Guid sessionId, SessionEndReason reason, CancellationToken cancellationToken = default)
+    {
+        var session = await dbContext.Sessions.SingleOrDefaultAsync(s => s.Id == sessionId, cancellationToken)
+            ?? throw new SessionNotFoundException(sessionId);
+
+        // Idempotent: whichever caller (this operation or a future SessionReconciler, T-602) gets
+        // there first wins the reason; the loser must not throw or overwrite it.
+        if (session.EndedAt is not null)
+        {
+            return;
+        }
+
+        session.EndedAt = DateTimeOffset.UtcNow;
+        session.EndReason = reason;
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
 }

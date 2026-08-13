@@ -1,4 +1,5 @@
 using AppBridge.ControlPlane.Domain.Catalog;
+using AppBridge.ControlPlane.Domain.Identity;
 using AppBridge.ControlPlane.Domain.Sessions;
 using AppBridge.ControlPlane.Domain.Tenancy;
 using AppBridge.ControlPlane.Infrastructure.Sessions;
@@ -154,5 +155,90 @@ public sealed class RdsSessionBackendTests : IAsyncLifetime
         Assert.Equal("ab-rds01.escritorio-a.local", descriptor.HostAddress);
         Assert.Equal("dominio-contabil", descriptor.RemoteAppAlias);
         Assert.Equal("Domínio Contábil", descriptor.RemoteAppDisplayName);
+    }
+
+    private async Task<Guid> SeedActiveSessionAsync()
+    {
+        await using var context = NewContext();
+        var host = NewHost("ab-rds01.escritorio-a.local", SessionHostStatus.Online);
+        context.SessionHosts.Add(host);
+        await context.SaveChangesAsync();
+
+        var userAccount = new UserAccount
+        {
+            TenantId = _tenantId,
+            ExternalSubject = "oid-teste",
+            Upn = "teste@escritorio-a.local",
+            AdObjectSid = "S-1-5-21-0-0-0-1001",
+            DisplayName = "Usuária de Teste",
+        };
+        context.UserAccounts.Add(userAccount);
+        await context.SaveChangesAsync();
+
+        var session = new Session
+        {
+            TenantId = _tenantId,
+            UserAccountId = userAccount.Id,
+            SessionHostId = host.Id,
+            BackendSessionId = "rds-session-1",
+            StartedAt = DateTimeOffset.UtcNow,
+            LastSeenAt = DateTimeOffset.UtcNow,
+        };
+        context.Sessions.Add(session);
+        await context.SaveChangesAsync();
+
+        return session.Id;
+    }
+
+    [Fact]
+    public async Task Cancelling_an_active_session_sets_EndedAt_and_the_given_reason()
+    {
+        var sessionId = await SeedActiveSessionAsync();
+
+        await using var context = NewContext();
+        await new RdsSessionBackend(context).CancelSessionAsync(sessionId, SessionEndReason.Revoked);
+
+        await using var verify = NewContext();
+        var session = await verify.Sessions.SingleAsync(s => s.Id == sessionId);
+        Assert.NotNull(session.EndedAt);
+        Assert.Equal(SessionEndReason.Revoked, session.EndReason);
+    }
+
+    [Fact]
+    public async Task Cancelling_an_already_ended_session_is_a_no_op()
+    {
+        var sessionId = await SeedActiveSessionAsync();
+
+        await using (var context = NewContext())
+        {
+            await new RdsSessionBackend(context).CancelSessionAsync(sessionId, SessionEndReason.Revoked);
+        }
+
+        var endedAtAfterFirstCancel = await ReadEndedAtAsync(sessionId);
+
+        await using (var context = NewContext())
+        {
+            // A racing SessionReconciler (T-602) reason must not overwrite the first, real reason.
+            await new RdsSessionBackend(context).CancelSessionAsync(sessionId, SessionEndReason.ReconciledMissing);
+        }
+
+        await using var verify = NewContext();
+        var session = await verify.Sessions.SingleAsync(s => s.Id == sessionId);
+        Assert.Equal(endedAtAfterFirstCancel, session.EndedAt);
+        Assert.Equal(SessionEndReason.Revoked, session.EndReason);
+    }
+
+    private async Task<DateTimeOffset?> ReadEndedAtAsync(Guid sessionId)
+    {
+        await using var context = NewContext();
+        return (await context.Sessions.SingleAsync(s => s.Id == sessionId)).EndedAt;
+    }
+
+    [Fact]
+    public async Task Cancelling_an_unknown_session_throws_SessionNotFoundException()
+    {
+        await using var context = NewContext();
+        await Assert.ThrowsAsync<SessionNotFoundException>(
+            () => new RdsSessionBackend(context).CancelSessionAsync(Guid.NewGuid(), SessionEndReason.Revoked));
     }
 }

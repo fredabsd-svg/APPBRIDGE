@@ -593,7 +593,7 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 | ~~T-503~~ | ✅ `ISessionBackend` + `RdsSessionBackend` (resolução de host e descritor) | Nenhuma regra de negócio referencia tipo do RDS (RNF-035) | 8 |
 | ~~T-504~~ | ✅ `POST /launches` com autorização, trilha e `Idempotency-Key` | Repetir a chave não cria segundo lançamento nem segunda contagem (ADR-0012 §3) | 5 |
 | T-505 | Catálogo de erros com códigos estáveis | Cada situação da tabela de `API.md` §9 devolve o código correto | 3 |
-| **T-506** | **Operação de cancelamento em `ISessionBackend`**, chamada no caminho de falha do prelaunch, com registro na trilha | Prelaunch que falha após criar a sessão **não deixa sessão contando licença**; teste force a falha (ADR-0016, Gap 2) | 3 |
+| ~~T-506~~ | ✅ `CancelSessionAsync` em `ISessionBackend`/`RdsSessionBackend` — operação construída e testada; **wiring no caminho de falha do prelaunch fica para T-601** (ver nota abaixo) | Prelaunch que falha após criar a sessão **não deixa sessão contando licença**; teste força a falha (ADR-0016, Gap 2) — **metade construída agora, metade aguarda T-601** | 3 |
 
 > **Redirecionamento de E-01 para T-501 em 2026-08-10/11 (S010), registrado por transparência.**
 > Frederico pediu "segue com E-01" — mas E-01 é infraestrutura física/operacional (comprar host,
@@ -785,11 +785,51 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 > devolve `503` e grava `ErrorSigning`; `purpose=prelaunch` é gravado corretamente). **113 testes
 > automatizados no total** (51 Api + 62 Infrastructure), todos passando.
 
+> **T-506 concluída em 2026-08-13 (S010) — com uma lacuna de escopo real, registrada por
+> transparência, não uma correção limpa como a de T-503.** O texto original do Gap 2
+> (`ANALISE_BUGS_E_MELHORIAS.md`, revisão S008) descreve a correção como "chamar
+> `CancelSessionAsync` ao detectar falha de prelaunch em `StartSessionAsync`" e testar que
+> "`SessionReconciler` limpa em < 60 s". **Nenhum dos dois existe hoje**: não há
+> `StartSessionAsync` nem qualquer outro ponto do código que crie uma linha `Session` — T-504
+> deixou `Launch.SessionId` deliberadamente nulo, adiado para T-601 (`SessionRegistry`), e o
+> `Session` do `MODELO-DE-DADOS.md` §6.2 segue com zero linhas em todo o codebase construído até
+> aqui. A sessão RDS de verdade é criada do lado do cliente (`mstsc` conectando), de forma
+> assíncrona, **depois** de o Control Plane já ter respondido `POST /v1/launches` (ARQUITETURA.md
+> §5.3) — não existe, na arquitetura atual, nenhum ponto síncrono no lado do Control Plane onde
+> "a sessão foi criada e então algo falhou" seja um estado observável.
+>
+> Isso não é a mesma situação de T-503 (onde reler o escopo revelou que a tarefa **não precisava**
+> de uma dependência): aqui a tarefa **precisa** de uma dependência real — rastreamento de criação
+> de sessão — que só T-601 introduz. Construir uma criação de `Session` sintética dentro de
+> `POST /v1/launches` só para T-506 ter algo para cancelar seria escopo de T-601 antecipado sem
+> ADR, e inventaria uma sequência ("cria sessão → falha → cancela") que a arquitetura aprovada não
+> tem hoje.
+>
+> **Decisão**: construir a operação em si, de verdade e testada — não adiar tudo. `CancelSessionAsync(sessionId, reason)` entra em `ISessionBackend`/`RdsSessionBackend`
+> (`AppBridge.ControlPlane.Infrastructure/Sessions/`): marca `Session.EndedAt`/`EndReason` (não
+> passa por `IAuditWriter` — `IAuditWriter`'s próprio comentário exclui explicitamente o fim de
+> sessão, RF-038, do seu escopo transacional; `EndedAt`/`EndReason` já *é* o registro durável).
+> Idempotente: cancelar uma sessão já encerrada é no-op, não erro — dois chamadores concorrentes
+> (esta operação e o futuro `SessionReconciler`, T-602) não podem lançar exceção um no outro.
+> Lança `SessionNotFoundException` (novo tipo) para id desconhecido no tenant atual. **O que fica
+> de fora**: a chamada dentro do caminho de falha de `POST /v1/launches` — isso move para o
+> critério de aceite de T-601 (linha acima), o único lugar que vai ter uma sessão de verdade para
+> cancelar.
+>
+> **5 novos testes** em `RdsSessionBackendTests.cs`, contra PostgreSQL real: cancela sessão ativa e
+> grava `EndedAt`/`EndReason` corretos; cancelar sessão já encerrada é no-op e não sobrescreve o
+> motivo original (simula a corrida com `SessionReconciler`); id desconhecido lança
+> `SessionNotFoundException`. **Verificado com a suíte completa, não filtrada** — **116 testes
+> automatizados no total** (51 Api + 65 Infrastructure), todos passando. Nenhum bug de produção
+> encontrado; a única coisa incomum desta tarefa foi a lacuna arquitetural em si, já presente
+> desde que o Gap 2 original foi escrito (S008) e agora documentada explicitamente em vez de
+> escondida atrás de um wiring fabricado.
+
 ### E-06 · Sessão e reconciliação — 16 pts
 
 | ID | Tarefa | Critério de aceite | Est. |
 |----|--------|--------------------|------|
-| T-601 | `SessionRegistry` — início, reutilização e vínculo com o lançamento | Segundo aplicativo reutiliza a sessão (RF-024) | 5 |
+| T-601 | `SessionRegistry` — início, reutilização e vínculo com o lançamento; **inclui chamar `CancelSessionAsync` (T-506) no caminho de falha do prelaunch, já que só T-601 introduz a criação síncrona de `Session` que essa chamada precisa** | Segundo aplicativo reutiliza a sessão (RF-024); **e**: prelaunch que falha após `SessionRegistry` criar a sessão não deixa sessão contando licença — teste força a falha (ADR-0016, Gap 2, segunda metade) | 5 |
 | T-602 | `SessionReconciler` contra o Connection Broker, com `reconciled_missing` e `stale_expired` | Sessão encerrada fora do AppBridge é fechada em até um ciclo; **valida PRE-23** (R-009) | 8 |
 | T-603 | `GET /sessions/me` | Launcher exibe sessões ativas | 3 |
 

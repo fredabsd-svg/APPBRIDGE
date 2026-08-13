@@ -140,6 +140,22 @@
 > trás de um construtor privado. Verificado rodando a aplicação real: segunda requisição com a mesma
 > `Idempotency-Key` devolve resposta idêntica byte a byte e a tabela `launch` continua com uma única
 > linha — a prova literal do critério de aceite. **113 testes automatizados no total.**
+>
+> **T-506 concluída, com lacuna de escopo real registrada por transparência (diferente da correção
+> limpa de T-503).** O texto original do Gap 2 (S008) pede cancelar a sessão "ao detectar falha de
+> prelaunch em `StartSessionAsync`" — mas `StartSessionAsync` não existe, e nenhum código
+> construído até aqui cria uma linha `Session` (T-504 deixou `Launch.SessionId` nulo, adiado para
+> T-601). A sessão RDS real é criada do lado do cliente, depois de o Control Plane já ter
+> respondido — não existe hoje nenhum ponto síncrono onde "sessão criada, depois falhou" seja
+> observável. Diferente de T-503 (a tarefa não precisava da dependência), aqui a tarefa **precisa**
+> de uma dependência — rastreamento de criação de sessão — que só T-601 constrói. Decisão: construir
+> `CancelSessionAsync(sessionId, reason)` de verdade em `ISessionBackend`/`RdsSessionBackend`
+> (marca `Session.EndedAt`/`EndReason`, idempotente, `SessionNotFoundException` para id
+> desconhecido — não passa por `IAuditWriter`, que exclui explicitamente fim de sessão/RF-038 do
+> seu escopo), mas **sem wiring sintético** dentro de `POST /v1/launches`; a chamada "no caminho de
+> falha do prelaunch" do critério de aceite original move para T-601 (linha do `ROADMAP.md`
+> atualizada), o primeiro lugar que vai ter uma sessão de verdade para cancelar. **5 novos testes,
+> todos contra PostgreSQL real. 116 testes automatizados no total.**
 
 
 ## 2. Entregáveis da fase de design — ✅ concluída
@@ -197,7 +213,8 @@ significa que o código espera.
 | ~~—~~ | ~~**`IRdpFileSigner`/`RdpSignExeSigner`**~~ | T-502 | **Concluído em 2026-08-11 (S010)** — 95 testes no total; testado contra fake, `rdpsign.exe` real não verificável nesta sandbox |
 | ~~—~~ | ~~**`ISessionBackend`/`RdsSessionBackend`**~~ | T-503 | **Concluído em 2026-08-13 (S010)** — 101 testes no total; sem fake, escopo é leitura de dados próprios, não RDS real |
 | ~~—~~ | ~~**`POST /v1/launches`**~~ | T-504 | **Concluído em 2026-08-13 (S010)** — 113 testes no total; PD-04 resolvida |
-| **—** | **T-505** (catálogo de erros) ou **T-506** (cancelamento em `ISessionBackend`) são as próximas de E-05 | E-05 | T-506 exige estender `ISessionBackend` com `CancelSessionAsync` |
+| ~~—~~ | ~~**`CancelSessionAsync` em `ISessionBackend`**~~ | T-506 | **Concluído em 2026-08-13 (S010)** — 116 testes no total; wiring no caminho de falha do prelaunch move para T-601 (ver §1) |
+| **—** | **T-505** (catálogo de erros) é a próxima de E-05; E-05 fica completo depois dela | E-05 | Sem dependência pendente |
 
 **Decisões que ainda cabem a Frederico, em paralelo:** B-009 (subconjunto do MVP-1 exigido pelo
 piloto), B-006 (PS-07, cofre) e B-007 (PS-03, encadeamento da trilha).
@@ -318,8 +335,8 @@ se faz com ADR novo que substitui o anterior.
 | R-027 | O backlog paralelo começava pelo código, sem issue para o épico E-01 | Alta | **Mitigado em 2026-08-10** — issues #35 a #39 criados; #8 marcado como bloqueado por #37 |
 | R-028 | Issue #5 reintroduziria material de chave em arquivo | Alta | **Fechado em 2026-08-10** — issue corrigido |
 | R-030 | **O MVP-0a real pode ser maior que qualquer das duas estimativas.** A linha B estimou 96 pts **sem** infraestrutura; a linha A, ~95 pts **com** ela. Somado o que cada uma cobre, aproxima-se de **130 pts** — contra a data de out/2026 do ADR-0013 | **Alta** | Aberto — reavaliar M2a |
-| R-031 | O caminho de falha do prelaunch é o menos exercitado do sistema e o que mais deixa estado inconsistente — foi onde o Gap 2 se escondeu | Média | Aberto — T-506 exige teste que **force** a falha |
-| R-029 | **Dois gaps confirmados na documentação aprovada:** `purpose` existe em `API.md` e não no modelo de dados (metering contaria prelaunch como uso real); `ISessionBackend` sem operação de cancelamento (prelaunch falho deixa sessão zumbi). | **Média-alta** | **Corrigidos nas fontes por ADR-0016** — `purpose` em `MODELO-DE-DADOS.md` §7.1 e `CancelSessionAsync` em `ARQUITETURA.md` §4.2; implementação em T-207 e T-506 |
+| R-031 | O caminho de falha do prelaunch é o menos exercitado do sistema e o que mais deixa estado inconsistente — foi onde o Gap 2 se escondeu | Média | **Parcialmente mitigado** — `CancelSessionAsync` existe e está testado (T-506); o teste que **força** uma falha de prelaunch real após criação de sessão só é possível quando T-601 introduzir a criação síncrona de `Session` — permanece aberto até lá |
+| R-029 | **Dois gaps confirmados na documentação aprovada:** `purpose` existe em `API.md` e não no modelo de dados (metering contaria prelaunch como uso real); `ISessionBackend` sem operação de cancelamento (prelaunch falho deixa sessão zumbi). | **Média-alta** | **`purpose` corrigido e implementado** (T-207, `MODELO-DE-DADOS.md` §7.1). **`CancelSessionAsync` construído e testado (T-506)**, mas seu wiring no caminho de falha do prelaunch depende de T-601 (criação de sessão ainda não existe em nenhum código) — risco permanece parcialmente aberto até T-601 |
 | R-032 | **`DevIdentityProvider` (ADR-0017) autentica sem verificação real.** Existe só para viabilizar `dotnet run` local nesta fase — se vazar para fora de `Development`, autentica qualquer requisição | **Alta, contida** | Aberto — registrado só sob `IHostEnvironment.IsDevelopment()`; revisão de código obrigatória antes de qualquer deploy real, mesma classe de cuidado de um `IgnoreQueryFilters()` mal colocado (ADR-0004 item 7) |
 | R-025 | **O MVP-1 é o novo gargalo:** ~3 meses entre o fim do dogfood (jan/2027) e o piloto (abr/2027) para os épicos E-13 a E-18, que provavelmente não cabem | **Alta** | Aberto — B-009 |
 | R-006 | Execução solo de quatro componentes com MVP-0 previsto em ~2 meses | Alta | Aberto |

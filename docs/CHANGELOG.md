@@ -6,6 +6,19 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Adicionado — `CancelSessionAsync` em `ISessionBackend`/`RdsSessionBackend` (T-506, S010)
+- `CancelSessionAsync(sessionId, reason)` (ADR-0016, Gap 2) — marca `Session.EndedAt`/`EndReason`;
+  idempotente (cancelar sessão já encerrada é no-op, não erro — não pode lançar quando corre contra
+  o futuro `SessionReconciler`, T-602); lança `SessionNotFoundException` para id desconhecido no
+  tenant atual. Não passa por `IAuditWriter` — fim de sessão (RF-038) está explicitamente fora do
+  escopo transacional dessa interface; `EndedAt`/`EndReason` já é o registro durável.
+- **Lacuna de escopo registrada por transparência**: o critério de aceite original de T-506 pede um
+  teste que force a falha de um prelaunch **depois** de a sessão RDS ter sido criada. Nenhum código
+  construído até aqui cria uma linha `Session` — a criação síncrona de sessão é `SessionRegistry`
+  (T-601), ainda não iniciada. A operação em si foi construída e testada de verdade; o wiring dela
+  no caminho de falha do prelaunch foi movido para o critério de aceite de T-601 (`ROADMAP.md`),
+  que é a primeira tarefa a ter uma sessão real para cancelar.
+
 ### Adicionado — `POST /v1/launches` (T-504, S010)
 - O endpoint central do produto (API.md §4, RF-018..RF-021, RF-025, RF-037, RF-039) — primeiro
   consumidor real, junto, de `IAuthorizationService`, `ISessionBackend`, `IRdpDescriptorBuilder` e
