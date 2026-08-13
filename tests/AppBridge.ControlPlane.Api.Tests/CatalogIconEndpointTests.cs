@@ -117,10 +117,13 @@ public sealed class CatalogIconEndpointTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Request_without_a_token_is_rejected_with_401()
+    public async Task Request_without_a_token_is_rejected_with_401_SESSION_EXPIRED()
     {
         var response = await _client.GetAsync($"/v1/applications/{Guid.NewGuid()}/icon");
+
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("SESSION_EXPIRED", problem.GetProperty("appbridgeCode").GetString());
     }
 
     [Fact]
@@ -159,7 +162,7 @@ public sealed class CatalogIconEndpointTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task An_application_without_an_icon_reference_is_404()
+    public async Task An_application_without_an_icon_reference_is_404_APPLICATION_NOT_FOUND()
     {
         var applicationId = await AddApplicationAsync("sem-icone", iconRef: null);
         var accessToken = await LoginAsAnaAsync();
@@ -167,10 +170,12 @@ public sealed class CatalogIconEndpointTests : IAsyncLifetime
         var response = await GetIconAsync(applicationId, accessToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("APPLICATION_NOT_FOUND", problem.GetProperty("appbridgeCode").GetString());
     }
 
     [Fact]
-    public async Task An_icon_reference_that_does_not_resolve_to_a_file_is_404()
+    public async Task An_icon_reference_that_does_not_resolve_to_a_file_is_404_APPLICATION_NOT_FOUND()
     {
         var applicationId = await AddApplicationAsync("icone-inexistente", "does-not-exist.png");
         var accessToken = await LoginAsAnaAsync();
@@ -178,16 +183,20 @@ public sealed class CatalogIconEndpointTests : IAsyncLifetime
         var response = await GetIconAsync(applicationId, accessToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("APPLICATION_NOT_FOUND", problem.GetProperty("appbridgeCode").GetString());
     }
 
     [Fact]
-    public async Task An_unknown_application_id_is_404()
+    public async Task An_unknown_application_id_is_404_APPLICATION_NOT_FOUND()
     {
         var accessToken = await LoginAsAnaAsync();
 
         var response = await GetIconAsync(Guid.NewGuid(), accessToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("APPLICATION_NOT_FOUND", problem.GetProperty("appbridgeCode").GetString());
     }
 
     [Fact]
@@ -228,5 +237,7 @@ public sealed class CatalogIconEndpointTests : IAsyncLifetime
         var response = await GetIconAsync(otherApplicationId, accessToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("APPLICATION_NOT_FOUND", problem.GetProperty("appbridgeCode").GetString());
     }
 }

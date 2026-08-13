@@ -6,6 +6,30 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Corrigido — catálogo de erros com códigos estáveis (T-505, S010)
+- **`GlobalExceptionHandler`** (`Api/Middleware/`, `IExceptionHandler`): substitui a página de
+  exceção automática do ASP.NET Core, que devolvia o **stack trace .NET completo, com caminho de
+  arquivo-fonte, no corpo da resposta** para qualquer corpo malformado (violação de RNF-043) —
+  reachável na instância real, não só em teste, porque `IIdentityProvider` só existe sob
+  `Development` (ADR-0017 §5) e é sob esse ambiente que a instância do dogfood roda hoje.
+  `BadHttpRequestException` vira `400 MALFORMED_REQUEST`; qualquer outra exceção vira
+  `500 INTERNAL_ERROR`; a exceção real vai só para o log estruturado, correlacionada pelo
+  `correlationId` que o chamador recebe.
+- **`SESSION_EXPIRED`** (`401`) via `JwtBearerEvents.OnChallenge` (`Program.cs`) — token
+  ausente/inválido/expirado em qualquer rota `[Authorize]` devolvia `401` sem corpo; `API.md` §9 já
+  documentava o código, faltava implementá-lo.
+- **`CatalogProblems.ApplicationNotFound`** — `GET /v1/applications/{id}/icon` devolvia
+  `Results.NotFound()` puro (sem `appbridgeCode`/`correlationId`) para aplicativo inexistente/sem
+  ícone.
+- **`LaunchProblems.InvalidPurpose`** trocou o código `INVALID_PURPOSE` (que não existe em `API.md`
+  §9 — quebrava a promessa de "chave estável" do catálogo) por `MALFORMED_REQUEST`, que já cobre a
+  mesma situação.
+- Novas classes `GlobalProblems`/`CatalogProblems` (`Api/Endpoints/`), mesma forma de
+  `AuthProblems`. Códigos do catálogo deliberadamente fora do MVP-0: `PROVIDER_ROLE_REQUIRED`,
+  `QUOTA_EXHAUSTED`, `RETENTION_BELOW_MINIMUM`, `EXCEPTION_REASON_REQUIRED`, `RATE_LIMITED` (MVP-1
+  ou sem infraestrutura correspondente) e `DIRECTORY_UNAVAILABLE` (exigiria um `IIdentityProvider`
+  real, que não existe).
+
 ### Adicionado — `CancelSessionAsync` em `ISessionBackend`/`RdsSessionBackend` (T-506, S010)
 - `CancelSessionAsync(sessionId, reason)` (ADR-0016, Gap 2) — marca `Session.EndedAt`/`EndReason`;
   idempotente (cancelar sessão já encerrada é no-op, não erro — não pode lançar quando corre contra

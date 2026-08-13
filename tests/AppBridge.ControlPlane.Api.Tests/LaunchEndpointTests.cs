@@ -170,10 +170,13 @@ public sealed class LaunchEndpointTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Request_without_a_token_is_rejected_with_401()
+    public async Task Request_without_a_token_is_rejected_with_401_SESSION_EXPIRED()
     {
         var response = await _client.PostAsync("/v1/launches", new StringContent("{}", Encoding.UTF8, "application/json"));
+
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("SESSION_EXPIRED", problem.GetProperty("appbridgeCode").GetString());
     }
 
     [Fact]
@@ -313,7 +316,7 @@ public sealed class LaunchEndpointTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task An_invalid_purpose_is_400_and_writes_no_launch_row()
+    public async Task An_invalid_purpose_is_400_MALFORMED_REQUEST_and_writes_no_launch_row()
     {
         var applicationId = await SeedLaunchableApplicationAsync();
         var accessToken = await LoginAsAnaAsync();
@@ -321,9 +324,34 @@ public sealed class LaunchEndpointTests : IAsyncLifetime
         var response = await PostLaunchAsync(accessToken, Guid.NewGuid(), applicationId, purpose: "not_a_real_purpose");
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
+        // T-505: not a code of its own — "purpose" outside the two valid values is exactly the
+        // catalog's existing 400 MALFORMED_REQUEST situation (API.md §9), not an invented code.
+        Assert.Equal("MALFORMED_REQUEST", problem.GetProperty("appbridgeCode").GetString());
 
         await using var verify = NewDbContext(_tenantId);
         Assert.Empty(await verify.Launches.ToListAsync());
+    }
+
+    [Fact]
+    public async Task A_malformed_JSON_body_is_400_MALFORMED_REQUEST_without_leaking_exception_detail()
+    {
+        var accessToken = await LoginAsAnaAsync();
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/v1/launches");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        request.Headers.TryAddWithoutValidation("Idempotency-Key", Guid.NewGuid().ToString());
+        request.Content = new StringContent("{not valid json", Encoding.UTF8, "application/json");
+
+        var response = await _client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.DoesNotContain("System.Text.Json", body);
+        Assert.DoesNotContain(".cs:line", body);
+        var problem = JsonDocument.Parse(body).RootElement;
+        Assert.Equal("MALFORMED_REQUEST", problem.GetProperty("appbridgeCode").GetString());
+        Assert.False(string.IsNullOrWhiteSpace(problem.GetProperty("correlationId").GetString()));
     }
 
     [Fact]

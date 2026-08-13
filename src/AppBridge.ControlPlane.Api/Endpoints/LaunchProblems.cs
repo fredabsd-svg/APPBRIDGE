@@ -58,10 +58,15 @@ public static class LaunchProblems
         "A mesma chave de idempotência foi usada com uma requisição diferente.",
         correlationId);
 
+    // T-505: "INVALID_PURPOSE" (used until this task) does not appear anywhere in API.md §9's
+    // catalog — the "chave estável" that document promises does not include it. "purpose" outside
+    // {user_initiated, prelaunch} is exactly the catalog's existing 400 MALFORMED_REQUEST ("corpo
+    // inválido... erro de programação"); reusing it instead of the invented code keeps the promise
+    // that appbridgeCode values are always one of the documented, stable ones.
     public static LaunchProblemBody InvalidPurpose(string instance, string correlationId) => Build(
         instance,
         StatusCodes.Status400BadRequest,
-        "INVALID_PURPOSE",
+        "MALFORMED_REQUEST",
         "Requisição inválida.",
         "O campo 'purpose' precisa ser 'user_initiated' ou 'prelaunch'.",
         correlationId);

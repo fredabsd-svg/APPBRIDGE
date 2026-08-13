@@ -592,7 +592,7 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 | ~~T-502~~ | ✅ `IRdpFileSigner` + `RdpSignExeSigner` | `.rdp` assinado e aceito pela estação; **falha de assinatura devolve `503`** (V-06, RNF-002, ADR-0009) | 8 |
 | ~~T-503~~ | ✅ `ISessionBackend` + `RdsSessionBackend` (resolução de host e descritor) | Nenhuma regra de negócio referencia tipo do RDS (RNF-035) | 8 |
 | ~~T-504~~ | ✅ `POST /launches` com autorização, trilha e `Idempotency-Key` | Repetir a chave não cria segundo lançamento nem segunda contagem (ADR-0012 §3) | 5 |
-| T-505 | Catálogo de erros com códigos estáveis | Cada situação da tabela de `API.md` §9 devolve o código correto | 3 |
+| ~~T-505~~ | ✅ Catálogo de erros com códigos estáveis | Cada situação da tabela de `API.md` §9 devolve o código correto | 3 |
 | ~~T-506~~ | ✅ `CancelSessionAsync` em `ISessionBackend`/`RdsSessionBackend` — operação construída e testada; **wiring no caminho de falha do prelaunch fica para T-601** (ver nota abaixo) | Prelaunch que falha após criar a sessão **não deixa sessão contando licença**; teste força a falha (ADR-0016, Gap 2) — **metade construída agora, metade aguarda T-601** | 3 |
 
 > **Redirecionamento de E-01 para T-501 em 2026-08-10/11 (S010), registrado por transparência.**
@@ -824,6 +824,66 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 > encontrado; a única coisa incomum desta tarefa foi a lacuna arquitetural em si, já presente
 > desde que o Gap 2 original foi escrito (S008) e agora documentada explicitamente em vez de
 > escondida atrás de um wiring fabricado.
+
+> **T-505 concluída em 2026-08-13 (S010) — e um bug de produção real encontrado, não só um
+> critério de aceite conferido.** Verificar "cada situação da tabela de `API.md` §9 devolve o
+> código correto" significou primeiro descobrir quais situações já existiam sem passar pela tabela
+> nenhuma. Rodando a aplicação real (`dotnet run`) e mandando corpo malformado para
+> `POST /v1/auth/session`: a resposta trazia o **stack trace .NET inteiro**, incluindo caminho
+> absoluto de arquivo-fonte, dentro do corpo JSON devolvido ao cliente — violação direta de
+> RNF-043 ("nenhuma resposta de erro contém... exceção"). Isso não é só um problema de ambiente de
+> teste: `IIdentityProvider` só tem implementação sob `Development` (ADR-0017 §5, nenhuma real
+> existe — bloqueado por E-01), então a instância real do dogfood **também roda em Development** e
+> **também vazava isso**. Achados, todos verificados subindo a aplicação real com `curl`, não só
+> inferidos do código:
+>
+> 1. **Corpo malformado ou campo obrigatório ausente** em qualquer endpoint `POST` — stack trace
+>    completo no corpo, `400` sem `appbridgeCode`. Corrigido com `GlobalExceptionHandler`
+>    (`IExceptionHandler`, `Api/Middleware/`): `BadHttpRequestException` (o que o *binding* de
+>    corpo do minimal API lança) vira `400 MALFORMED_REQUEST`; qualquer outra exceção vira
+>    `500 INTERNAL_ERROR`. A exceção real vai para o log estruturado via `ILogger`, com o mesmo
+>    `correlationId` que o chamador recebe — RNF-043 cumprido sem perder a rastreabilidade que
+>    RNF-039 exige. Registrado em `Program.cs` via `AddExceptionHandler`/`AddProblemDetails` +
+>    `app.UseExceptionHandler()` logo após `CorrelationIdMiddleware` — isso também **suprime** a
+>    página de exceção automática do ASP.NET Core em Development, que era a origem literal do
+>    vazamento.
+> 2. **Token ausente, inválido ou expirado em qualquer rota `[Authorize]`** (`GET /v1/applications`,
+>    `.../icon`, `POST /v1/launches`) devolvia `401` **sem corpo nenhum** — nenhum `appbridgeCode`,
+>    nenhum `correlationId`, nada que distinguisse "nunca autenticou" de "token expirou" de
+>    qualquer outro motivo. `API.md` §9 já documentava `401 SESSION_EXPIRED` para exatamente essa
+>    situação; faltava implementá-la. Corrigido com `JwtBearerEvents.OnChallenge` (`Program.cs`),
+>    escrevendo o mesmo formato `ProblemDetails` que `AuthProblems`/`GlobalProblems` usam em
+>    qualquer outro lugar.
+> 3. **`GET /v1/applications/{id}/icon`** devolvia `Results.NotFound()` puro (sem corpo) para
+>    aplicativo inexistente/sem ícone — mesma falta de `appbridgeCode`/`correlationId`. Corrigido com
+>    `CatalogProblems.ApplicationNotFound`, mesma forma de `ProblemDetails` de `AuthProblems`.
+> 4. **`LaunchProblems.InvalidPurpose` usava o código `INVALID_PURPOSE`, que não existe em nenhum
+>    lugar de `API.md` §9.** O catálogo se declara "chave estável" (§9, abertura) — um código que
+>    não está nele quebra essa promessa tanto quanto um código documentado que nunca é devolvido.
+>    `purpose` fora de `user_initiated`/`prelaunch` é exatamente a situação genérica que o catálogo
+>    já cobre (`400 MALFORMED_REQUEST`, "corpo inválido... erro de programação") — renomeado para
+>    reusar o código existente em vez de manter um inventado.
+>
+> **Três novas classes** em `Api/Endpoints/`: `GlobalProblems` (`MALFORMED_REQUEST`,
+> `SESSION_EXPIRED`, `INTERNAL_ERROR` — situações que não pertencem a um grupo de endpoint só) e
+> `CatalogProblems` (`APPLICATION_NOT_FOUND` para `/v1/applications/*`), seguindo a mesma forma de
+> `AuthProblems` (T-301/T-303). Códigos do catálogo que continuam **legitimamente fora do MVP-0**,
+> não esquecidos: `PROVIDER_ROLE_REQUIRED` (RF-075, papel de provedor, MVP-1), `QUOTA_EXHAUSTED`
+> (ADR-0006, MVP-1), `RETENTION_BELOW_MINIMUM`/`EXCEPTION_REASON_REQUIRED` (painel admin, MVP-1),
+> `RATE_LIMITED` (RNF-010, sem infraestrutura de limite de taxa — mesma decisão já registrada em
+> T-504) e `DIRECTORY_UNAVAILABLE` (só teria sentido com um `IIdentityProvider` real, que não existe
+> — `DevIdentityProvider` não modela "diretório fora do ar", só "token válido ou não").
+>
+> **8 testes novos/fortalecidos** em `Api.Tests`: `GlobalExceptionHandlerTests.cs` (3, unitários
+> contra o handler diretamente — nada no projeto hoje lança uma exceção não prevista para um teste
+> HTTP de ponta a ponta provocar; prova que uma mensagem de exceção com segredo simulado não
+> aparece no corpo, que `BadHttpRequestException` vira `400`, e que a ausência de correlationId no
+> contexto não derruba o handler); um teste novo em `LaunchEndpointTests.cs` (corpo malformado em
+> `POST /v1/launches` → `400 MALFORMED_REQUEST` sem stack trace no corpo — o teste que reproduz o
+> bug real encontrado); testes existentes em `CatalogEndpointTests.cs`, `CatalogIconEndpointTests.cs`
+> e `LaunchEndpointTests.cs` fortalecidos para verificar `appbridgeCode`, onde antes só verificavam
+> o status HTTP. **120 testes automatizados no total** (55 Api + 65 Infrastructure), todos passando.
+> **Com T-505, E-05 · Lançamento está completo — as 6 tarefas concluídas.**
 
 ### E-06 · Sessão e reconciliação — 16 pts
 

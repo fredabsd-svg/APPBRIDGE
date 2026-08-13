@@ -2,10 +2,12 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using AppBridge.ControlPlane.Api.Middleware;
 using AppBridge.ControlPlane.Domain.Catalog;
 using AppBridge.ControlPlane.Infrastructure;
 using AppBridge.ControlPlane.Infrastructure.Authorization;
 using AppBridge.ControlPlane.Infrastructure.Catalog;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace AppBridge.ControlPlane.Api.Endpoints;
@@ -82,16 +84,19 @@ public static class CatalogEndpoints
         // error" ADR-0012 §5 already applies elsewhere. No authorization-set check beyond that — an
         // icon is presentation metadata, not the application itself, and API.md's icon section
         // doesn't ask for the RF-011 filter GET /v1/applications applies to the list.
+        var correlationId = ResolveCorrelationId(httpContext);
+        var instance = $"/v1/applications/{id}/icon";
+
         var application = await dbContext.Applications.SingleOrDefaultAsync(a => a.Id == id, cancellationToken);
         if (application?.IconRef is null)
         {
-            return Results.NotFound();
+            return Results.Problem(CatalogProblems.ApplicationNotFound(instance, correlationId));
         }
 
         var icon = await iconStorage.ReadAsync(application.IconRef, cancellationToken);
         if (icon is null)
         {
-            return Results.NotFound();
+            return Results.Problem(CatalogProblems.ApplicationNotFound(instance, correlationId));
         }
 
         var etag = ComputeETag(icon.Content);
@@ -107,6 +112,11 @@ public static class CatalogEndpoints
 
         return Results.File(icon.Content, icon.ContentType);
     }
+
+    private static string ResolveCorrelationId(HttpContext httpContext) =>
+        httpContext.Items.TryGetValue(Middleware.CorrelationIdMiddleware.HeaderName, out var value) && value is string correlationId
+            ? correlationId
+            : Guid.NewGuid().ToString();
 
     private static bool RequestHasMatchingETag(HttpRequest request, string etag)
     {

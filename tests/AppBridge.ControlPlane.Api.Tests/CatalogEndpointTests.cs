@@ -144,10 +144,13 @@ public sealed class CatalogEndpointTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Request_without_a_token_is_rejected_with_401()
+    public async Task Request_without_a_token_is_rejected_with_401_SESSION_EXPIRED()
     {
         var response = await _client.GetAsync("/v1/applications");
+
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("SESSION_EXPIRED", problem.GetProperty("appbridgeCode").GetString());
     }
 
     [Fact]

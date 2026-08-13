@@ -1,7 +1,7 @@
 # STATUS — AppBridge
 > Estado vivo do projeto. Atualizado ao fim de toda sessão (RA-02).
 
-**Última atualização:** 2026-08-10 · **Sessão atual:** S010 · **Fase:** implementação do MVP-0a — **E-02 e E-03 completos em código**
+**Última atualização:** 2026-08-13 · **Sessão atual:** S010 · **Fase:** implementação do MVP-0a — **E-02, E-03, E-04 e E-05 completos em código**
 
 ---
 
@@ -156,6 +156,27 @@
 > falha do prelaunch" do critério de aceite original move para T-601 (linha do `ROADMAP.md`
 > atualizada), o primeiro lugar que vai ter uma sessão de verdade para cancelar. **5 novos testes,
 > todos contra PostgreSQL real. 116 testes automatizados no total.**
+>
+> **T-505 concluída — e um bug de produção real (não só de teste) encontrado rodando a aplicação
+> real, não apenas lendo o código.** Corpo malformado em `POST /v1/auth/session` devolvia o
+> **stack trace .NET completo, com caminho de arquivo-fonte, no corpo da resposta** — violação
+> direta de RNF-043. Como `IIdentityProvider` só existe sob `Development` (nenhuma implementação
+> real, bloqueado por E-01), **a instância real do dogfood roda em Development e vazava o mesmo
+> stack trace** — não era só um artefato do ambiente de teste. Corrigido com
+> `GlobalExceptionHandler` (`IExceptionHandler`, suprime a página de exceção automática do ASP.NET
+> Core): `BadHttpRequestException` → `400 MALFORMED_REQUEST`; qualquer outra exceção →
+> `500 INTERNAL_ERROR`; a exceção real vai só para o log estruturado, correlacionada pelo mesmo
+> `correlationId` que o chamador recebe. Outros três achados na mesma varredura: token
+> ausente/inválido em qualquer rota autenticada devolvia `401` sem corpo (faltava
+> `SESSION_EXPIRED`, já documentado em `API.md` §9 — corrigido via `JwtBearerEvents.OnChallenge`);
+> `GET /v1/applications/{id}/icon` devolvia `404` sem `appbridgeCode` (`CatalogProblems`, nova
+> classe); `LaunchProblems` usava um código (`INVALID_PURPOSE`) que **não existe em nenhum lugar do
+> catálogo aprovado** — corrigido para reusar `MALFORMED_REQUEST`, que já cobre exatamente essa
+> situação. Códigos do catálogo deliberadamente fora do MVP-0 (não esquecidos): `PROVIDER_ROLE_REQUIRED`,
+> `QUOTA_EXHAUSTED`, `RETENTION_BELOW_MINIMUM`, `EXCEPTION_REASON_REQUIRED`, `RATE_LIMITED` (MVP-1
+> ou sem infraestrutura) e `DIRECTORY_UNAVAILABLE` (exigiria um `IIdentityProvider` real que não
+> existe). **8 testes novos/fortalecidos. 120 testes automatizados no total. Com T-505, E-05 ·
+> Lançamento está completo.**
 
 
 ## 2. Entregáveis da fase de design — ✅ concluída
@@ -214,7 +235,8 @@ significa que o código espera.
 | ~~—~~ | ~~**`ISessionBackend`/`RdsSessionBackend`**~~ | T-503 | **Concluído em 2026-08-13 (S010)** — 101 testes no total; sem fake, escopo é leitura de dados próprios, não RDS real |
 | ~~—~~ | ~~**`POST /v1/launches`**~~ | T-504 | **Concluído em 2026-08-13 (S010)** — 113 testes no total; PD-04 resolvida |
 | ~~—~~ | ~~**`CancelSessionAsync` em `ISessionBackend`**~~ | T-506 | **Concluído em 2026-08-13 (S010)** — 116 testes no total; wiring no caminho de falha do prelaunch move para T-601 (ver §1) |
-| **—** | **T-505** (catálogo de erros) é a próxima de E-05; E-05 fica completo depois dela | E-05 | Sem dependência pendente |
+| ~~—~~ | ~~**Catálogo de erros com códigos estáveis**~~ | T-505 | **Concluído em 2026-08-13 (S010)** — 120 testes no total; achou e corrigiu vazamento de stack trace (RNF-043), reachável na instância real (ver §1). **E-05 completo.** |
+| **—** | **E-06** (`SessionRegistry`, `SessionReconciler`) é o próximo épico | E-06 | T-601 carrega a segunda metade do critério de aceite de T-506 (ver §1) |
 
 **Decisões que ainda cabem a Frederico, em paralelo:** B-009 (subconjunto do MVP-1 exigido pelo
 piloto), B-006 (PS-07, cofre) e B-007 (PS-03, encadeamento da trilha).
@@ -337,7 +359,7 @@ se faz com ADR novo que substitui o anterior.
 | R-030 | **O MVP-0a real pode ser maior que qualquer das duas estimativas.** A linha B estimou 96 pts **sem** infraestrutura; a linha A, ~95 pts **com** ela. Somado o que cada uma cobre, aproxima-se de **130 pts** — contra a data de out/2026 do ADR-0013 | **Alta** | Aberto — reavaliar M2a |
 | R-031 | O caminho de falha do prelaunch é o menos exercitado do sistema e o que mais deixa estado inconsistente — foi onde o Gap 2 se escondeu | Média | **Parcialmente mitigado** — `CancelSessionAsync` existe e está testado (T-506); o teste que **força** uma falha de prelaunch real após criação de sessão só é possível quando T-601 introduzir a criação síncrona de `Session` — permanece aberto até lá |
 | R-029 | **Dois gaps confirmados na documentação aprovada:** `purpose` existe em `API.md` e não no modelo de dados (metering contaria prelaunch como uso real); `ISessionBackend` sem operação de cancelamento (prelaunch falho deixa sessão zumbi). | **Média-alta** | **`purpose` corrigido e implementado** (T-207, `MODELO-DE-DADOS.md` §7.1). **`CancelSessionAsync` construído e testado (T-506)**, mas seu wiring no caminho de falha do prelaunch depende de T-601 (criação de sessão ainda não existe em nenhum código) — risco permanece parcialmente aberto até T-601 |
-| R-032 | **`DevIdentityProvider` (ADR-0017) autentica sem verificação real.** Existe só para viabilizar `dotnet run` local nesta fase — se vazar para fora de `Development`, autentica qualquer requisição | **Alta, contida** | Aberto — registrado só sob `IHostEnvironment.IsDevelopment()`; revisão de código obrigatória antes de qualquer deploy real, mesma classe de cuidado de um `IgnoreQueryFilters()` mal colocado (ADR-0004 item 7) |
+| R-032 | **`DevIdentityProvider` (ADR-0017) autentica sem verificação real.** Existe só para viabilizar `dotnet run` local nesta fase — se vazar para fora de `Development`, autentica qualquer requisição | **Alta, contida** | Aberto — registrado só sob `IHostEnvironment.IsDevelopment()`; revisão de código obrigatória antes de qualquer deploy real, mesma classe de cuidado de um `IgnoreQueryFilters()` mal colocado (ADR-0004 item 7). **T-505 confirmou o risco concreto de "roda em Development de verdade"**: a página de exceção automática do ASP.NET Core vazava stack trace completo (RNF-043) na instância real do dogfood, não só em teste — corrigida (`GlobalExceptionHandler`), mas o achado mostra que "só roda em Development" não é uma frase inócua neste projeto |
 | R-025 | **O MVP-1 é o novo gargalo:** ~3 meses entre o fim do dogfood (jan/2027) e o piloto (abr/2027) para os épicos E-13 a E-18, que provavelmente não cabem | **Alta** | Aberto — B-009 |
 | R-006 | Execução solo de quatro componentes com MVP-0 previsto em ~2 meses | Alta | Aberto |
 | R-007 | O MVP-0 acumula 34 RFs "Must" (RF-001..RF-040 sem os Should/Could) para ~2 meses de execução solo. Se algo tiver de sair, os candidatos naturais são RF-016, RF-026, RF-032, RF-033, RF-034 e RF-040 — todos Should/Could, nenhum Must. Corte de Must exige ADR | Alta | Aberto — decisão de escopo de Frederico |

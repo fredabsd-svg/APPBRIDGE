@@ -96,8 +96,32 @@ builder.Services
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSigningKey)),
         };
+
+        // T-505 (API.md §9): without this, a missing/expired/invalid bearer token on any
+        // [Authorize]-gated route (GET /v1/applications, POST /v1/launches, ...) ends the pipeline
+        // with a bare 401 and no body — the caller can't tell "token expired" from "never
+        // authenticated" from any other reason. JwtBearerEvents runs before MVC/minimal API error
+        // handling even looks at the request, so this, not GlobalExceptionHandler, is where
+        // SESSION_EXPIRED has to be written.
+        options.Events = new JwtBearerEvents
+        {
+            OnChallenge = async context =>
+            {
+                context.HandleResponse();
+                var correlationId = context.HttpContext.Items.TryGetValue(CorrelationIdMiddleware.HeaderName, out var value)
+                    && value is string resolvedCorrelationId
+                        ? resolvedCorrelationId
+                        : Guid.NewGuid().ToString();
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                await context.Response.WriteAsJsonAsync(
+                    GlobalProblems.SessionExpired(context.Request.Path, correlationId));
+            },
+        };
     });
 builder.Services.AddAuthorization();
+
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
 
 // ADR-0017 §5: no real Entra ID/AD DS integration exists yet (E-01 has no hardware). Registered
 // only under Development — outside it, IIdentityProvider has no implementation at all, so DI
@@ -122,6 +146,11 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseMiddleware<CorrelationIdMiddleware>();
+
+// After CorrelationIdMiddleware (so GlobalExceptionHandler can read the id it set) and before
+// everything else (so it wraps every exception downstream, including JSON body-binding failures
+// inside endpoint invocation and anything Authentication/Authorization itself might throw).
+app.UseExceptionHandler();
 
 app.UseAuthentication();
 app.UseMiddleware<TenantResolutionMiddleware>();
