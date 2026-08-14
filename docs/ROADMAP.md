@@ -890,7 +890,7 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 | ID | Tarefa | Critério de aceite | Est. |
 |----|--------|--------------------|------|
 | ~~T-601~~ | ✅ `SessionRegistry` — início, reutilização e vínculo com o lançamento | Segundo aplicativo reutiliza a sessão (RF-024) | 5 |
-| T-602 | `SessionReconciler` contra o Connection Broker, com `reconciled_missing` e `stale_expired`; **chama `CancelSessionAsync` (T-506) quando a reconciliação descobre uma sessão que não existe mais no Connection Broker — a segunda metade do Gap 2, reatribuída de T-601 (ver nota de T-601 abaixo)** | Sessão encerrada fora do AppBridge é fechada em até um ciclo; **valida PRE-23** (R-009); **e**: uma sessão que `SessionRegistry` registrou mas que o `mstsc` nunca chegou a estabelecer de verdade é limpa por reconciliação, não deixada contando licença (ADR-0016, Gap 2, segunda metade) | 8 |
+| ~~T-602~~ | ✅ `SessionReconciler` — **apenas a defesa `stale_expired`** (inatividade); `reconciled_missing` (consulta ao Connection Broker) fica para o MVP-1, por decisão já tomada em ADR-0006, não por limitação desta sandbox (ver nota abaixo) | Sessão sem `LastSeenAt` recente é fechada em até um ciclo (`stale_expired`) — a metade de PRE-23/R-009 que não depende do Connection Broker; a metade `reconciled_missing` permanece aberta até o MVP-1 | 8 |
 | T-603 | `GET /sessions/me` | Launcher exibe sessões ativas | 3 |
 
 > **T-601 concluída em 2026-08-13 (S010) — e uma segunda correção sobre a nota que a própria sessão
@@ -957,6 +957,70 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 > única linha em `session`, dois `Launch.session_id` apontando para ela. **128 testes automatizados
 > no total** (57 Api + 71 Infrastructure), todos passando. Nenhum bug de produção encontrado — a
 > única correção desta tarefa foi, de novo, de escopo, feita antes de escrever código.
+
+> **T-602 concluída em 2026-08-14 (S010) — só metade do que a linha do backlog descrevia, por uma
+> razão diferente de qualquer correção anterior desta sessão: não é a sandbox que bloqueia, é um ADR
+> já aceito.**
+>
+> "`SessionReconciler` contra o Connection Broker, com `reconciled_missing` e `stale_expired`" tem
+> duas defesas de naturezas diferentes. `stale_expired` só lê `Session.LastSeenAt`, uma coluna que
+> este código já possui — nenhuma dependência de RDS, nada que ADR-0006 toque. `reconciled_missing`
+> precisa consultar o Connection Broker de verdade para descobrir sessões que ele não lista mais —
+> e **ADR-0006 já decidiu, com Frederico, que essa consulta pertence ao MVP-1**: "Essa consulta
+> passa a ser parte do escopo do MVP-1 e deve ficar atrás da interface de backend de sessão"; a
+> própria tabela de alternativas do ADR rejeitou explicitamente antecipar isso para o MVP-0 por
+> risco de calendário ("já concentra 34 requisitos Must em ~2 meses"). Diferente de T-502
+> (`rdpsign.exe` real não existe nesta sandbox, mas *deveria* existir no MVP-0 — daí "interface +
+> fake"), aqui a peça que falta **não deveria existir ainda**, por decisão já tomada. Construir
+> `ListActiveSessionsAsync` agora, mesmo atrás de um fake, seria decisão de arquitetura sem ADR
+> (RP-07) — silenciosamente sobrepondo um corte de fase que ADR-0006 já fixou (RA-05: ADR aceito é
+> imutável, uma mudança de fase pediria um ADR novo que o substituísse, não código).
+>
+> **Achado por auditoria, não por acaso**: `ARQUITETURA.md` §4.2 ainda listava
+> `ListActiveSessionsAsync` como "MVP-0 · RF-038, RF-062" — RF-062 foi movido para MVP-1 por
+> ADR-0006 (2026-08-08) e esse documento nunca foi atualizado para refletir isso. Violação de RA-06
+> ("documento que deixou de refletir decisão registrada"), corrigida aqui: a linha agora diz
+> "MVP-1 · RF-062, ADR-0006" e explica que RF-038 continua MVP-0 por outro caminho (`stale_expired`,
+> que não usa essa operação).
+>
+> **Implementação (`stale_expired`)**: `ISessionReconciler`/`SessionReconciler`
+> (`AppBridge.ControlPlane.Infrastructure/Sessions/`) — varre `Session` de **todos os tenants**
+> (`IgnoreQueryFilters()`, mesma justificativa explícita de `AuthEndpoints.FindRefreshTokenAsync`,
+> ADR-0004 item 7: uma varredura em segundo plano não tem um tenant ambiente) buscando sessões
+> ativas com `LastSeenAt` mais antigo que a janela configurada, e chama
+> `ISessionBackend.CancelSessionAsync(id, StaleExpired)` (T-506 — primeiro chamador real) para cada
+> uma, reatribuindo o `TenantContext` compartilhado a cada sessão (o mesmo `DbContext`/`TenantContext`
+> que a busca usa, para o filtro por tenant de `CancelSessionAsync` encontrar a linha certa).
+> `SessionReconciliationHostedService` (`Api/BackgroundServices/`) roda isso a cada 5 minutos
+> (`PREMISSA:` PRE-33) — sem isso, um reconciliador que ninguém chama não fecha nada; uma exceção
+> num ciclo não derruba os próximos.
+>
+> **`PREMISSA:` janela de inatividade de 12 h** (PRE-32) — deliberadamente grosseira: não existe
+> ainda nenhum heartbeat real (`LastSeenAt` só avança quando `SessionRegistry`, T-601, reutiliza uma
+> sessão num segundo lançamento), então um usuário que abre um único aplicativo pela manhã e
+> trabalha nele o dia todo nunca atualiza `LastSeenAt` de novo — uma janela mais curta fecharia
+> sessões genuinamente em uso. Em MVP-0a isso tem baixo custo real: RF-064 (bloqueio por teto de
+> licença), a única consequência visível ao usuário de uma contagem errada, é MVP-1 (ADR-0006) — o
+> preço de errar aqui hoje é impreciso na trilha/no reaproveitamento de sessão de T-601, não
+> trabalho bloqueado.
+>
+> **5 novos testes** em `SessionReconcilerTests.cs`, PostgreSQL real, multi-tenant de propósito
+> (primeiro teste desta sessão a varrer mais de um tenant numa única chamada): fecha sessão parada
+> há mais que a janela; não fecha sessão vista recentemente; não toca sessão já encerrada (não
+> sobrescreve `EndReason`); varre duas sessões paradas em dois tenants diferentes na mesma chamada
+> sem misturar dados entre eles; nenhuma sessão parada devolve zero sem alterar nada. **Dois bugs
+> de teste pegos rodando contra PostgreSQL real** (nenhum de produção): (1) comparar
+> `DateTimeOffset` por igualdade exata depois de um round-trip por `timestamptz` falha por
+> diferença de nanosegundos — corrigido com a sobrecarga de tolerância do xUnit; (2) o cenário
+> multi-tenant original tentava duas sessões ativas para o mesmo usuário no mesmo host — violava o
+> próprio índice único que T-601 criou (`ix_session_active_per_user`), prova de que o índice
+> funciona; corrigido usando um segundo usuário para a sessão "não deve fechar".
+>
+> **Verificado subindo a aplicação real e esperando um ciclo de verdade** (não só o boot): sessão
+> semeada via `psql` com `last_seen_at` de 20 h atrás; após ~5 minutos, o log estruturado registrou
+> "Session reconciliation closed 1 stale session(s)" e `psql` confirmou `ended_at`/`end_reason`
+> corretos na linha. **133 testes automatizados no total** (57 Api + 76 Infrastructure), todos
+> passando.
 
 ### E-07 · Trilha e retenção — 13 pts
 

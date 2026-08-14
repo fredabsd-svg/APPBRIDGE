@@ -6,6 +6,23 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Adicionado — `SessionReconciler`, defesa `stale_expired` (T-602, S010)
+- `ISessionReconciler`/`SessionReconciler` (`Infrastructure/Sessions/`) — fecha sessões ativas cujo
+  `LastSeenAt` está mais antigo que a janela configurada, chamando `ISessionBackend.CancelSessionAsync`
+  (T-506) com `SessionEndReason.StaleExpired`. Varre todos os tenants numa só chamada
+  (`IgnoreQueryFilters()`, ADR-0004 item 7) — uma varredura em segundo plano não tem tenant ambiente.
+- `SessionReconciliationHostedService` (`Api/BackgroundServices/`) roda a reconciliação a cada 5
+  minutos (`PREMISSA:` PRE-33); uma exceção num ciclo é registrada e não impede o próximo.
+- **`PREMISSA:`** janela de inatividade de 12 h (PRE-32) — sem heartbeat real ainda, uma janela mais
+  curta fecharia sessões genuinamente em uso; baixo custo em MVP-0a porque RF-064 (bloqueio por
+  teto de licença) é MVP-1.
+- **Escopo deliberadamente parcial**: a defesa `reconciled_missing` (consulta periódica ao
+  Connection Broker real) não foi construída. ADR-0006 já decidiu que essa consulta pertence ao
+  MVP-1 — construí-la agora, mesmo atrás de um fake, sobreporia um corte de fase que um ADR aceito
+  já fixou.
+- **Correção de documentação (RA-06)**: `ARQUITETURA.md` §4.2 marcava `ListActiveSessionsAsync`
+  como "MVP-0", desatualizado desde que ADR-0006 moveu RF-062 para MVP-1; corrigido.
+
 ### Adicionado — `SessionRegistry` (T-601, S010)
 - `ISessionRegistry`/`SessionRegistry` (`Infrastructure/Sessions/`) — reutiliza a sessão ativa do
   usuário no mesmo host (RF-024) ou registra uma nova, sem chamar `SaveChangesAsync` diretamente:

@@ -200,6 +200,27 @@
 > do mesmo usuário no mesmo host numa corrida entre lançamentos simultâneos. **Verificado subindo a
 > aplicação real**: duas requisições `POST /v1/launches` seguidas devolveram `sessionReused: false`
 > e depois `true`, confirmado por `psql`. **8 novos testes. 128 testes automatizados no total.**
+>
+> **T-602 concluída — só metade do que o `ROADMAP.md` descrevia, e desta vez o bloqueio é um ADR
+> aceito, não a sandbox.** `SessionReconciler` tem duas defesas: `stale_expired` (lê só
+> `Session.LastSeenAt`, sem dependência de RDS) e `reconciled_missing` (precisa consultar o
+> Connection Broker de verdade). **ADR-0006 já decidiu que essa consulta pertence ao MVP-1** — a
+> própria tabela de alternativas do ADR rejeitou antecipá-la para o MVP-0 por risco de calendário.
+> Construir mesmo que atrás de um fake (o padrão de T-502) seria decisão de arquitetura sem ADR
+> (RP-07) sobrepondo um corte de fase já fixado (RA-05). Construí só `stale_expired` — real, testado
+> contra PostgreSQL, com um `BackgroundService` rodando a cada 5 min (`PREMISSA:` PRE-33) chamando
+> `ISessionBackend.CancelSessionAsync` (T-506, primeiro chamador real) via varredura cross-tenant
+> (`IgnoreQueryFilters()`, mesma razão de `AuthEndpoints.FindRefreshTokenAsync`). `PREMISSA:` janela
+> de inatividade de 12h (PRE-32) — sem heartbeat real ainda, uma janela mais curta fecharia sessões
+> genuinamente em uso; baixo custo em MVP-0a porque RF-064 (bloqueio por licença) é MVP-1.
+> **Achado de auditoria**: `ARQUITETURA.md` §4.2 ainda marcava `ListActiveSessionsAsync` como
+> "MVP-0" — RF-062 foi movido para MVP-1 por ADR-0006 e o documento nunca foi corrigido (violação de
+> RA-06), corrigido agora. **2 bugs de teste pegos contra PostgreSQL real** (nenhum de produção):
+> comparação de `DateTimeOffset` sem tolerância de precisão de `timestamptz`; e um cenário de teste
+> que violava o próprio índice único de T-601 (prova de que o índice funciona). **Verificado
+> subindo a aplicação real e esperando um ciclo de verdade** (~5 min, não só o boot): sessão
+> semeada com 20h de inatividade foi fechada pelo `BackgroundService`, confirmado por log
+> estruturado e `psql`. **5 novos testes. 133 testes automatizados no total.**
 
 
 ## 2. Entregáveis da fase de design — ✅ concluída
@@ -260,7 +281,8 @@ significa que o código espera.
 | ~~—~~ | ~~**`CancelSessionAsync` em `ISessionBackend`**~~ | T-506 | **Concluído em 2026-08-13 (S010)** — 116 testes no total; wiring no caminho de falha do prelaunch reatribuído a T-602 (ver §1) |
 | ~~—~~ | ~~**Catálogo de erros com códigos estáveis**~~ | T-505 | **Concluído em 2026-08-13 (S010)** — 120 testes no total; achou e corrigiu vazamento de stack trace (RNF-043), reachável na instância real (ver §1). **E-05 completo.** |
 | ~~—~~ | ~~**`SessionRegistry`**~~ | T-601 | **Concluído em 2026-08-13 (S010)** — 128 testes no total; RF-024 implementado; wiring de `CancelSessionAsync` move de T-601 para T-602 (ver §1) |
-| **—** | **T-602** (`SessionReconciler`) é a próxima de E-06 | E-06 | Carrega a chamada de `CancelSessionAsync` (T-506) reatribuída de T-601 |
+| ~~—~~ | ~~**`SessionReconciler` (`stale_expired`)**~~ | T-602 | **Concluído em 2026-08-14 (S010)** — 133 testes no total; `reconciled_missing` (Connection Broker) permanece MVP-1 por ADR-0006, não construído (ver §1) |
+| **—** | **T-603** (`GET /sessions/me`) é a próxima de E-06; encerra o épico | E-06 | Sem dependência pendente |
 
 **Decisões que ainda cabem a Frederico, em paralelo:** B-009 (subconjunto do MVP-1 exigido pelo
 piloto), B-006 (PS-07, cofre) e B-007 (PS-03, encadeamento da trilha).
@@ -351,7 +373,9 @@ se faz com ADR novo que substitui o anterior.
 | PRE-26 | Dedicação de 40% a 60% do tempo útil ao projeto | ROADMAP §4 | Frederico |
 | PRE-29 | TTL do `accessToken`: 15 minutos | ADR-0017 | medição no dogfood, mesma natureza de PRE-07 |
 | PRE-30 | TTL do `refreshToken`: 30 dias | ADR-0017 | medição no dogfood |
-| PRE-31 | `Session.BackendSessionId` de uma sessão nova recebe um placeholder (`"pending:{guid}"`) até `SessionReconciler` (T-602) descobrir o identificador real do Connection Broker | T-601 | quando T-602 existir |
+| PRE-31 | `Session.BackendSessionId` de uma sessão nova recebe um placeholder (`"pending:{guid}"`) até algo descobrir o identificador real do Connection Broker | T-601 | quando a defesa `reconciled_missing` existir — MVP-1, ADR-0006 (T-602 só implementou `stale_expired`) |
+| PRE-32 | Janela de inatividade de `stale_expired`: 12 h | T-602 | medição no dogfood, mesma natureza de PRE-22 |
+| PRE-33 | Intervalo do `SessionReconciliationHostedService`: 5 min | T-602 | medição no dogfood |
 
 ## 8. Riscos registrados
 
@@ -362,7 +386,7 @@ se faz com ADR novo que substitui o anterior.
 | R-003 | SPLA/RDS SAL como custo fixo pode inviabilizar PRE-05 | Alta | Aberto — mitigação em T-003 |
 | R-004 | Fosso só chega em V2/V3; MVP-0 e MVP-1 não se distinguem de um RDS bem configurado | Alta | **Mitigado parcialmente por ADR-0006** — metering mínimo antecipado para MVP-1. MVP-0 segue sem diferencial, por decisão |
 | R-005 | DC + RD Session Host na mesma máquina obriga logon local de usuários finais no controlador de domínio | Alta | **Fechado por ADR-0002** — VMs separadas; virou RNF-007 |
-| R-009 | Contagem de licenças incorreta é pior que contagem nenhuma: sem detecção confiável de fim de sessão, o contador infla e o AppBridge passa a impedir trabalho legítimo | Alta | Aberto — mitigações obrigatórias definidas em ADR-0006 |
+| R-009 | Contagem de licenças incorreta é pior que contagem nenhuma: sem detecção confiável de fim de sessão, o contador infla e o AppBridge passa a impedir trabalho legítimo | Alta | **Parcialmente mitigado em MVP-0a**: `stale_expired` (T-602) fecha sessões inativas há mais de 12h; `reconciled_missing` (a defesa contra sessão que some do Connection Broker sem aviso) é MVP-1 (ADR-0006) — e o próprio risco de contagem *bloquear* trabalho é adiado junto, já que RF-064 (bloqueio por teto) também é MVP-1 |
 | R-010 | A rede privada em malha é confortável demais e pode adiar o RD Gateway indefinidamente, levando o piloto comercial a chegar sem caminho de acesso vendável | Média-alta | Aberto — revisão do ADR-0003 é pré-requisito do piloto |
 | R-011 | Área de transferência liberada (ADR-0008) é caminho de exfiltração sem rastro. Aceito no dogfood, onde o dado é do próprio escritório; **muda de natureza no Caminho B**, com dado de terceiros | Média-alta | Aberto — revisão obrigatória antes do piloto; deve constar em `SEGURANCA.md` |
 | R-012 | Auditoria bloqueante (ADR-0007) transforma disco cheio em indisponibilidade de novos lançamentos | Média | Aberto — exige alerta de espaço em disco e expurgo funcionando desde o MVP-0 |
@@ -370,7 +394,7 @@ se faz com ADR novo que substitui o anterior.
 | R-014 | **Sem RF-008 no MVP-0, revogar acesso não encerra sessão aberta.** Demissão exige desabilitar a conta no AD e encerrar a sessão manualmente no host | **Alta** | Aberto — precisa constar no roteiro operacional do MVP-0 |
 | R-015 | O prelaunch depende de comportamento de tempo de logoff do RDS ainda não medido; dele depende RNF-027 e a evidência de VP-02 | Alta | Aberto — T-005 |
 | R-016 | O Control Plane não bloqueia trabalho em andamento, mas bloqueia começar a trabalhar — e o pico de início é às 8h | Média-alta | Aberto — reforça RNF-033 e RNF-040 |
-| R-017 | `SessionReconciler` é a única defesa contra contagem inflada de licença antes do Agent | Média | Aberto — ligado a R-009 |
+| R-017 | `SessionReconciler` é a única defesa contra contagem inflada de licença antes do Agent | Média | **Metade construída** (`stale_expired`, T-602); a metade `reconciled_missing` fica para o MVP-1 (ADR-0006) — ligado a R-009 |
 | R-018 | A portabilidade prometida por RNF-035 é hipótese até existir uma segunda implementação de `ISessionBackend` que a prove | Média | Aberto — aceito conscientemente |
 | R-019 | O cabeçalho `X-AppBridge-Acting-Tenant` é o ponto mais sensível da API: falha na verificação do papel transforma o mecanismo de suporte multiempresa em porta de travessia de tenant | **Alta** | Aberto — exige teste dedicado de negativa e revisão de código específica (ADR-0012, V-03) |
 | R-020 | **Nada impede tecnicamente o provedor de assinar com o certificado A1 de um cliente** (AM-33). A proteção é contratual e de detecção, não de prevenção — e o DIF-01 é vendido como diferencial | **Crítica** | Aberto — B-006 / PS-07, antes de o cofre ir a produção |
@@ -382,8 +406,8 @@ se faz com ADR novo que substitui o anterior.
 | R-027 | O backlog paralelo começava pelo código, sem issue para o épico E-01 | Alta | **Mitigado em 2026-08-10** — issues #35 a #39 criados; #8 marcado como bloqueado por #37 |
 | R-028 | Issue #5 reintroduziria material de chave em arquivo | Alta | **Fechado em 2026-08-10** — issue corrigido |
 | R-030 | **O MVP-0a real pode ser maior que qualquer das duas estimativas.** A linha B estimou 96 pts **sem** infraestrutura; a linha A, ~95 pts **com** ela. Somado o que cada uma cobre, aproxima-se de **130 pts** — contra a data de out/2026 do ADR-0013 | **Alta** | Aberto — reavaliar M2a |
-| R-031 | O caminho de falha do prelaunch é o menos exercitado do sistema e o que mais deixa estado inconsistente — foi onde o Gap 2 se escondeu | Média | **Reavaliado em T-601**: não é mais "um teste que força uma falha síncrona" — modelar a transação de `SessionRegistry` mostrou que não existe janela síncrona de falha nesse caminho (ver `ROADMAP.md`, nota de T-601). O risco real é assíncrono (sessão registrada, `mstsc` nunca a estabelece) e só `SessionReconciler` (T-602) pode fechá-lo — permanece aberto até lá, com escopo agora corretamente entendido |
-| R-029 | **Dois gaps confirmados na documentação aprovada:** `purpose` existe em `API.md` e não no modelo de dados (metering contaria prelaunch como uso real); `ISessionBackend` sem operação de cancelamento (prelaunch falho deixa sessão zumbi). | **Média-alta** | **`purpose` corrigido e implementado** (T-207, `MODELO-DE-DADOS.md` §7.1). **`CancelSessionAsync` construído e testado (T-506); `SessionRegistry` construído e testado (T-601)** — a peça que faltava para o segundo gap ser fechável é `SessionReconciler` (T-602), o único componente que pode observar de verdade uma sessão nunca estabelecida no RDS |
+| R-031 | O caminho de falha do prelaunch é o menos exercitado do sistema e o que mais deixa estado inconsistente — foi onde o Gap 2 se escondeu | Média | **Reavaliado em T-601, parcialmente fechado em T-602**: não existe janela síncrona de falha no caminho de lançamento (T-601). O risco assíncrono real (sessão registrada, `mstsc` nunca a estabelece) tem agora uma defesa parcial — `stale_expired` (T-602) fecha essas sessões em até 12h; a defesa imediata (`reconciled_missing`, que fecharia em minutos via consulta ao Connection Broker) é MVP-1 (ADR-0006) |
+| R-029 | **Dois gaps confirmados na documentação aprovada:** `purpose` existe em `API.md` e não no modelo de dados (metering contaria prelaunch como uso real); `ISessionBackend` sem operação de cancelamento (prelaunch falho deixa sessão zumbi). | **Média-alta** | **`purpose` corrigido e implementado** (T-207). **`CancelSessionAsync` (T-506), `SessionRegistry` (T-601) e `SessionReconciler`/`stale_expired` (T-602) construídos e testados** — o segundo gap está fechado para MVP-0a nos termos que ADR-0006 já definiu; a defesa mais rápida (`reconciled_missing`) é MVP-1 por decisão própria desse ADR, não uma lacuna esquecida |
 | R-032 | **`DevIdentityProvider` (ADR-0017) autentica sem verificação real.** Existe só para viabilizar `dotnet run` local nesta fase — se vazar para fora de `Development`, autentica qualquer requisição | **Alta, contida** | Aberto — registrado só sob `IHostEnvironment.IsDevelopment()`; revisão de código obrigatória antes de qualquer deploy real, mesma classe de cuidado de um `IgnoreQueryFilters()` mal colocado (ADR-0004 item 7). **T-505 confirmou o risco concreto de "roda em Development de verdade"**: a página de exceção automática do ASP.NET Core vazava stack trace completo (RNF-043) na instância real do dogfood, não só em teste — corrigida (`GlobalExceptionHandler`), mas o achado mostra que "só roda em Development" não é uma frase inócua neste projeto |
 | R-025 | **O MVP-1 é o novo gargalo:** ~3 meses entre o fim do dogfood (jan/2027) e o piloto (abr/2027) para os épicos E-13 a E-18, que provavelmente não cabem | **Alta** | Aberto — B-009 |
 | R-006 | Execução solo de quatro componentes com MVP-0 previsto em ~2 meses | Alta | Aberto |

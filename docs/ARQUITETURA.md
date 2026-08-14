@@ -247,7 +247,7 @@ RDS.**
 |----------|-----|------|
 | `ResolveHostAsync(tenant, user, app)` | Escolhe o host do tenant que atenderá o lançamento | MVP-0 · RF-074 |
 | `BuildConnectionDescriptorAsync(...)` | Produz os parâmetros de conexão que viram o `.rdp` | MVP-0 · RF-018 |
-| `ListActiveSessionsAsync(tenant)` | Fonte de verdade para reconciliação e metering | MVP-0 · RF-038, RF-062 |
+| `ListActiveSessionsAsync(tenant)` | Fonte de verdade para a reconciliação `reconciled_missing` (consulta ao Connection Broker) e para o metering | **MVP-1 · RF-062, ADR-0006** — corrigido em T-602 (S010); esta linha dizia "MVP-0" antes de ADR-0006 mover RF-062, e RA-06 exige refletir a mudança aqui, não só no ADR. RF-038 (início/fim de sessão) continua MVP-0, mas via `stale_expired` (T-602), que não usa esta operação |
 | `CancelSessionAsync(sessionId, reason)` | **Cancela sessão recém-criada cujo lançamento falhou** — sem ela, um prelaunch que falha depois de o RDS criar a sessão deixa uma sessão invisível contando licença (ADR-0016, Gap 2) | MVP-0a · R-009 |
 | `TerminateSessionAsync(sessionId)` | Encerramento forçado e revogação | MVP-1 · RF-008, RF-045 |
 | `PublishApplicationAsync(...)` | Publicação de aplicativo | V2 · RF-052 |

@@ -1,4 +1,5 @@
 using System.Text;
+using AppBridge.ControlPlane.Api.BackgroundServices;
 using AppBridge.ControlPlane.Api.Endpoints;
 using AppBridge.ControlPlane.Api.HealthChecks;
 using AppBridge.ControlPlane.Api.Identity;
@@ -72,6 +73,12 @@ builder.Services.AddSingleton<IRdpFileSigner>(new RdpSignExeSigner(rdpSignerOpti
 
 builder.Services.AddScoped<ISessionBackend, RdsSessionBackend>();
 builder.Services.AddScoped<ISessionRegistry, SessionRegistry>();
+
+// T-602: only the stale_expired defence (MODELO-DE-DADOS.md §6.2) — reconciled_missing needs a
+// live Connection Broker query, which ADR-0006 already placed in MVP-1, not here.
+builder.Services.AddSingleton(new SessionReconcilerOptions());
+builder.Services.AddScoped<ISessionReconciler, SessionReconciler>();
+builder.Services.AddHostedService<SessionReconciliationHostedService>();
 
 // PD-04 (API.md §11), resolved by T-504: in-process memory, not a table or distributed cache — see
 // IIdempotencyStore's own doc comment for why that's enough for MVP-0's single-instance topology.
