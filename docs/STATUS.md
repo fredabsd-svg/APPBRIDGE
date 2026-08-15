@@ -1,7 +1,7 @@
 # STATUS — AppBridge
 > Estado vivo do projeto. Atualizado ao fim de toda sessão (RA-02).
 
-**Última atualização:** 2026-08-13 · **Sessão atual:** S010 · **Fase:** implementação do MVP-0a — **E-02, E-03, E-04 e E-05 completos em código**
+**Última atualização:** 2026-08-15 · **Sessão atual:** S010 · **Fase:** implementação do MVP-0a — **E-02, E-03, E-04, E-05 e E-06 completos em código**
 
 ---
 
@@ -221,6 +221,18 @@
 > subindo a aplicação real e esperando um ciclo de verdade** (~5 min, não só o boot): sessão
 > semeada com 20h de inatividade foi fechada pelo `BackgroundService`, confirmado por log
 > estruturado e `psql`. **5 novos testes. 133 testes automatizados no total.**
+>
+> **T-603 concluída — `GET /sessions/me`, última tarefa de E-06, sem correção de escopo.** Devolve
+> as sessões ativas do usuário (`EndedAt IS NULL`), isolamento automático por tenant. `API.md` §4
+> não detalha o formato de resposta — desenhei o mínimo que "indicar estado e apoiar a reconexão"
+> pede: `id`, `startedAt`, `lastSeenAt`, `host.displayName` fixo (reaproveita `LaunchResponseHost`
+> de T-504, RNF-043). Sem `applicationId`: `Session` não registra qual aplicativo a originou — só
+> `Launch` faz — e inventar essa junção seria escopo que RF-024 não pediu. RF-027 (reconexão
+> automática) segue MVP-1; este endpoint só expõe o dado que essa funcionalidade vai consumir
+> depois. **7 novos testes**, incluindo um de ponta a ponta (`POST /v1/launches` real seguido de
+> `GET /v1/sessions/me` mostrando a sessão criada). **Verificado subindo a aplicação real**: lista
+> vazia antes do lançamento, sessão aparece depois. **140 testes automatizados no total** (64 Api +
+> 76 Infrastructure). **Com T-603, E-06 · Sessão e reconciliação está completo.**
 
 
 ## 2. Entregáveis da fase de design — ✅ concluída
@@ -282,7 +294,8 @@ significa que o código espera.
 | ~~—~~ | ~~**Catálogo de erros com códigos estáveis**~~ | T-505 | **Concluído em 2026-08-13 (S010)** — 120 testes no total; achou e corrigiu vazamento de stack trace (RNF-043), reachável na instância real (ver §1). **E-05 completo.** |
 | ~~—~~ | ~~**`SessionRegistry`**~~ | T-601 | **Concluído em 2026-08-13 (S010)** — 128 testes no total; RF-024 implementado; wiring de `CancelSessionAsync` move de T-601 para T-602 (ver §1) |
 | ~~—~~ | ~~**`SessionReconciler` (`stale_expired`)**~~ | T-602 | **Concluído em 2026-08-14 (S010)** — 133 testes no total; `reconciled_missing` (Connection Broker) permanece MVP-1 por ADR-0006, não construído (ver §1) |
-| **—** | **T-603** (`GET /sessions/me`) é a próxima de E-06; encerra o épico | E-06 | Sem dependência pendente |
+| ~~—~~ | ~~**`GET /v1/sessions/me`**~~ | T-603 | **Concluído em 2026-08-15 (S010)** — 140 testes no total. **E-06 completo.** |
+| **—** | **E-07** (Trilha e retenção) é o próximo épico | E-07 | Sem dependência pendente |
 
 **Decisões que ainda cabem a Frederico, em paralelo:** B-009 (subconjunto do MVP-1 exigido pelo
 piloto), B-006 (PS-07, cofre) e B-007 (PS-03, encadeamento da trilha).

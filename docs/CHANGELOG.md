@@ -6,6 +6,13 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Adicionado — `GET /v1/sessions/me` (T-603, S010)
+- `SessionsEndpoints.cs` — sessões ativas do usuário autenticado (`EndedAt IS NULL`), isolamento
+  automático por tenant. Resposta: `id`, `startedAt`, `lastSeenAt`, `host.displayName` fixo (RNF-043,
+  reaproveita `LaunchResponseHost` de T-504). Sem `applicationId` — `Session` não registra qual
+  aplicativo a originou.
+- **Com esta tarefa, E-06 · Sessão e reconciliação está completo** (T-601, T-602, T-603).
+
 ### Adicionado — `SessionReconciler`, defesa `stale_expired` (T-602, S010)
 - `ISessionReconciler`/`SessionReconciler` (`Infrastructure/Sessions/`) — fecha sessões ativas cujo
   `LastSeenAt` está mais antigo que a janela configurada, chamando `ISessionBackend.CancelSessionAsync`

@@ -891,7 +891,7 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 |----|--------|--------------------|------|
 | ~~T-601~~ | ✅ `SessionRegistry` — início, reutilização e vínculo com o lançamento | Segundo aplicativo reutiliza a sessão (RF-024) | 5 |
 | ~~T-602~~ | ✅ `SessionReconciler` — **apenas a defesa `stale_expired`** (inatividade); `reconciled_missing` (consulta ao Connection Broker) fica para o MVP-1, por decisão já tomada em ADR-0006, não por limitação desta sandbox (ver nota abaixo) | Sessão sem `LastSeenAt` recente é fechada em até um ciclo (`stale_expired`) — a metade de PRE-23/R-009 que não depende do Connection Broker; a metade `reconciled_missing` permanece aberta até o MVP-1 | 8 |
-| T-603 | `GET /sessions/me` | Launcher exibe sessões ativas | 3 |
+| ~~T-603~~ | ✅ `GET /sessions/me` | Launcher exibe sessões ativas | 3 |
 
 > **T-601 concluída em 2026-08-13 (S010) — e uma segunda correção sobre a nota que a própria sessão
 > deixou no fim de T-506, feita ao modelar a transação antes de escrever código, não depois.**
@@ -1021,6 +1021,36 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 > "Session reconciliation closed 1 stale session(s)" e `psql` confirmou `ended_at`/`end_reason`
 > corretos na linha. **133 testes automatizados no total** (57 Api + 76 Infrastructure), todos
 > passando.
+
+> **T-603 concluída em 2026-08-15 (S010) — última tarefa de E-06, sem correção de escopo desta
+> vez.** `GET /v1/sessions/me` (`SessionsEndpoints.cs`) devolve as sessões ativas do próprio
+> usuário — `EndedAt IS NULL`, isolamento automático por tenant (ADR-0004), sem parâmetro explícito
+> de usuário ou tenant, mesmo formato de `GetApplications` (T-402). `API.md` §4 não detalha o
+> formato de resposta (só "sessões ativas do próprio usuário, para o launcher indicar estado e
+> apoiar a reconexão") — desenhei o mínimo que essa frase pede: `id`, `startedAt`, `lastSeenAt` e
+> `host.displayName` fixo em `"Servidor de aplicativos"` (reaproveita `LaunchResponseHost` de
+> T-504, mesma razão RNF-043). **Sem `applicationId`**: `Session` não registra qual aplicativo a
+> originou (só `Launch` faz, via a FK que T-601 preenche) — inventar essa junção agora seria
+> escopo que RF-024 ("indicar estado") nunca pediu.
+>
+> RF-027 (reconexão automática após queda de rede) segue MVP-1 (`REQUISITOS.md`) — este endpoint só
+> expõe o dado que essa funcionalidade vai consumir depois, não implementa lógica de reconexão; o
+> cabeçalho "MVP-0 · RF-024, RF-027" de `API.md` não é uma inconsistência a corrigir, é o mesmo
+> tipo de relação que `GET /v1/applications`'s campo `available` já tem com um sinal de saúde que
+> ainda não existe.
+>
+> **7 novos testes** em `SessionsEndpointTests.cs`: sem token → `401 SESSION_EXPIRED`; sem sessão
+> ativa → lista vazia; sessão ativa aparece com os campos certos; sessão encerrada não aparece;
+> sessão de outro usuário não aparece; sessão de outro tenant não aparece (mesmo com
+> `ExternalSubject` idêntico entre os dois, prova de que o isolamento é por tenant, não por
+> identidade); e um teste de ponta a ponta — `POST /v1/launches` de verdade seguido de
+> `GET /v1/sessions/me` mostrando a sessão que ele criou, a primeira vez que os dois endpoints são
+> exercitados em sequência num único teste. **Verificado subindo a aplicação real**: `curl` antes
+> de qualquer lançamento devolveu `{"items":[]}`; depois de `POST /v1/launches` (201), a mesma
+> chamada devolveu a sessão recém-criada. **140 testes automatizados no total** (64 Api + 76
+> Infrastructure), todos passando. **Com T-603, E-06 · Sessão e reconciliação está completo** — as
+> 3 tarefas concluídas, com a defesa `reconciled_missing` formalmente adiada para o MVP-1 por
+> ADR-0006 (T-602).
 
 ### E-07 · Trilha e retenção — 13 pts
 
