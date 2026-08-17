@@ -6,6 +6,16 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Adicionado — trilha append-only, guard em `SaveChanges` (T-701, S010)
+- `AppBridgeDbContext.EnforceAppendOnly()` lança `AppendOnlyViolationException`
+  (`Infrastructure/Auditing/`, nova) antes de qualquer SQL rodar, se `Launch`, `AccessEvent` ou
+  `PurgeRun` estiver marcado `Modified`/`Deleted` no change tracker — RNF-019 ("a aplicação não
+  oferece caminho para alterar ou apagar evento individual").
+- O expurgo por retenção (T-703, ADR-0007) não é afetado: precisa usar `ExecuteDeleteAsync`/SQL em
+  lote, que nunca passa pelo change tracker — não há flag de bypass.
+- Escopo é a aplicação, não o banco (`SEGURANCA.md` AM-08/PS-02 já registram acesso direto ao banco
+  como risco residual aceito) — por isso um guard em `SaveChanges`, não `REVOKE` no PostgreSQL.
+
 ### Adicionado — `GET /v1/sessions/me` (T-603, S010)
 - `SessionsEndpoints.cs` — sessões ativas do usuário autenticado (`EndedAt IS NULL`), isolamento
   automático por tenant. Resposta: `id`, `startedAt`, `lastSeenAt`, `host.displayName` fixo (RNF-043,

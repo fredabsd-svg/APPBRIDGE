@@ -233,6 +233,23 @@
 > `GET /v1/sessions/me` mostrando a sessão criada). **Verificado subindo a aplicação real**: lista
 > vazia antes do lançamento, sessão aparece depois. **140 testes automatizados no total** (64 Api +
 > 76 Infrastructure). **Com T-603, E-06 · Sessão e reconciliação está completo.**
+>
+> **T-701 concluída — tabelas `launch`/`access_event` (e `purge_run`) append-only, sem correção de
+> escopo.** Metade do controle já existia desde T-204/T-205 (`AppendOnlyEntity` sem
+> `UpdatedAt`/`DeletedAt` — "a ausência é o controle"); faltava impedir que código de aplicação
+> carregasse uma linha já persistida, mudasse uma propriedade mutável e desse `SaveChanges` — o EF
+> emitiria `UPDATE`/`DELETE` sem reclamar. `AppBridgeDbContext.EnforceAppendOnly()` (mesmo padrão de
+> `StampAuditColumns`, T-205) lança `AppendOnlyViolationException` antes de qualquer SQL rodar, se
+> achar um `AppendOnlyEntity` em `Modified`/`Deleted` — cobre `Launch`, `AccessEvent` e `PurgeRun`
+> automaticamente, sem lista de tipos para manter. O expurgo de T-703 nunca vai passar por aqui,
+> por construção: retenção precisa usar `ExecuteDeleteAsync`/SQL em lote, que não passa pelo change
+> tracker — não há flag de bypass para esquecer de desligar depois. Escopo do RNF-019 é a
+> aplicação, não o banco (`SEGURANCA.md` AM-08 já registra acesso direto ao banco como risco
+> residual aceito, PS-02) — por isso um guard em `SaveChanges`, não `REVOKE` no PostgreSQL. **6
+> novos testes** contra PostgreSQL real (a prova é a linha no disco não mudar). **Verificado
+> subindo a aplicação real**: login grava `access_event` normalmente, guard não bloqueia inserção.
+> **146 testes automatizados no total** (64 Api + 82 Infrastructure). Nenhum bug de produção
+> encontrado — nada existente mutava uma linha de trilha já persistida.
 
 
 ## 2. Entregáveis da fase de design — ✅ concluída
@@ -295,7 +312,8 @@ significa que o código espera.
 | ~~—~~ | ~~**`SessionRegistry`**~~ | T-601 | **Concluído em 2026-08-13 (S010)** — 128 testes no total; RF-024 implementado; wiring de `CancelSessionAsync` move de T-601 para T-602 (ver §1) |
 | ~~—~~ | ~~**`SessionReconciler` (`stale_expired`)**~~ | T-602 | **Concluído em 2026-08-14 (S010)** — 133 testes no total; `reconciled_missing` (Connection Broker) permanece MVP-1 por ADR-0006, não construído (ver §1) |
 | ~~—~~ | ~~**`GET /v1/sessions/me`**~~ | T-603 | **Concluído em 2026-08-15 (S010)** — 140 testes no total. **E-06 completo.** |
-| **—** | **E-07** (Trilha e retenção) é o próximo épico | E-07 | Sem dependência pendente |
+| ~~—~~ | ~~**Tabelas append-only (`Launch`/`AccessEvent`/`PurgeRun`)**~~ | T-701 | **Concluído em 2026-08-15 (S010)** — 146 testes no total |
+| **—** | **T-702** (`GET /audit/*`) é a próxima de E-07 | E-07 | Sem dependência pendente |
 
 **Decisões que ainda cabem a Frederico, em paralelo:** B-009 (subconjunto do MVP-1 exigido pelo
 piloto), B-006 (PS-07, cofre) e B-007 (PS-03, encadeamento da trilha).

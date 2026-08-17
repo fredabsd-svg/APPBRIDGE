@@ -6,6 +6,7 @@ using AppBridge.ControlPlane.Domain.Sessions;
 using AppBridge.ControlPlane.Domain.Tenancy;
 using AppBridge.ControlPlane.Domain.Trail;
 using Microsoft.EntityFrameworkCore;
+using AppBridge.ControlPlane.Infrastructure.Auditing;
 using AppBridge.ControlPlane.Infrastructure.Conventions;
 using AppBridge.ControlPlane.Infrastructure.Tenancy;
 
@@ -60,14 +61,36 @@ public sealed class AppBridgeDbContext(DbContextOptions<AppBridgeDbContext> opti
     /// </summary>
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
+        EnforceAppendOnly();
         StampAuditColumns();
         return base.SaveChanges(acceptAllChangesOnSuccess);
     }
 
     public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
     {
+        EnforceAppendOnly();
         StampAuditColumns();
         return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    /// <summary>
+    /// T-701 (RNF-019): checked — and thrown, if violated — before any SQL runs, the same "fail
+    /// before the write, not after" shape <see cref="StampAuditColumns"/> already has for a
+    /// different column set. A trail row (<see cref="AppendOnlyEntity"/>) reaching this method in
+    /// <see cref="EntityState.Modified"/> or <see cref="EntityState.Deleted"/> means application
+    /// code tried to change history — the one thing RNF-019 forbids outright. Retention purge
+    /// (T-703) never appears here: it has to delete via a bulk operation
+    /// (<c>ExecuteDeleteAsync</c>/raw SQL), which doesn't route through the change tracker at all.
+    /// </summary>
+    private void EnforceAppendOnly()
+    {
+        foreach (var entry in ChangeTracker.Entries())
+        {
+            if (entry.Entity is AppendOnlyEntity && entry.State is EntityState.Modified or EntityState.Deleted)
+            {
+                throw new AppendOnlyViolationException(entry.Entity.GetType().Name, entry.State);
+            }
+        }
     }
 
     private void StampAuditColumns()

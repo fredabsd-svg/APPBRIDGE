@@ -1056,9 +1056,47 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 
 | ID | Tarefa | Critério de aceite | Est. |
 |----|--------|--------------------|------|
-| T-701 | Tabelas `launch` e `access_event` append-only | Sem caminho de `UPDATE`/`DELETE` na aplicação (RNF-019) | 5 |
+| ~~T-701~~ | ✅ Tabelas `launch` e `access_event` append-only | Sem caminho de `UPDATE`/`DELETE` na aplicação (RNF-019) | 5 |
 | T-702 | `GET /audit/launches` e `/audit/access-events` | Consulta com filtro e cursor (RF-040) | 3 |
 | T-703 | `RetentionWorker` + `purge_run` | Expurgo respeita o mínimo e **registra a si mesmo** (RNF-018, ADR-0007) | 5 |
+
+> **T-701 concluída em 2026-08-15 (S010) — sem correção de escopo.** RNF-019 já tinha metade do
+> controle desde T-204/T-205: `AppendOnlyEntity` (`Domain/Common/`) não carrega `UpdatedAt`,
+> `UpdatedBy` nem `DeletedAt` — "a ausência é o controle", como o próprio comentário da classe já
+> dizia. O que faltava era a outra metade: nada impedia código de aplicação de carregar um `Launch`
+> ou `AccessEvent` já persistido, mudar uma propriedade mutável (`Outcome`, `Result` etc. têm
+> `set`, só os timestamps são `init`) e chamar `SaveChangesAsync` — o EF Core emitiria um `UPDATE`
+> sem reclamar, e `context.Launches.Remove(...)` um `DELETE`.
+>
+> **Implementação**: `AppBridgeDbContext.EnforceAppendOnly()` (novo método privado, mesmo padrão de
+> `StampAuditColumns`, T-205) percorre `ChangeTracker.Entries()` a cada `SaveChanges`/
+> `SaveChangesAsync` e lança `AppendOnlyViolationException`
+> (`Infrastructure/Auditing/`, nova) se encontrar qualquer `AppendOnlyEntity` em
+> `EntityState.Modified` ou `EntityState.Deleted` — **antes** de qualquer SQL rodar, mesma
+> disciplina "falha antes da escrita" que a auditoria já tinha para outra coluna. Cobre `Launch`,
+> `AccessEvent` e `PurgeRun` (a tabela que T-703 vai popular) automaticamente, por herdarem de
+> `AppendOnlyEntity` — nenhuma lista de tipos para manter.
+>
+> **A única remoção legítima — expurgo por retenção (T-703, ADR-0007) — nunca aparece aqui, por
+> construção**: `ExecuteDeleteAsync`/SQL bruto são operações em lote que não passam pelo change
+> tracker, então não há flag de bypass para esquecer de desligar depois; T-703 simplesmente não usa
+> o caminho que este guard vigia. Nenhuma mudança em `AppendOnlyEntity` nem nas tabelas foi
+> necessária — só o guard em si.
+>
+> **Escopo do RNF-019 é a aplicação, não o banco** (`SEGURANCA.md` AM-08 já registra isso
+> explicitamente: "quem tiver acesso direto ao banco contorna" é risco residual aceito, PS-02) —
+> por isso um guard em `SaveChanges`, não um `REVOKE UPDATE/DELETE` a nível de PostgreSQL, é a
+> ferramenta certa aqui; nenhuma mudança de infraestrutura de banco foi cogitada.
+>
+> **6 novos testes** em `AppendOnlyEnforcementTests.cs`, PostgreSQL real (a prova é a linha no
+> disco não mudar, não só a exceção em memória): `UPDATE` e `DELETE` de `Launch`, `AccessEvent` e
+> `PurgeRun` lançam `AppendOnlyViolationException` e deixam a linha intacta; inserir uma linha nova
+> continua funcionando (sanity — todo outro teste do projeto que grava `Launch`/`AccessEvent` já
+> dependia implicitamente disso, agora está explícito). **Verificado subindo a aplicação real**:
+> `POST /v1/auth/session` gravou `access_event` normalmente — o guard não bloqueia inserções.
+> **146 testes automatizados no total** (64 Api + 82 Infrastructure), todos passando. Nenhum bug de
+> produção encontrado — nada no código existente mutava um `Launch`/`AccessEvent`/`PurgeRun` já
+> persistido, então o guard não quebrou nenhum caminho em uso.
 
 ### E-08 · Launcher — fundação — 26 pts
 
