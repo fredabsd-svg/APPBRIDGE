@@ -92,14 +92,17 @@ Identidade, tenant, papéis e políticas efetivas do usuário.
 
 ## 3. Catálogo
 
-### `GET /v1/applications` — MVP-0a · RF-011, RF-013, RF-015
+### `GET /v1/applications` — MVP-0a; revalidação MVP-0b (T-403) · RF-011, RF-013, RF-015
 
 Retorna **apenas** os aplicativos autorizados ao usuário. Aplicativo não autorizado não aparece, não
 é contado e não é referenciável (RF-011). A implementação atual filtra autorização e devolve
-`items`/`nextCursor`; ETag e paginação ainda não foram implementados (T-403).
+`items`/`nextCursor`. A representação inclui um `ETag` forte calculado sobre o JSON autorizado ao
+usuário, ordenado de forma estável. A resposta é privada e deve ser revalidada com
+`Cache-Control: private, no-cache`; `If-None-Match` aceita listas, comparação fraca e `*`. Quando
+houver correspondência, retorna `304 Not Modified`, sem corpo. Paginação continua pendente.
 
 ```jsonc
-// 200 OK   ETag: "cat-018f3a92"
+// 200 OK   ETag: "cat-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 {
   "items": [
     {
@@ -116,8 +119,8 @@ Retorna **apenas** os aplicativos autorizados ao usuário. Aplicativo não autor
 }
 ```
 
-Quando implementado, `If-None-Match` e catálogo inalterado responderão `304 Not Modified` sem corpo —
-a sincronização periódica de RF-015 custará quase nada.
+Uma sincronização com o mesmo conteúdo recebe `304 Not Modified` sem corpo, reduzindo o tráfego de
+RF-015. Mudanças no conteúdo autorizado produzem outro `ETag`.
 
 > `available: false` indica aplicativo temporariamente indisponível (host em manutenção). É diferente
 > de ausente: o atalho continua existindo e o usuário recebe explicação em vez de erro genérico.
@@ -452,13 +455,13 @@ RF-019 e RF-021 são internos ao `POST /launches`; RF-012 é seed, sem endpoint 
 | **PD-04** | Armazenamento das respostas de idempotência (memória, tabela ou cache) por 60 s | ✅ **Resolvida por ADR-0018** — tabela `launch_idempotency`, corpo removido após TTL e tombstone preservado |
 | **PD-05** | Limites concretos de taxa por endpoint (RNF-010) | Aberta — depende de medição (T-005) |
 
-### 12.1 Fatia de API implementada no MVP-0a
+### 12.1 Fatia de API implementada
 
 | Rota | Comportamento atual | Limite conhecido |
 |------|-------------------|------------------|
 | `GET /health` | Health check ASP.NET Core | Ainda não consulta dependências |
 | `POST /v1/auth/session` | Valida ID token OIDC, mapeia tenant e conta provisionados, grava `access_event` e emite JWT AppBridge | Sem refresh/logout; depende de Entra e provisionamento externo |
-| `GET /v1/applications` | Retorna só apps publicados com permissão vigente | Sem ETag, endpoint de ícone ou paginação |
+| `GET /v1/applications` | Retorna só apps publicados com permissão vigente e valida `ETag`/`If-None-Match` | Sem endpoint de ícone ou paginação |
 | `POST /v1/launches` | Autoriza novamente, reserva `Idempotency-Key` no PostgreSQL, monta e assina `.rdp`, grava trilha | Assinatura e RDS exigem Windows; precisa de certificado e host provisionados |
 
 Idempotência usa `(tenant_id, idempotency_key)`; repetição válida devolve o mesmo status/corpo por

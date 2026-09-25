@@ -57,6 +57,7 @@ public sealed class AuthorizationService(AppDbContext dbContext)
             .Where(application => application.Status == Domain.Enums.ApplicationStatus.Published
                 && authorizedIds.Contains(application.Id))
             .OrderBy(application => application.DisplayName)
+            .ThenBy(application => application.Id)
             .ToListAsync(cancellationToken);
     }
 }

@@ -204,6 +204,7 @@ app.MapPost("/v1/auth/session", async (
 app.MapGet("/v1/applications", async (
     ClaimsPrincipal principal,
     AuthorizationService authorization,
+    HttpContext context,
     CancellationToken cancellationToken) =>
 {
     if (!Guid.TryParse(principal.FindFirstValue("sub"), out var userAccountId))
@@ -212,20 +213,17 @@ app.MapGet("/v1/applications", async (
     }
 
     var applications = await authorization.GetApplicationsAsync(userAccountId, cancellationToken);
-    return Results.Ok(new
+    var representation = ApplicationCatalogRepresentation.Create(applications);
+    context.Response.Headers["ETag"] = representation.EntityTag;
+    context.Response.Headers["Cache-Control"] = "private, no-cache";
+    if (ApplicationCatalogRepresentation.MatchesIfNoneMatch(
+        context.Request.Headers.IfNoneMatch,
+        representation.EntityTag))
     {
-        items = applications.Select(application => new
-        {
-            id = application.Id,
-            displayName = application.DisplayName,
-            description = application.Description,
-            iconUrl = $"/v1/applications/{application.Id:D}/icon",
-            launchMode = application.LaunchMode == ApplicationLaunchMode.RemoteApp ? "remote_app" : "confined_desktop",
-            protocolUri = $"appbridge://launch/{application.Id:D}",
-            available = true
-        }),
-        nextCursor = (string?)null
-    });
+        return Results.StatusCode(StatusCodes.Status304NotModified);
+    }
+
+    return Results.Bytes(representation.Body, "application/json");
 }).RequireAuthorization();
 
 app.MapPost("/v1/launches", async (
