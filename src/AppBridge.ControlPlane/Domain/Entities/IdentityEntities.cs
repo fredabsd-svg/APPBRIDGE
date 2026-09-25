@@ -13,6 +13,27 @@ public sealed class UserAccount : TenantMutableEntity
     public DateTimeOffset? LastLoginAt { get; set; }
 }
 
+/// <summary>Grant persistente que sustenta access tokens curtos de uma estação.</summary>
+public sealed class AuthenticationSession : TenantMutableEntity
+{
+    public Guid UserAccountId { get; set; }
+    public string WorkstationName { get; set; } = string.Empty;
+    public DateTimeOffset LastUsedAt { get; set; }
+    public DateTimeOffset ExpiresAt { get; set; }
+    public DateTimeOffset AbsoluteExpiresAt { get; set; }
+    public DateTimeOffset? RevokedAt { get; set; }
+    public string? RevocationReason { get; set; }
+}
+
+/// <summary>Hash de um refresh token emitido; registros consumidos ficam para detectar replay.</summary>
+public sealed class AuthenticationRefreshToken : TenantMutableEntity
+{
+    public Guid SessionId { get; set; }
+    public string TokenHash { get; set; } = string.Empty;
+    public DateTimeOffset ExpiresAt { get; set; }
+    public DateTimeOffset? ConsumedAt { get; set; }
+}
+
 public sealed class AppGroup : TenantMutableEntity
 {
     public string Name { get; set; } = string.Empty;

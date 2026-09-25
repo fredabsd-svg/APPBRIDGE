@@ -14,6 +14,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, TenantC
     public DbSet<RedirectionPolicy> RedirectionPolicies => Set<RedirectionPolicy>();
     public DbSet<SigningCertificate> SigningCertificates => Set<SigningCertificate>();
     public DbSet<UserAccount> UserAccounts => Set<UserAccount>();
+    public DbSet<AuthenticationSession> AuthenticationSessions => Set<AuthenticationSession>();
+    public DbSet<AuthenticationRefreshToken> AuthenticationRefreshTokens => Set<AuthenticationRefreshToken>();
     public DbSet<AppGroup> Groups => Set<AppGroup>();
     public DbSet<UserGroupMembership> UserGroupMemberships => Set<UserGroupMembership>();
     public DbSet<RemoteApplication> Applications => Set<RemoteApplication>();
@@ -59,6 +61,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, TenantC
         ConfigureRedirectionPolicy(modelBuilder);
         ConfigureSigningCertificate(modelBuilder);
         ConfigureUserAccount(modelBuilder);
+        ConfigureAuthenticationSession(modelBuilder);
+        ConfigureAuthenticationRefreshToken(modelBuilder);
         ConfigureGroup(modelBuilder);
         ConfigureUserGroupMembership(modelBuilder);
         ConfigureApplication(modelBuilder);
@@ -169,6 +173,32 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, TenantC
         entity.ToTable("user_account", table => table.HasCheckConstraint(
             "ck_user_account_status_valid",
             "status IN ('active', 'disabled')"));
+    }
+
+    private static void ConfigureAuthenticationSession(ModelBuilder modelBuilder)
+    {
+        var entity = modelBuilder.Entity<AuthenticationSession>();
+        ConfigureTenantMutableEntity(entity, "auth_session");
+        entity.Property(x => x.WorkstationName).HasMaxLength(128).IsRequired();
+        entity.Property(x => x.RevocationReason).HasMaxLength(32);
+        entity.HasIndex(x => new { x.TenantId, x.UserAccountId, x.RevokedAt })
+            .HasDatabaseName("ix_auth_session_tenant_user_revoked");
+        entity.ToTable("auth_session", table => table.HasCheckConstraint(
+            "ck_auth_session_revocation_reason_valid",
+            "revocation_reason IS NULL OR revocation_reason IN ('logout', 'refresh_replay', 'account_disabled', 'tenant_suspended')"));
+    }
+
+    private static void ConfigureAuthenticationRefreshToken(ModelBuilder modelBuilder)
+    {
+        var entity = modelBuilder.Entity<AuthenticationRefreshToken>();
+        ConfigureTenantMutableEntity(entity, "auth_refresh_token");
+        entity.Property(x => x.TokenHash).HasMaxLength(64).IsRequired();
+        entity.HasIndex(x => new { x.TenantId, x.TokenHash })
+            .IsUnique()
+            .HasDatabaseName("uq_auth_refresh_token_tenant_hash");
+        entity.HasIndex(x => new { x.TenantId, x.SessionId })
+            .HasDatabaseName("ix_auth_refresh_token_tenant_session");
+        entity.ToTable("auth_refresh_token");
     }
 
     private static void ConfigureGroup(ModelBuilder modelBuilder)
@@ -347,6 +377,19 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, TenantC
             .HasPrincipalKey(x => new { x.TenantId, x.Id })
             .OnDelete(DeleteBehavior.Restrict)
             .HasConstraintName("fk_user_group_membership_group");
+
+        modelBuilder.Entity<AuthenticationSession>()
+            .HasOne<UserAccount>().WithMany()
+            .HasForeignKey(x => new { x.TenantId, x.UserAccountId })
+            .HasPrincipalKey(x => new { x.TenantId, x.Id })
+            .OnDelete(DeleteBehavior.Restrict)
+            .HasConstraintName("fk_auth_session_user_account");
+        modelBuilder.Entity<AuthenticationRefreshToken>()
+            .HasOne<AuthenticationSession>().WithMany()
+            .HasForeignKey(x => new { x.TenantId, x.SessionId })
+            .HasPrincipalKey(x => new { x.TenantId, x.Id })
+            .OnDelete(DeleteBehavior.Cascade)
+            .HasConstraintName("fk_auth_refresh_token_session");
 
         modelBuilder.Entity<RemoteApplication>()
             .HasOne<HostPool>().WithMany()

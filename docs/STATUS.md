@@ -1,24 +1,25 @@
 # STATUS — AppBridge
 > Estado vivo do projeto. Atualizado ao fim de toda sessão (RA-02).
 
-**Última atualização:** 2026-09-25 · **Sessão atual:** S015 · **Fase:** ✅ Design concluído → **implementação do MVP-0b**
+**Última atualização:** 2026-09-25 · **Sessão atual:** S016 · **Fase:** ✅ Design concluído → **implementação do MVP-0b**
 
 ---
 
 ## 1. Onde estamos
 
 > **FASE DE DESIGN ENCERRADA em 2026-08-08.** Os 7 entregáveis foram **aprovados por Frederico** e
-> **19 ADRs** estão aceitos (13 no fechamento do design + ADR-0014 a ADR-0019). O replanejamento do cronograma foi aprovado na **opção A** e ratificado
+> **20 ADRs** estão aceitos (13 no fechamento do design + ADR-0014 a ADR-0020). O replanejamento do cronograma foi aprovado na **opção A** e ratificado
 > em **ADR-0013**: MVP-0 dividido em duas etapas, piloto em abr–jun/2027.
 >
 > **A implementação do MVP-0a foi retomada em 2026-09-24 (S010).** Na S013, a fundação do Control
 > Plane, autenticação OIDC/JWT, autorização, catálogo, lançamento com idempotência e o launcher mínimo
 > de console ficaram implementados. Na S014 foi adicionada a revalidação do catálogo com `ETag` (T-403);
-> na S015, a entrega de ícones PNG autorizados com `ETag` e cache privado (T-404). Três migrações
-> aplicam e revertem no PostgreSQL local; os 38 testes passam com 85,54% de cobertura de linhas
-> medida. O SDK .NET 10.0.401 está instalado. Isso conclui a fatia de software
+> na S015, a entrega de ícones PNG autorizados (T-404); na S016, refresh rotativo, logout com
+> revogação imediata e persistência no Windows Credential Manager (T-303/T-803). Quatro migrações
+> aplicam no PostgreSQL local; os 42 testes passam com 87,44% de cobertura de linhas
+> medida. Control Plane e Launcher compilam no SDK .NET 10.0.401. Isso conclui a fatia de software
 > verificável neste ambiente, mas **não conclui o aceite real do MVP-0a**: E-01/G-01, Entra real,
-> Windows, Connection Broker, `rdpsign`, certificado e V-01/V-05/V-06 continuam como pré-requisitos
+> validação Windows do Credential Manager/MSAL, Connection Broker, `rdpsign`, certificado e V-01/V-05/V-06 continuam como pré-requisitos
 > externos/de campo. Veja `docs/operacao/desenvolvimento-control-plane.md`.
 
 
@@ -44,15 +45,15 @@
 | M2c · MVP-1 (subconjunto) | fev–mar/2027 | **Escopo a definir — B-009** |
 | M3 · Piloto Caminho B | **abr–jun/2027** | 3–5 escritórios, portões G-01 a G-05 cumpridos |
 
-## 3. Próximos passos — implementação do MVP-0a
+## 3. Próximos passos — implementação do MVP-0
 
 **Sequência atualizada na S010:** a ordem original priorizava E-01 e G-01 por serem caminho crítico
 (R-023). A pedido de Frederico, T-201 começou antes da conclusão dessas etapas; E-01/G-01 continuam
 pendentes, e a integração ponta a ponta ainda depende delas.
 
-**Continuação de software:** T-403 e T-404 foram concluídas nas S014/S015. As próximas tarefas do
-MVP-0b seguem no `ROADMAP.md`, incluindo sessão renovável (T-303) e registro/reconciliação de sessões
-(T-601/T-602); nenhuma delas substitui as validações de Entra e RDS listadas abaixo.
+**Continuação de software:** T-303/T-803, T-403 e T-404 foram concluídas nas S016/S014/S015. As
+próximas tarefas de código são o registro e a reconciliação de sessões (T-601/T-602); nenhuma delas
+substitui as validações de Entra, Windows e RDS listadas abaixo.
 
 | Ordem | Ação | Tarefa | Por que agora |
 |-------|------|--------|---------------|
@@ -94,8 +95,8 @@ piloto), B-006 (PS-07, cofre) e B-007 (PS-03, encadeamento da trilha).
 
 ## 6. Decisões de arquitetura (ADR)
 
-ADRs 0001 a 0016 aceitos por Frederico ou por delegação em suas datas registradas; ADRs 0017 a 0019
-registram as decisões de implementação desta sessão. **ADR aceito é imutável (RA-05)** — revisão
+ADRs 0001 a 0016 aceitos por Frederico ou por delegação em suas datas registradas; ADRs 0017 a 0020
+registram as decisões de implementação das sessões de código. **ADR aceito é imutável (RA-05)** — revisão
 se faz com ADR novo que substitui o anterior.
 
 | ADR | Tema | Decisão | Emenda gerada |
@@ -115,6 +116,7 @@ se faz com ADR novo que substitui o anterior.
 | [ADR-0017](adr/ADR-0017-token-da-sessao-do-control-plane.md) | Token de sessão | Validar ID token OIDC, mapear tenant no servidor e emitir JWT próprio; sem refresh no MVP-0a | RF-001..RF-004 |
 | [ADR-0018](adr/ADR-0018-resposta-idempotente-do-lancamento.md) | Resposta idempotente | Guardar resultado em PostgreSQL por 60 s, depois limpar corpo e manter tombstone | RF-018..RF-021, ADR-0012 |
 | [ADR-0019](adr/ADR-0019-launcher-minimo-do-mvp-0a.md) | Launcher mínimo | CLI .NET 10 para autenticação, catálogo e início via `mstsc`; WinUI/MSIX ficam no MVP-0b | RF-001, RF-011, RF-018..RF-022 |
+| [ADR-0020](adr/ADR-0020-sessao-renovavel-do-launcher.md) | Sessão renovável | Refresh token opaco rotativo; access JWT com `sid`; revogação server-side; Credential Manager no Windows | RF-004..RF-006 |
 | [ADR-0015](adr/ADR-0015-checagem-de-consistencia-no-fechamento-de-sessao.md) | **Processo — RA-02** | Fechamento de sessão passa a exigir **checagem de consistência**, em duas metades: mecânica (`./scripts/check-docs.sh`, 7 verificações) e humana (o conteúdo ainda reflete as decisões vigentes?). Primeira alteração do prompt mestre | altera `CLAUDE.md` |
 | [ADR-0014](adr/ADR-0014-licenciamento-dos-aplicativos-e-do-cliente.md) | **Licenciamento dos aplicativos** | O cliente adquire, instala e usa suas próprias licenças. O AppBridge **não consulta fornecedor nem intermedia licença**. G-01 deixa de ser confirmação escrita do fornecedor e passa a ser **declaração de titularidade e conformidade assinada pelo cliente**. Restringe NO-04 | nenhuma — não altera RF/RNF |
 | [ADR-0013](adr/ADR-0013-replanejamento-do-mvp-0-e-piloto-no-segundo-trimestre.md) | **Replanejamento** | MVP-0 dividido em **MVP-0a** (esqueleto ambulante, out/2026) e **MVP-0b** (dogfood real, dez/2026–jan/2027); piloto do Caminho B em **abr–jun/2027** com 3–5 escritórios. Portões G-01..G-05 mantidos intransponíveis | marcos, não requisitos |
@@ -183,6 +185,8 @@ se faz com ADR novo que substitui o anterior.
 | R-028 | Issue #5 reintroduziria material de chave em arquivo | Alta | **Fechado em 2026-08-10** — issue corrigido |
 | R-030 | **O MVP-0a real pode ser maior que qualquer das duas estimativas.** A linha B estimou 96 pts **sem** infraestrutura; a linha A, ~95 pts **com** ela. Somado o que cada uma cobre, aproxima-se de **130 pts** — contra a data de out/2026 do ADR-0013 | **Alta** | Aberto — reavaliar M2a |
 | R-031 | O caminho de falha do prelaunch é o menos exercitado do sistema e o que mais deixa estado inconsistente — foi onde o Gap 2 se escondeu | Média | Aberto — T-506 exige teste que **force** a falha |
+| R-032 | Resposta de refresh pode se perder após o commit ou duas instâncias podem renovar o mesmo token; a rotação interpreta o token antigo como replay e encerra a sessão legítima | Média | Aberto — o cliente serializa chamadas no processo; medir concorrência no dogfood (ADR-0020) |
+| R-033 | Logout feito sem conexão remove tokens só da estação; a sessão no Control Plane não é revogada e pode continuar renovável até 7 dias sem uso/30 dias absolutos | Média | Aberto — avisar claramente; confirmar logout remoto quando o Control Plane está disponível (ADR-0020) |
 | R-029 | **Dois gaps confirmados na documentação aprovada:** `purpose` existe em `API.md` e não no modelo de dados (metering contaria prelaunch como uso real); `ISessionBackend` sem operação de cancelamento (prelaunch falho deixa sessão zumbi). | **Média-alta** | **Corrigidos nas fontes por ADR-0016** — `purpose` em `MODELO-DE-DADOS.md` §7.1 e `CancelSessionAsync` em `ARQUITETURA.md` §4.2; implementação em T-207 e T-506 |
 | R-025 | **O MVP-1 é o novo gargalo:** ~3 meses entre o fim do dogfood (jan/2027) e o piloto (abr/2027) para os épicos E-13 a E-18, que provavelmente não cabem | **Alta** | Aberto — B-009 |
 | R-006 | Execução solo de quatro componentes com MVP-0 previsto em ~2 meses | Alta | Aberto |

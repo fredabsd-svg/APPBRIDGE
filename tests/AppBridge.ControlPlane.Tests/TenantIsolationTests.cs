@@ -497,9 +497,143 @@ public sealed class TenantIsolationTests
         var token = new JwtSecurityTokenHandler().ReadJwtToken(result.Response.AccessToken);
         Assert.Equal(userId.ToString("D"), token.Subject);
         Assert.Equal(tenantId.ToString("D"), token.Claims.Single(claim => claim.Type == "tenant_id").Value);
+        var sessionId = Guid.Parse(token.Claims.Single(claim => claim.Type == "sid").Value);
+        Assert.NotEmpty(result.Response.RefreshToken);
+        var session = await db.AuthenticationSessions.SingleAsync(item => item.Id == sessionId, cancellationToken);
+        var savedRefreshToken = await db.AuthenticationRefreshTokens.SingleAsync(cancellationToken);
+        Assert.Equal(sessionId, savedRefreshToken.SessionId);
+        Assert.NotEqual(result.Response.RefreshToken, savedRefreshToken.TokenHash);
+        Assert.Equal(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+            Encoding.UTF8.GetBytes(result.Response.RefreshToken))), savedRefreshToken.TokenHash);
         var auditEvent = await db.AccessEvents.SingleAsync(cancellationToken);
         Assert.Equal(AccessEventResult.Success, auditEvent.Result);
         Assert.Equal(userId, auditEvent.UserAccountId);
+        Assert.Null(session.RevokedAt);
+    }
+
+    [Fact]
+    public async Task Refresh_rotates_token_and_replay_revokes_the_whole_session()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var tenantId = Guid.CreateVersion7();
+        await AddTenantAsync(tenantId);
+        var userId = Guid.CreateVersion7();
+        const string externalTenantId = "entra-tenant-refresh";
+        const string externalSubject = "entra-user-refresh";
+        var tenantContext = CreateTenantContext(tenantId);
+        await using var db = CreateContext(tenantContext);
+        db.UserAccounts.Add(new UserAccount
+        {
+            Id = userId,
+            TenantId = tenantId,
+            ExternalSubject = externalSubject,
+            Upn = "refresh@example.test",
+            AdObjectSid = "S-1-5-21-auth-refresh",
+            DisplayName = "Usuário de refresh",
+            Email = "refresh@example.test",
+            Status = UserAccountStatus.Active
+        });
+        await db.SaveChangesAsync(cancellationToken);
+        var service = CreateAuthenticationSessionService(
+            db, tenantContext, externalTenantId, tenantId, externalSubject);
+
+        var login = await service.ExchangeAsync(
+            new AuthenticationSessionRequest("validated-identity-token", "PC-REFRESH-01"),
+            "127.0.0.1", Guid.CreateVersion7(), cancellationToken);
+        var firstRefreshToken = login.Response!.RefreshToken;
+        var sessionId = Guid.Parse(new JwtSecurityTokenHandler().ReadJwtToken(login.Response.AccessToken)
+            .Claims.Single(claim => claim.Type == "sid").Value);
+
+        var alteredLastCharacter = firstRefreshToken[^1] == 'A' ? 'B' : 'A';
+        var invalidRefresh = await service.RefreshAsync(
+            new AuthenticationRefreshRequest(firstRefreshToken[..^1] + alteredLastCharacter),
+            "127.0.0.1", Guid.CreateVersion7(), cancellationToken);
+        Assert.Equal("REFRESH_EXPIRED", invalidRefresh.ErrorCode);
+        Assert.Null((await db.AuthenticationSessions.SingleAsync(item => item.Id == sessionId, cancellationToken)).RevokedAt);
+
+        var refreshed = await service.RefreshAsync(
+            new AuthenticationRefreshRequest(firstRefreshToken), "127.0.0.1", Guid.CreateVersion7(), cancellationToken);
+
+        Assert.Equal(StatusCodes.Status200OK, refreshed.StatusCode);
+        Assert.NotEqual(firstRefreshToken, refreshed.Response!.RefreshToken);
+        Assert.Equal(sessionId.ToString("D"), new JwtSecurityTokenHandler()
+            .ReadJwtToken(refreshed.Response.AccessToken).Claims.Single(claim => claim.Type == "sid").Value);
+        var tokens = await db.AuthenticationRefreshTokens.OrderBy(token => token.CreatedAt).ToListAsync(cancellationToken);
+        Assert.Equal(2, tokens.Count);
+        Assert.NotNull(tokens[0].ConsumedAt);
+        Assert.Null(tokens[1].ConsumedAt);
+
+        var replay = await service.RefreshAsync(
+            new AuthenticationRefreshRequest(firstRefreshToken), "127.0.0.1", Guid.CreateVersion7(), cancellationToken);
+
+        Assert.Equal(StatusCodes.Status401Unauthorized, replay.StatusCode);
+        Assert.Equal("REFRESH_EXPIRED", replay.ErrorCode);
+        var session = await db.AuthenticationSessions.SingleAsync(item => item.Id == sessionId, cancellationToken);
+        Assert.Equal("refresh_replay", session.RevocationReason);
+        Assert.NotNull(session.RevokedAt);
+        Assert.Equal(AccessEventResult.Failure, (await db.AccessEvents
+            .OrderByDescending(item => item.OccurredAt).FirstAsync(cancellationToken)).Result);
+    }
+
+    [Fact]
+    public async Task Logout_revokes_session_and_audits_it_atomically()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var tenantId = Guid.CreateVersion7();
+        await AddTenantAsync(tenantId);
+        var userId = Guid.CreateVersion7();
+        const string externalTenantId = "entra-tenant-logout";
+        const string externalSubject = "entra-user-logout";
+        var tenantContext = CreateTenantContext(tenantId);
+        await using var db = CreateContext(tenantContext);
+        db.UserAccounts.Add(new UserAccount
+        {
+            Id = userId,
+            TenantId = tenantId,
+            ExternalSubject = externalSubject,
+            Upn = "logout@example.test",
+            AdObjectSid = "S-1-5-21-auth-logout",
+            DisplayName = "Usuário de logout",
+            Email = "logout@example.test",
+            Status = UserAccountStatus.Active
+        });
+        await db.SaveChangesAsync(cancellationToken);
+        var service = CreateAuthenticationSessionService(
+            db, tenantContext, externalTenantId, tenantId, externalSubject);
+        var login = await service.ExchangeAsync(
+            new AuthenticationSessionRequest("validated-identity-token", "PC-LOGOUT-01"),
+            "127.0.0.1", Guid.CreateVersion7(), cancellationToken);
+        var sessionId = Guid.Parse(new JwtSecurityTokenHandler().ReadJwtToken(login.Response!.AccessToken)
+            .Claims.Single(claim => claim.Type == "sid").Value);
+
+        await service.LogoutAsync(userId, sessionId, "127.0.0.1", Guid.CreateVersion7(), cancellationToken);
+
+        var session = await db.AuthenticationSessions.SingleAsync(item => item.Id == sessionId, cancellationToken);
+        Assert.Equal("logout", session.RevocationReason);
+        Assert.NotNull(session.RevokedAt);
+        var logoutEvent = await db.AccessEvents.SingleAsync(item => item.EventType == AccessEventType.Logout, cancellationToken);
+        Assert.Equal(AccessEventResult.Success, logoutEvent.Result);
+        Assert.Equal("PC-LOGOUT-01", logoutEvent.WorkstationName);
+
+        var revokedContext = new TenantContext();
+        await using var revokedDb = CreateContext(revokedContext);
+        var request = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity(
+            [
+                new Claim("tenant_id", tenantId.ToString("D")),
+                new Claim("sub", userId.ToString("D")),
+                new Claim("sid", sessionId.ToString("D"))
+            ], "test"))
+        };
+        var nextCalled = false;
+        await new TenantContextMiddleware(_ =>
+        {
+            nextCalled = true;
+            return Task.CompletedTask;
+        }).InvokeAsync(request, revokedContext, revokedDb, cancellationToken);
+        Assert.Equal(StatusCodes.Status401Unauthorized, request.Response.StatusCode);
+        Assert.False(nextCalled);
     }
 
     [Fact]
@@ -692,6 +826,8 @@ public sealed class TenantIsolationTests
     [Fact]
     public async Task Middleware_preserves_or_generates_correlation_ids_and_enforces_tenant_claims()
     {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await EnsureSchemaAsync(cancellationToken);
         var correlationId = Guid.CreateVersion7();
         var context = new DefaultHttpContext();
         context.Request.Headers[CorrelationIdMiddleware.HeaderName] = correlationId.ToString("D");
@@ -714,26 +850,88 @@ public sealed class TenantIsolationTests
         invalidTenantContext.User = new ClaimsPrincipal(new ClaimsIdentity(
             [new Claim("tenant_id", "invalid")], "test"));
         var nextCalled = false;
+        var invalidTenant = new TenantContext();
+        await using var invalidDb = CreateContext(invalidTenant);
         await new TenantContextMiddleware(_ =>
         {
             nextCalled = true;
             return Task.CompletedTask;
-        }).InvokeAsync(invalidTenantContext, new TenantContext());
+        }).InvokeAsync(invalidTenantContext, invalidTenant, invalidDb, cancellationToken);
         Assert.Equal(StatusCodes.Status401Unauthorized, invalidTenantContext.Response.StatusCode);
         Assert.False(nextCalled);
 
         var expectedTenantId = Guid.CreateVersion7();
+        await AddTenantAsync(expectedTenantId);
+        var expectedUserId = Guid.CreateVersion7();
+        var expectedSessionId = Guid.CreateVersion7();
+        var now = DateTimeOffset.UtcNow;
+        await using (var seed = CreateContext(expectedTenantId))
+        {
+            seed.UserAccounts.Add(new UserAccount
+            {
+                Id = expectedUserId,
+                TenantId = expectedTenantId,
+                ExternalSubject = $"middleware-{expectedTenantId:N}",
+                Upn = "middleware@example.test",
+                AdObjectSid = $"S-1-5-21-{expectedTenantId:N}",
+                DisplayName = "Middleware",
+                Email = "middleware@example.test",
+                Status = UserAccountStatus.Active
+            });
+            seed.AuthenticationSessions.Add(new AuthenticationSession
+            {
+                Id = expectedSessionId,
+                TenantId = expectedTenantId,
+                UserAccountId = expectedUserId,
+                WorkstationName = "PC-MIDDLEWARE",
+                LastUsedAt = now,
+                ExpiresAt = now.AddDays(1),
+                AbsoluteExpiresAt = now.AddDays(30)
+            });
+            await seed.SaveChangesAsync(cancellationToken);
+        }
+
         var validTenantContext = new DefaultHttpContext();
         validTenantContext.User = new ClaimsPrincipal(new ClaimsIdentity(
-            [new Claim("tenant_id", expectedTenantId.ToString("D"))], "test"));
+        [
+            new Claim("tenant_id", expectedTenantId.ToString("D")),
+            new Claim("sub", expectedUserId.ToString("D")),
+            new Claim("sid", expectedSessionId.ToString("D"))
+        ], "test"));
         var tenantContext = new TenantContext();
-        await new TenantContextMiddleware(_ => Task.CompletedTask).InvokeAsync(validTenantContext, tenantContext);
+        await using var validDb = CreateContext(tenantContext);
+        await new TenantContextMiddleware(_ => Task.CompletedTask)
+            .InvokeAsync(validTenantContext, tenantContext, validDb, cancellationToken);
         Assert.Equal(expectedTenantId, tenantContext.TenantId);
 
         var anonymousContext = new DefaultHttpContext();
         var anonymousTenant = new TenantContext();
-        await new TenantContextMiddleware(_ => Task.CompletedTask).InvokeAsync(anonymousContext, anonymousTenant);
+        await using var anonymousDb = CreateContext(anonymousTenant);
+        await new TenantContextMiddleware(_ => Task.CompletedTask)
+            .InvokeAsync(anonymousContext, anonymousTenant, anonymousDb, cancellationToken);
         Assert.Null(anonymousTenant.TenantId);
+
+        var publicRefreshContext = new DefaultHttpContext();
+        publicRefreshContext.User = new ClaimsPrincipal(new ClaimsIdentity(
+        [
+            new Claim("tenant_id", expectedTenantId.ToString("D")),
+            new Claim("sub", expectedUserId.ToString("D")),
+            new Claim("sid", Guid.CreateVersion7().ToString("D"))
+        ], "test"));
+        publicRefreshContext.SetEndpoint(new Endpoint(
+            _ => Task.CompletedTask,
+            new EndpointMetadataCollection(new Microsoft.AspNetCore.Authorization.AllowAnonymousAttribute()),
+            "anonymous refresh"));
+        var publicTenant = new TenantContext();
+        await using var publicDb = CreateContext(publicTenant);
+        var refreshReachedHandler = false;
+        await new TenantContextMiddleware(_ =>
+        {
+            refreshReachedHandler = true;
+            return Task.CompletedTask;
+        }).InvokeAsync(publicRefreshContext, publicTenant, publicDb, cancellationToken);
+        Assert.True(refreshReachedHandler);
+        Assert.Null(publicTenant.TenantId);
     }
 
     [Fact]
@@ -780,6 +978,25 @@ public sealed class TenantIsolationTests
             Assert.Equal(StatusCodes.Status400BadRequest, result.StatusCode);
             Assert.Equal("MALFORMED_REQUEST", result.ErrorCode);
         }
+    }
+
+    [Fact]
+    public async Task Refresh_rejects_a_locator_for_an_unprovisioned_tenant_without_audit_write()
+    {
+        var tenantId = Guid.CreateVersion7();
+        var tenantContext = new TenantContext();
+        await using var db = CreateContext(tenantContext);
+        var service = CreateAuthenticationSessionService(
+            db, tenantContext, "entra-tenant-unknown", tenantId, "entra-user-unknown");
+        var secret = Convert.ToBase64String(Enumerable.Repeat((byte)0x52, 32).ToArray())
+            .TrimEnd('=').Replace('+', '-').Replace('/', '_');
+        var result = await service.RefreshAsync(
+            new AuthenticationRefreshRequest($"v1.{tenantId:N}.{Guid.CreateVersion7():N}.{secret}"),
+            "127.0.0.1", Guid.CreateVersion7(), TestContext.Current.CancellationToken);
+
+        Assert.Equal(StatusCodes.Status401Unauthorized, result.StatusCode);
+        Assert.Equal("REFRESH_EXPIRED", result.ErrorCode);
+        Assert.Empty(await db.AccessEvents.ToListAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -872,6 +1089,64 @@ public sealed class TenantIsolationTests
         Assert.Null(records.Single(record => record.RequestHash.StartsWith('A')).ResponseJson);
         Assert.NotNull(records.Single(record => record.RequestHash.StartsWith('B')).ResponseJson);
         Assert.Equal(2, records.Count);
+    }
+
+    [Fact]
+    public async Task Authentication_session_pruner_removes_old_sessions_and_cascades_token_hashes()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var tenantId = Guid.CreateVersion7();
+        await AddTenantAsync(tenantId);
+        var userId = Guid.CreateVersion7();
+        var sessionId = Guid.CreateVersion7();
+        var now = DateTimeOffset.UtcNow;
+        await using (var db = CreateContext(tenantId))
+        {
+            db.UserAccounts.Add(new UserAccount
+            {
+                Id = userId,
+                TenantId = tenantId,
+                ExternalSubject = $"pruner-{tenantId:N}",
+                Upn = "pruner@example.test",
+                AdObjectSid = $"S-1-5-21-{tenantId:N}",
+                DisplayName = "Pruner",
+                Email = "pruner@example.test",
+                Status = UserAccountStatus.Active
+            });
+            db.AuthenticationSessions.Add(new AuthenticationSession
+            {
+                Id = sessionId,
+                TenantId = tenantId,
+                UserAccountId = userId,
+                WorkstationName = "PC-PRUNER",
+                LastUsedAt = now.AddDays(-61),
+                ExpiresAt = now.AddDays(-31),
+                AbsoluteExpiresAt = now.AddDays(-31)
+            });
+            db.AuthenticationRefreshTokens.Add(new AuthenticationRefreshToken
+            {
+                TenantId = tenantId,
+                SessionId = sessionId,
+                TokenHash = new string('A', 64),
+                ExpiresAt = now.AddDays(-31)
+            });
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
+        var services = new ServiceCollection();
+        services.AddScoped<TenantContext>();
+        services.AddDbContext<AppDbContext>(options => options.UseNpgsql(_connectionString));
+        await using var provider = services.BuildServiceProvider();
+        var pruner = new AuthenticationSessionPruner(
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            NullLogger<AuthenticationSessionPruner>.Instance);
+        await pruner.StartAsync(cancellationToken);
+        await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken);
+        await pruner.StopAsync(cancellationToken);
+
+        await using var verification = CreateContext(tenantId);
+        Assert.Empty(await verification.AuthenticationSessions.ToListAsync(cancellationToken));
+        Assert.Empty(await verification.AuthenticationRefreshTokens.ToListAsync(cancellationToken));
     }
 
     private async Task AddTenantAsync(Guid tenantId)
@@ -1137,6 +1412,7 @@ public sealed class TenantIsolationTests
         return new AuthenticationSessionService(
             new FakeIdentityTokenValidator(identity),
             options,
+            Options.Create(new RefreshTokenOptions()),
             db,
             tenantContext,
             new AuditWriter(db, tenantContext, NullLogger<AuditWriter>.Instance),

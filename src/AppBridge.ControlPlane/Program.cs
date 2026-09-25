@@ -82,6 +82,14 @@ var tokenOptions = new ControlPlaneTokenOptions
     SigningKey = encodedSigningKey,
     LifetimeMinutes = tokenLifetimeMinutes
 };
+var refreshOptions = new RefreshTokenOptions();
+builder.Configuration.GetSection("AuthenticationSessions").Bind(refreshOptions);
+if (refreshOptions.IdleLifetimeDays is < 1 or > 90
+    || refreshOptions.MaximumSessionLifetimeDays is < 1 or > 90)
+{
+    throw new InvalidOperationException("A validade ociosa e absoluta da sessão deve estar entre 1 e 90 dias.");
+}
+
 builder.Services.Configure<ControlPlaneTokenOptions>(options =>
 {
     options.Issuer = tokenOptions.Issuer;
@@ -89,12 +97,18 @@ builder.Services.Configure<ControlPlaneTokenOptions>(options =>
     options.SigningKey = tokenOptions.SigningKey;
     options.LifetimeMinutes = tokenOptions.LifetimeMinutes;
 });
+builder.Services.Configure<RefreshTokenOptions>(options =>
+{
+    options.IdleLifetimeDays = refreshOptions.IdleLifetimeDays;
+    options.MaximumSessionLifetimeDays = refreshOptions.MaximumSessionLifetimeDays;
+});
 builder.Services.AddScoped<IdentityTokenValidator>();
 builder.Services.AddScoped<IIdentityTokenValidator, IdentityTokenValidator>();
 builder.Services.AddScoped<ControlPlaneTokenIssuer>();
 builder.Services.AddScoped<AuthenticationSessionService>();
 builder.Services.AddHostedService<CatalogSeedHostedService>();
 builder.Services.AddHostedService<IdempotencyResponsePruner>();
+builder.Services.AddHostedService<AuthenticationSessionPruner>();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -180,6 +194,8 @@ app.MapPost("/v1/auth/session", async (
     HttpContext context,
     CancellationToken cancellationToken) =>
 {
+    context.Response.Headers["Cache-Control"] = "no-store";
+    context.Response.Headers["Pragma"] = "no-cache";
     var correlationId = Guid.TryParse(context.TraceIdentifier, out var parsedCorrelationId)
         ? parsedCorrelationId
         : Guid.CreateVersion7();
@@ -210,6 +226,70 @@ app.MapPost("/v1/auth/session", async (
             "Não foi possível registrar o acesso. Tente novamente mais tarde.", context.Request.Path, correlationId);
     }
 }).AllowAnonymous();
+
+app.MapPost("/v1/auth/refresh", async (
+    AuthenticationRefreshRequest request,
+    AuthenticationSessionService sessions,
+    HttpContext context,
+    CancellationToken cancellationToken) =>
+{
+    context.Response.Headers["Cache-Control"] = "no-store";
+    context.Response.Headers["Pragma"] = "no-cache";
+    var correlationId = Guid.TryParse(context.TraceIdentifier, out var parsedCorrelationId)
+        ? parsedCorrelationId
+        : Guid.CreateVersion7();
+    try
+    {
+        var result = await sessions.RefreshAsync(
+            request,
+            context.Connection.RemoteIpAddress?.ToString() ?? string.Empty,
+            correlationId,
+            cancellationToken);
+        if (result.ErrorCode is not null)
+        {
+            return Problem(result.StatusCode, result.ErrorCode, AuthErrorTitle(result.ErrorCode), context.Request.Path, correlationId);
+        }
+
+        return Results.Json(result.Response, statusCode: StatusCodes.Status200OK);
+    }
+    catch (AuditUnavailableException)
+    {
+        return Problem(StatusCodes.Status503ServiceUnavailable, "AUDIT_UNAVAILABLE",
+            "Não foi possível registrar a renovação. Tente novamente mais tarde.", context.Request.Path, correlationId);
+    }
+}).AllowAnonymous();
+
+app.MapPost("/v1/auth/logout", async (
+    ClaimsPrincipal principal,
+    AuthenticationSessionService sessions,
+    HttpContext context,
+    CancellationToken cancellationToken) =>
+{
+    var correlationId = Guid.TryParse(context.TraceIdentifier, out var parsedCorrelationId)
+        ? parsedCorrelationId
+        : Guid.CreateVersion7();
+    if (!Guid.TryParse(principal.FindFirstValue("sub"), out var userAccountId)
+        || !Guid.TryParse(principal.FindFirstValue("sid"), out var sessionId))
+    {
+        return Results.Unauthorized();
+    }
+
+    try
+    {
+        await sessions.LogoutAsync(
+            userAccountId,
+            sessionId,
+            context.Connection.RemoteIpAddress?.ToString() ?? string.Empty,
+            correlationId,
+            cancellationToken);
+        return Results.NoContent();
+    }
+    catch (AuditUnavailableException)
+    {
+        return Problem(StatusCodes.Status503ServiceUnavailable, "AUDIT_UNAVAILABLE",
+            "Não foi possível registrar o encerramento. Tente novamente mais tarde.", context.Request.Path, correlationId);
+    }
+}).RequireAuthorization();
 
 app.MapGet("/v1/applications", async (
     ClaimsPrincipal principal,
@@ -344,6 +424,8 @@ static string AuthErrorTitle(string code) => code switch
 {
     "MALFORMED_REQUEST" => "A solicitação de entrada está incompleta ou inválida.",
     "SESSION_EXPIRED" => "Sua sessão expirou. Entre novamente.",
+    "REFRESH_EXPIRED" => "Sua sessão não pode ser renovada. Entre novamente.",
+    "REFRESH_REPLAY" => "A sessão foi encerrada por segurança. Entre novamente.",
     "INVALID_IDENTITY_TOKEN" => "A sessão de identidade expirou. Entre novamente.",
     "USER_DISABLED" => "Esta conta está desabilitada. Procure o administrador.",
     "TENANT_SUSPENDED" => "O acesso deste escritório está suspenso. Procure o suporte.",
