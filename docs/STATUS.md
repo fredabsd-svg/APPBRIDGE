@@ -1,7 +1,7 @@
 # STATUS — AppBridge
 > Estado vivo do projeto. Atualizado ao fim de toda sessão (RA-02).
 
-**Última atualização:** 2026-09-25 · **Sessão atual:** S013 · **Fase:** ✅ Design concluído → **implementação do MVP-0a**
+**Última atualização:** 2026-09-25 · **Sessão atual:** S014 · **Fase:** ✅ Design concluído → **implementação do MVP-0b**
 
 ---
 
@@ -13,8 +13,9 @@
 >
 > **A implementação do MVP-0a foi retomada em 2026-09-24 (S010).** Na S013, a fundação do Control
 > Plane, autenticação OIDC/JWT, autorização, catálogo, lançamento com idempotência e o launcher mínimo
-> de console estão implementados; três migrações aplicam e revertem no PostgreSQL local. Os 26
-> testes de integração passam com 84,56% de cobertura de linhas medida. O SDK .NET 10.0.401 está instalado. Isso conclui a fatia de software
+> de console ficaram implementados. Na S014, o catálogo passou a revalidar com `ETag` e responder
+> `304` para conteúdo inalterado (T-403, MVP-0b). Três migrações aplicam e revertem no PostgreSQL
+> local; os 28 testes passam com 84,98% de cobertura de linhas medida. O SDK .NET 10.0.401 está instalado. Isso conclui a fatia de software
 > verificável neste ambiente, mas **não conclui o aceite real do MVP-0a**: E-01/G-01, Entra real,
 > Windows, Connection Broker, `rdpsign`, certificado e V-01/V-05/V-06 continuam como pré-requisitos
 > externos/de campo. Veja `docs/operacao/desenvolvimento-control-plane.md`.
@@ -47,6 +48,10 @@
 **Sequência atualizada na S010:** a ordem original priorizava E-01 e G-01 por serem caminho crítico
 (R-023). A pedido de Frederico, T-201 começou antes da conclusão dessas etapas; E-01/G-01 continuam
 pendentes, e a integração ponta a ponta ainda depende delas.
+
+**Continuação de software:** T-403 foi concluída na S014. As próximas tarefas do MVP-0b seguem no
+`ROADMAP.md`, incluindo sessão renovável (T-303), endpoint de ícone (T-404) e registro/reconciliação
+de sessões (T-601/T-602); nenhuma delas substitui as validações de Entra e RDS listadas abaixo.
 
 | Ordem | Ação | Tarefa | Por que agora |
 |-------|------|--------|---------------|

@@ -6,6 +6,17 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Adicionado — revalidação do catálogo autorizado (T-403, S014)
+- `GET /v1/applications` calcula um `ETag` forte determinístico sobre o JSON de aplicativos que o
+  usuário pode ver. A ordenação por nome e UUID mantém a representação estável.
+- `If-None-Match` agora aceita lista de tags, comparação fraca e `*`; conteúdo inalterado responde
+  `304 Not Modified` sem corpo. As respostas definem `Cache-Control: private, no-cache` para evitar
+  cache compartilhado do catálogo por usuário.
+- Adicionados testes unitários da representação, da mudança do ETag quando o corpo muda e das formas
+  aceitas de `If-None-Match`.
+- Build Release sem warnings; 28 testes passaram com 84,98% de cobertura de linhas. `./scripts/check-docs.sh`
+  também passou.
+
 ### Adicionado — fatia de software do MVP-0a e launcher mínimo (S013)
 - Criado `AppBridge.Launcher`, um executável de console .NET 10 que autentica interativamente com
   MSAL com um escopo delegado configurado, troca o ID token pela sessão AppBridge, lista somente
