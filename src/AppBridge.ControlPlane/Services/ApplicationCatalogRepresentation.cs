@@ -1,9 +1,6 @@
-using System.Security.Cryptography;
 using System.Text.Json;
 using AppBridge.ControlPlane.Domain.Entities;
 using AppBridge.ControlPlane.Domain.Enums;
-using Microsoft.Extensions.Primitives;
-using Microsoft.Net.Http.Headers;
 
 namespace AppBridge.ControlPlane.Services;
 
@@ -39,23 +36,6 @@ public static class ApplicationCatalogRepresentation
                 Available: true)).ToArray(),
             NextCursor: null);
         var body = JsonSerializer.SerializeToUtf8Bytes(document, JsonOptions);
-        var digest = Convert.ToHexString(SHA256.HashData(body)).ToLowerInvariant();
-        return new ApplicationCatalogPayload(body, $"\"cat-{digest}\"");
-    }
-
-    public static bool MatchesIfNoneMatch(StringValues headerValues, string currentEntityTag)
-    {
-        var values = headerValues.ToArray().OfType<string>().ToArray();
-        if (values.Length == 0
-            || !EntityTagHeaderValue.TryParseList(values, out var candidates)
-            || candidates is null)
-        {
-            return false;
-        }
-
-        var currentTag = EntityTagHeaderValue.Parse(currentEntityTag);
-        return candidates.Any(candidate =>
-            string.Equals(candidate.Tag.ToString(), "*", StringComparison.Ordinal)
-            || candidate.Compare(currentTag, useStrongComparison: false));
+        return new ApplicationCatalogPayload(body, HttpEntityTags.FromContent("cat", body));
     }
 }

@@ -98,8 +98,8 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 |----|--------|--------------------|------|
 | T-401 | Seed de aplicativos em JSON/tabela | Catálogo carregado sem painel (RF-012) | 3 |
 | T-402 | `GET /applications` com filtro por autorização | Aplicativo não autorizado **não aparece** (RF-011) | 3 |
-| T-403 | `ETag` / `If-None-Match` | Segunda sincronização devolve `304` (RF-015) | 2 |
-| T-404 | Endpoint de ícone | Serve PNG com cache; resolve PD-03 | 3 |
+| T-403 | `ETag` / `If-None-Match` — **concluída na S014** | Segunda sincronização devolve `304` (RF-015) | 2 |
+| T-404 | Endpoint de ícone — **concluída na S015** | Serve PNG com cache; resolve PD-03 | 3 |
 
 ### E-05 · Lançamento — 32 pts · **coração do produto**
 

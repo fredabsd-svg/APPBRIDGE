@@ -301,10 +301,12 @@ public sealed class TenantIsolationTests
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         var authorized = await SeedLaunchWorldAsync(grantPermission: true, addSession: false);
+        var unauthorizedApplicationId = Guid.CreateVersion7();
         await using (var seedDb = CreateContext(authorized.TenantId))
         {
             seedDb.Applications.Add(new RemoteApplication
             {
+                Id = unauthorizedApplicationId,
                 TenantId = authorized.TenantId,
                 HostPoolId = authorized.Host.HostPoolId,
                 DisplayName = "Aplicativo sem permissão",
@@ -316,10 +318,15 @@ public sealed class TenantIsolationTests
         }
 
         await using var db = CreateContext(authorized.TenantId);
-        var applications = await new AuthorizationService(db).GetApplicationsAsync(authorized.UserId, cancellationToken);
+        var authorization = new AuthorizationService(db);
+        var applications = await authorization.GetApplicationsAsync(authorized.UserId, cancellationToken);
 
         Assert.Contains(applications, application => application.Id == authorized.ApplicationId);
         Assert.DoesNotContain(applications, application => application.DisplayName == "Aplicativo sem permissão");
+        Assert.NotNull(await authorization.GetAuthorizedApplicationAsync(
+            authorized.UserId, authorized.ApplicationId, cancellationToken));
+        Assert.Null(await authorization.GetAuthorizedApplicationAsync(
+            authorized.UserId, unauthorizedApplicationId, cancellationToken));
     }
 
     [Fact]

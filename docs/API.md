@@ -130,7 +130,17 @@ RF-015. Mudanças no conteúdo autorizado produzem outro `ETag`.
 Devolve o binário do ícone (PNG), com `ETag` e `Cache-Control` longo. **Decisão:** o ícone é servido
 pelo Control Plane a partir de armazenamento de arquivos, referenciado por `icon_ref`; não fica no
 banco. Binário em coluna infla backup e replicação do PostgreSQL sem benefício, e ícone é o tipo de
-conteúdo que a camada HTTP já sabe cachear bem. O endpoint ainda não faz parte da fatia MVP-0a.
+conteúdo que a camada HTTP já sabe cachear bem. A referência é um caminho relativo à raiz configurada
+em `CatalogAssets:RootPath` (padrão `data/icons` sob a raiz de conteúdo do Control Plane), com extensão
+`.png`; caminhos absolutos, travessia de diretório, links simbólicos e arquivos acima de 1 MiB são
+recusados. O conteúdo precisa começar com a assinatura PNG correta.
+
+O endpoint exige sessão autenticada e permissão vigente para o aplicativo publicado. Aplicativo
+inexistente, não publicado ou não autorizado responde `404 APPLICATION_NOT_FOUND`, sem revelar sua
+existência. Se o aplicativo é autorizado mas não tem PNG válido no armazenamento, responde
+`404 ICON_NOT_FOUND`. Resposta válida usa `Content-Type: image/png`, `X-Content-Type-Options: nosniff`,
+`ETag` forte calculado sobre os bytes e `Cache-Control: private, max-age=86400`; `If-None-Match`
+correspondente devolve `304` sem corpo.
 
 ### `GET /v1/applications/{id}` — MVP-0b · RF-011
 Detalhe. Aplicativo de outro tenant, ou não autorizado ao usuário: **`404`** (ADR-0012 §5).
@@ -333,6 +343,7 @@ injetado na sessão (RF-058). Uma API que oferece download do certificado não �
 | 403 | `TENANT_SUSPENDED` | Tenant suspenso | Mensagem; não repetir |
 | 403 | `PROVIDER_ROLE_REQUIRED` | Cabeçalho de travessia sem papel — **registrado** | Erro de programação |
 | 404 | `APPLICATION_NOT_FOUND` | Inexistente ou de outro tenant | Sincronizar catálogo |
+| 404 | `ICON_NOT_FOUND` | Ícone não existe ou não é um PNG aceito | Usar ícone genérico |
 | 409 | `QUOTA_EXHAUSTED` | Licenças em uso | Mensagem + oferecer nova tentativa |
 | 409 | `IDEMPOTENCY_CONFLICT` | Chave reusada com corpo diferente | Erro de programação |
 | 422 | `APPLICATION_UNAVAILABLE` | Sem host disponível | Mensagem + nova tentativa depois |
@@ -451,7 +462,7 @@ RF-019 e RF-021 são internos ao `POST /launches`; RF-012 é seed, sem endpoint 
 
 | ID | Item | Situação |
 |----|------|----------|
-| **PD-03** | Armazenamento de ícones | ✅ **Decisão resolvida** — arquivo referenciado por `icon_ref`; o endpoint com `ETag` ainda precisa ser implementado em T-404 (MVP-0b) |
+| **PD-03** | Armazenamento de ícones | ✅ **Decisão e endpoint resolvidos em T-404** — PNG externo referenciado por `icon_ref`, autorizado por usuário, com `ETag` e cache privado |
 | **PD-04** | Armazenamento das respostas de idempotência (memória, tabela ou cache) por 60 s | ✅ **Resolvida por ADR-0018** — tabela `launch_idempotency`, corpo removido após TTL e tombstone preservado |
 | **PD-05** | Limites concretos de taxa por endpoint (RNF-010) | Aberta — depende de medição (T-005) |
 
@@ -461,7 +472,8 @@ RF-019 e RF-021 são internos ao `POST /launches`; RF-012 é seed, sem endpoint 
 |------|-------------------|------------------|
 | `GET /health` | Health check ASP.NET Core | Ainda não consulta dependências |
 | `POST /v1/auth/session` | Valida ID token OIDC, mapeia tenant e conta provisionados, grava `access_event` e emite JWT AppBridge | Sem refresh/logout; depende de Entra e provisionamento externo |
-| `GET /v1/applications` | Retorna só apps publicados com permissão vigente e valida `ETag`/`If-None-Match` | Sem endpoint de ícone ou paginação |
+| `GET /v1/applications` | Retorna só apps publicados com permissão vigente e valida `ETag`/`If-None-Match` | Sem paginação |
+| `GET /v1/applications/{id}/icon` | Entrega PNG do app publicado autorizado, com `ETag` e cache privado | Requer PNG de até 1 MiB sob `CatalogAssets:RootPath` |
 | `POST /v1/launches` | Autoriza novamente, reserva `Idempotency-Key` no PostgreSQL, monta e assina `.rdp`, grava trilha | Assinatura e RDS exigem Windows; precisa de certificado e host provisionados |
 
 Idempotência usa `(tenant_id, idempotency_key)`; repetição válida devolve o mesmo status/corpo por

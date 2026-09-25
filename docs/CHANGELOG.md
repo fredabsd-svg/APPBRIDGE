@@ -6,6 +6,19 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Adicionado — entrega autorizada de ícones PNG (T-404, S015)
+- Implementado `GET /v1/applications/{id}/icon`, que só serve ícones de aplicativos publicados para
+  usuários com permissão vigente; aplicativos inexistentes, não publicados ou não autorizados não
+  são enumeráveis pela rota.
+- `icon_ref` agora é um caminho relativo a `CatalogAssets:RootPath` (padrão `data/icons`). O serviço
+  bloqueia caminhos absolutos, travessia, links simbólicos, arquivos sem assinatura PNG e arquivos
+  maiores que 1 MiB.
+- Respostas PNG recebem `ETag` SHA-256 forte e `Cache-Control: private, max-age=86400`; tags
+  correspondentes retornam `304`. Erros distintos indicam app não disponível ou ícone ausente/inválido.
+- Atualizados contrato, roteiro operacional, backlog, status e auditoria da sessão.
+- Build Release sem warnings; 38 testes passaram com 85,54% de cobertura de linhas. A checagem
+  documental desta sessão passou.
+
 ### Adicionado — revalidação do catálogo autorizado (T-403, S014)
 - `GET /v1/applications` calcula um `ETag` forte determinístico sobre o JSON de aplicativos que o
   usuário pode ver. A ordenação por nome e UUID mantém a representação estável.

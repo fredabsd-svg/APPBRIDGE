@@ -23,6 +23,16 @@ builder.Services.AddHealthChecks();
 builder.Services.AddScoped<TenantContext>();
 builder.Services.AddScoped<AuditWriter>();
 builder.Services.AddScoped<AuthorizationService>();
+builder.Services.AddSingleton(serviceProvider =>
+{
+    var environment = serviceProvider.GetRequiredService<IWebHostEnvironment>();
+    var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+    var configuredRoot = configuration["CatalogAssets:RootPath"] ?? "data/icons";
+    var rootPath = Path.IsPathRooted(configuredRoot)
+        ? configuredRoot
+        : Path.Combine(environment.ContentRootPath, configuredRoot);
+    return new CatalogIconStore(rootPath);
+});
 builder.Services.AddScoped<LaunchMeteringService>();
 builder.Services.AddScoped<RedirectionPolicyResolver>();
 builder.Services.AddScoped<LaunchService>();
@@ -216,7 +226,7 @@ app.MapGet("/v1/applications", async (
     var representation = ApplicationCatalogRepresentation.Create(applications);
     context.Response.Headers["ETag"] = representation.EntityTag;
     context.Response.Headers["Cache-Control"] = "private, no-cache";
-    if (ApplicationCatalogRepresentation.MatchesIfNoneMatch(
+    if (HttpEntityTags.MatchesIfNoneMatch(
         context.Request.Headers.IfNoneMatch,
         representation.EntityTag))
     {
@@ -224,6 +234,49 @@ app.MapGet("/v1/applications", async (
     }
 
     return Results.Bytes(representation.Body, "application/json");
+}).RequireAuthorization();
+
+app.MapGet("/v1/applications/{applicationId:guid}/icon", async (
+    Guid applicationId,
+    ClaimsPrincipal principal,
+    AuthorizationService authorization,
+    CatalogIconStore icons,
+    HttpContext context,
+    CancellationToken cancellationToken) =>
+{
+    var correlationId = Guid.TryParse(context.TraceIdentifier, out var parsedCorrelationId)
+        ? parsedCorrelationId
+        : Guid.CreateVersion7();
+    if (!Guid.TryParse(principal.FindFirstValue("sub"), out var userAccountId))
+    {
+        return Results.Unauthorized();
+    }
+
+    var application = await authorization.GetAuthorizedApplicationAsync(
+        userAccountId, applicationId, cancellationToken);
+    if (application is null)
+    {
+        return Problem(StatusCodes.Status404NotFound, "APPLICATION_NOT_FOUND",
+            "O aplicativo não está disponível no catálogo.", context.Request.Path, correlationId);
+    }
+
+    var icon = await icons.ReadPngAsync(application.IconRef, cancellationToken);
+    if (icon is null)
+    {
+        return Problem(StatusCodes.Status404NotFound, "ICON_NOT_FOUND",
+            "O ícone deste aplicativo não está disponível.", context.Request.Path, correlationId);
+    }
+
+    var entityTag = HttpEntityTags.FromContent("icon", icon);
+    context.Response.Headers["ETag"] = entityTag;
+    context.Response.Headers["Cache-Control"] = "private, max-age=86400";
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    if (HttpEntityTags.MatchesIfNoneMatch(context.Request.Headers.IfNoneMatch, entityTag))
+    {
+        return Results.StatusCode(StatusCodes.Status304NotModified);
+    }
+
+    return Results.Bytes(icon, "image/png");
 }).RequireAuthorization();
 
 app.MapPost("/v1/launches", async (
