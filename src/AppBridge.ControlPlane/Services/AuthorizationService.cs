@@ -6,6 +6,22 @@ namespace AppBridge.ControlPlane.Services;
 
 public sealed class AuthorizationService(AppDbContext dbContext)
 {
+    public async Task<RemoteApplication?> GetAuthorizedApplicationAsync(
+        Guid userAccountId,
+        Guid applicationId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!await CanLaunchAsync(userAccountId, applicationId, cancellationToken: cancellationToken))
+        {
+            return null;
+        }
+
+        return await dbContext.Applications.SingleOrDefaultAsync(application =>
+            application.Id == applicationId
+            && application.Status == Domain.Enums.ApplicationStatus.Published,
+            cancellationToken);
+    }
+
     public async Task<bool> CanLaunchAsync(
         Guid userAccountId,
         Guid applicationId,

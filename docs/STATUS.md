@@ -1,7 +1,7 @@
 # STATUS — AppBridge
 > Estado vivo do projeto. Atualizado ao fim de toda sessão (RA-02).
 
-**Última atualização:** 2026-09-25 · **Sessão atual:** S014 · **Fase:** ✅ Design concluído → **implementação do MVP-0b**
+**Última atualização:** 2026-09-25 · **Sessão atual:** S015 · **Fase:** ✅ Design concluído → **implementação do MVP-0b**
 
 ---
 
@@ -13,9 +13,10 @@
 >
 > **A implementação do MVP-0a foi retomada em 2026-09-24 (S010).** Na S013, a fundação do Control
 > Plane, autenticação OIDC/JWT, autorização, catálogo, lançamento com idempotência e o launcher mínimo
-> de console ficaram implementados. Na S014, o catálogo passou a revalidar com `ETag` e responder
-> `304` para conteúdo inalterado (T-403, MVP-0b). Três migrações aplicam e revertem no PostgreSQL
-> local; os 28 testes passam com 84,98% de cobertura de linhas medida. O SDK .NET 10.0.401 está instalado. Isso conclui a fatia de software
+> de console ficaram implementados. Na S014 foi adicionada a revalidação do catálogo com `ETag` (T-403);
+> na S015, a entrega de ícones PNG autorizados com `ETag` e cache privado (T-404). Três migrações
+> aplicam e revertem no PostgreSQL local; os 38 testes passam com 85,54% de cobertura de linhas
+> medida. O SDK .NET 10.0.401 está instalado. Isso conclui a fatia de software
 > verificável neste ambiente, mas **não conclui o aceite real do MVP-0a**: E-01/G-01, Entra real,
 > Windows, Connection Broker, `rdpsign`, certificado e V-01/V-05/V-06 continuam como pré-requisitos
 > externos/de campo. Veja `docs/operacao/desenvolvimento-control-plane.md`.
@@ -49,9 +50,9 @@
 (R-023). A pedido de Frederico, T-201 começou antes da conclusão dessas etapas; E-01/G-01 continuam
 pendentes, e a integração ponta a ponta ainda depende delas.
 
-**Continuação de software:** T-403 foi concluída na S014. As próximas tarefas do MVP-0b seguem no
-`ROADMAP.md`, incluindo sessão renovável (T-303), endpoint de ícone (T-404) e registro/reconciliação
-de sessões (T-601/T-602); nenhuma delas substitui as validações de Entra e RDS listadas abaixo.
+**Continuação de software:** T-403 e T-404 foram concluídas nas S014/S015. As próximas tarefas do
+MVP-0b seguem no `ROADMAP.md`, incluindo sessão renovável (T-303) e registro/reconciliação de sessões
+(T-601/T-602); nenhuma delas substitui as validações de Entra e RDS listadas abaixo.
 
 | Ordem | Ação | Tarefa | Por que agora |
 |-------|------|--------|---------------|
@@ -195,7 +196,7 @@ se faz com ADR novo que substitui o anterior.
 |----|-----------|--------|-------------------|
 | PD-01 | Política de expurgo de linhas com exclusão lógica (`deleted_at` antigo) — distinta da retenção de trilha | ADR-0011, MODELO-DE-DADOS §14 | Implementação |
 | PD-02 | Row-Level Security do PostgreSQL como terceira linha de defesa de isolamento | ADR-0011 | Piloto |
-| ~~PD-03~~ | ~~Onde fica o binário do ícone~~ | — | **Decisão resolvida em `API.md` §3** — arquivo fora do banco; endpoint continua pendente em T-404 (MVP-0b) |
+| ~~PD-03~~ | ~~Onde fica o binário do ícone~~ | — | **Decisão e endpoint resolvidos em T-404 (S015)** — PNG externo por `icon_ref`, autorização vigente, ETag e cache privado |
 | ~~PD-04~~ | ~~Onde ficam as respostas de idempotência durante os 60 s de validade~~ | ADR-0012, API §12 | **Resolvida por ADR-0018**, tabela `launch_idempotency` |
 | PD-05 | Limites concretos de taxa por endpoint (RNF-010) | API §12 | Depende de medição (T-005) — também PS-09 |
 | ~~PD-06~~ | ~~`exception_reason` em política por aplicativo depende de comparação com a política base; `CHECK` simples não compara linhas~~ | MODELO-DE-DADOS §3.3 | **Resolvida em T-501** pelo `RedirectionPolicyResolver` |

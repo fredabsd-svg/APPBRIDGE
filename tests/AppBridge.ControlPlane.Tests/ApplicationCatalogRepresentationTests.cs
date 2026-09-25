@@ -32,14 +32,14 @@ public sealed class ApplicationCatalogRepresentationTests
     {
         var representation = ApplicationCatalogRepresentation.Create(Array.Empty<RemoteApplication>());
 
-        Assert.True(ApplicationCatalogRepresentation.MatchesIfNoneMatch("*", representation.EntityTag));
-        Assert.True(ApplicationCatalogRepresentation.MatchesIfNoneMatch(
+        Assert.True(HttpEntityTags.MatchesIfNoneMatch("*", representation.EntityTag));
+        Assert.True(HttpEntityTags.MatchesIfNoneMatch(
             $"W/{representation.EntityTag}", representation.EntityTag));
-        Assert.True(ApplicationCatalogRepresentation.MatchesIfNoneMatch(
+        Assert.True(HttpEntityTags.MatchesIfNoneMatch(
             new StringValues([$"\"other\", {representation.EntityTag}"]), representation.EntityTag));
-        Assert.False(ApplicationCatalogRepresentation.MatchesIfNoneMatch(
+        Assert.False(HttpEntityTags.MatchesIfNoneMatch(
             "\"other\"", representation.EntityTag));
-        Assert.False(ApplicationCatalogRepresentation.MatchesIfNoneMatch(
+        Assert.False(HttpEntityTags.MatchesIfNoneMatch(
             "invalid entity tag", representation.EntityTag));
     }
 

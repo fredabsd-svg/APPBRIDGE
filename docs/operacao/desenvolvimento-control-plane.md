@@ -73,8 +73,17 @@ Windows do Control Plane.
 
 Edite `src/AppBridge.ControlPlane/data/catalog.seed.json` ou configure `CatalogSeed__Path` para outro
 arquivo JSON. O formato raiz é `tenants[]`; cada tenant tem `tenantId` e `applications[]` com `id`,
-`displayName`, `remoteAppAlias`, `hostPoolId`, `launchMode` e `status`. O arquivo incluído tem uma lista
-vazia, portanto não publica aplicativos por padrão.
+`displayName`, `iconRef` (opcional), `remoteAppAlias`, `hostPoolId`, `launchMode` e `status`. O arquivo
+incluído tem uma lista vazia, portanto não publica aplicativos por padrão.
+
+Coloque os ícones PNG numa raiz de arquivos fora do banco. Por padrão, `icon_ref` é relativo a
+`src/AppBridge.ControlPlane/data/icons`; sobrescreva a raiz com `CatalogAssets__RootPath` (caminho
+absoluto ou relativo ao content root do Control Plane). Por exemplo, `accounting/domain.png` referencia
+`<raiz>/accounting/domain.png`. O serviço recusa caminhos absolutos, `..`, links simbólicos, extensão
+que não seja `.png`, arquivos sem a assinatura PNG correta e arquivos maiores que 1 MiB. O endpoint
+confirma a permissão vigente antes de ler o arquivo; por isso, não publique os ícones por um servidor
+estático sem autenticação. Em instalação com mais de uma instância do Control Plane, configure a mesma
+raiz compartilhada e mantenha os arquivos iguais em todas as instâncias.
 
 ## 5. Iniciar localmente
 
