@@ -3,6 +3,9 @@ bin/
 obj/
 out/
 publish/
+TestResults/
+# Alguns alvos do SDK escrevem `bin\Debug` como nome literal em Unix.
+**/bin\\*/
 *.user
 *.suo
 

@@ -76,7 +76,7 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 | ID | Tarefa | Critério de aceite | Est. |
 |----|--------|--------------------|------|
 | T-201 | Esqueleto ASP.NET Core, health check, log estruturado com `correlationId` | `/health` responde; um lançamento é rastreável ponta a ponta pelo log (RNF-039, RNF-040) | 3 |
-| T-202 | EF Core + PostgreSQL + primeira migração **já com `tenant_id` em todas as tabelas** | Migração aplica e reverte (RNF-052, ADR-0011) | 5 |
+| T-202 | EF Core + PostgreSQL + primeira migração com `tenant_id` em todas as tabelas de dados de tenant (`tenant` é a raiz) | Migração aplica e reverte (RNF-052, ADR-0011) | 5 |
 | T-203 | `TenantContext` + filtro global no `DbContext` | Consulta sem cláusula explícita não retorna dado de outro tenant (ADR-0004) | 5 |
 | T-204 | **Chaves estrangeiras compostas com `tenant_id`** | Tentativa de gravar referência cruzada é recusada **pelo banco** (ADR-0011 §4) | 3 |
 | T-205 | `AuditWriter` transacional | Falha simulada de gravação **nega** a operação (V-05, ADR-0007) | 5 |
@@ -377,7 +377,7 @@ parecer do advogado em T-002 (bloqueia V2, não MVP-0).
 |----|-------|----------------------|
 | R-006 | Execução solo de projeto com quatro componentes | Divisão em MVP-0a/0b; ordem de corte decidida a frio (§6) |
 | R-007 | Densidade de requisitos Must no MVP-0 | §4 quantifica; §5 replaneja |
-| **R-023** | **A infraestrutura (E-01, 34 pts) é o caminho crítico e não é código** — depende de compra, de terceiros e da agenda das pessoas | Iniciar E-01 **antes** de qualquer linha de código; T-101 e G-01 podem começar hoje |
+| **R-023** | **A infraestrutura (E-01, 34 pts) é o caminho crítico** — depende de compra, de terceiros e da agenda das pessoas | T-201 começou antes de E-01 por orientação do PO (S010); concluir E-01 e G-01 continua necessário ao aceite ponta a ponta. T-101 e G-01 podem começar hoje |
 | R-001 | Licenciamento (reescrito por ADR-0014): responsabilidade é do cliente; resta o resíduo de termos que vedam infraestrutura operada por terceiro | G-01 na forma de declaração assinada; resíduo para o advogado de T-002 |
 | R-015 | Prelaunch não medido | T-1002 e T-1003 dentro do MVP-0a/0b, não no fim |
 | R-020 | Cofre sem impedimento técnico ao provedor | E-20 bloqueado por B-006/PS-07 |

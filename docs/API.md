@@ -2,10 +2,15 @@
 > Entregável 5 de 7 da fase de Design · Sessão S001 · 2026-08-08
 > Status: **✅ aprovado por Frederico em 2026-08-08** (RP-04)
 > Depende de: `ARQUITETURA.md`, `MODELO-DE-DADOS.md`, ADR-0012 (convenções da API)
+> Decisões posteriores: ADR-0017 (troca de token) e ADR-0018 (idempotência do lançamento)
 
 ---
 
 ## 1. Como ler este documento
+
+Este é o contrato funcional aprovado para as fases indicadas. Na implementação atual do MVP-0a,
+estão disponíveis somente `GET /health`, `POST /v1/auth/session`, `GET /v1/applications` e
+`POST /v1/launches`; a seção 12.1 registra as diferenças desta fatia.
 
 - **Convenções transversais estão em ADR-0012** e não se repetem endpoint a endpoint: versionamento
   em `/v1`, erro em Problem Details, idempotência no lançamento, `tenant_id` **nunca** vindo do
@@ -35,7 +40,7 @@
 O launcher autentica no provedor de identidade e **troca** aquele token por um token do Control Plane.
 Os dois não se confundem — e nenhum dos dois é a credencial que abre a sessão RDS (ADR-0001, ADR-0010).
 
-### `POST /v1/auth/session` — MVP-0 · RF-001, RF-003, RF-036
+### `POST /v1/auth/session` — MVP-0a · RF-001, RF-003, RF-036
 
 Troca o token do provedor de identidade por um token de sessão do AppBridge.
 
@@ -47,7 +52,6 @@ Troca o token do provedor de identidade por um token de sessão do AppBridge.
 {
   "accessToken": "eyJ...",
   "expiresAt": "2026-08-08T14:30:00Z",
-  "refreshToken": "...",
   "user": {
     "id": "018f...", "displayName": "Ana Souza",
     "tenant": { "id": "018f...", "name": "Escritório Modelo" },
@@ -56,34 +60,43 @@ Troca o token do provedor de identidade por um token de sessão do AppBridge.
 }
 ```
 
-> **A tentativa de autenticação é registrada antes de a resposta sair, na mesma transação**
-> (ADR-0007). Se a trilha não gravar, o login não acontece — e a resposta é `503`, não `500`, porque
-> o problema é de dependência e é transitório.
+No MVP-0a, a resposta contém apenas `accessToken`, `expiresAt` e `user`. Refresh token, logout e
+armazenamento em Credential Manager pertencem à T-303 no MVP-0b (ADR-0017).
+
+> **Para um token válido com tenant mapeado,** a tentativa de autenticação é registrada antes de a
+> resposta sair, na mesma transação (ADR-0007). Se a trilha não gravar, o login não acontece — e a
+> resposta é `503`, não `500`, porque o problema é transitório. Um token recusado ou tenant Entra sem
+> vínculo não tem tenant interno confiável para gravar em `access_event`; essa negativa fica no log
+> estruturado com endereço IP e correlação, sem gravar o token ou o subject.
 
 | Erro | Código | Situação |
 |------|--------|----------|
 | `401` | `INVALID_IDENTITY_TOKEN` | Token do provedor inválido ou expirado |
+| `400` | `MALFORMED_REQUEST` | ID token ausente ou nome de estação vazio, longo demais ou com quebras de linha |
 | `403` | `USER_DISABLED` | Conta desabilitada no diretório ou no AppBridge |
+| `403` | `USER_NOT_PROVISIONED` | Tenant ou conta ainda não provisionados no AppBridge |
 | `403` | `TENANT_SUSPENDED` | Tenant suspenso |
+| `503` | `IDENTITY_PROVIDER_UNAVAILABLE` | Metadados/chaves do provedor indisponíveis ou não configurados |
 | `503` | `AUDIT_UNAVAILABLE` | Trilha indisponível — login negado por decisão (ADR-0007) |
 
-### `POST /v1/auth/refresh` — MVP-0 · RF-004
+### `POST /v1/auth/refresh` — MVP-0b · RF-004
 Renova o token sem login interativo. `401 REFRESH_EXPIRED` obriga novo login.
 
-### `POST /v1/auth/logout` — MVP-0 · RF-006
+### `POST /v1/auth/logout` — MVP-0b · RF-006
 Invalida o token e o refresh. **Não encerra sessões RDS abertas** — ver §4.4 e R-014.
 
-### `GET /v1/me` — MVP-0 · RF-001
+### `GET /v1/me` — MVP-0b · RF-001
 Identidade, tenant, papéis e políticas efetivas do usuário.
 
 ---
 
 ## 3. Catálogo
 
-### `GET /v1/applications` — MVP-0 · RF-011, RF-013, RF-015
+### `GET /v1/applications` — MVP-0a · RF-011, RF-013, RF-015
 
 Retorna **apenas** os aplicativos autorizados ao usuário. Aplicativo não autorizado não aparece, não
-é contado e não é referenciável (RF-011).
+é contado e não é referenciável (RF-011). A implementação atual filtra autorização e devolve
+`items`/`nextCursor`; ETag e paginação ainda não foram implementados (T-403).
 
 ```jsonc
 // 200 OK   ETag: "cat-018f3a92"
@@ -103,27 +116,27 @@ Retorna **apenas** os aplicativos autorizados ao usuário. Aplicativo não autor
 }
 ```
 
-Com `If-None-Match` e catálogo inalterado, responde `304 Not Modified` sem corpo — a sincronização
-periódica de RF-015 custa quase nada.
+Quando implementado, `If-None-Match` e catálogo inalterado responderão `304 Not Modified` sem corpo —
+a sincronização periódica de RF-015 custará quase nada.
 
 > `available: false` indica aplicativo temporariamente indisponível (host em manutenção). É diferente
 > de ausente: o atalho continua existindo e o usuário recebe explicação em vez de erro genérico.
 
-### `GET /v1/applications/{id}/icon` — MVP-0 · RF-013 · **resolve PD-03**
+### `GET /v1/applications/{id}/icon` — MVP-0b · RF-013 · **resolve PD-03**
 
 Devolve o binário do ícone (PNG), com `ETag` e `Cache-Control` longo. **Decisão:** o ícone é servido
 pelo Control Plane a partir de armazenamento de arquivos, referenciado por `icon_ref`; não fica no
 banco. Binário em coluna infla backup e replicação do PostgreSQL sem benefício, e ícone é o tipo de
-conteúdo que a camada HTTP já sabe cachear bem.
+conteúdo que a camada HTTP já sabe cachear bem. O endpoint ainda não faz parte da fatia MVP-0a.
 
-### `GET /v1/applications/{id}` — MVP-0 · RF-011
+### `GET /v1/applications/{id}` — MVP-0b · RF-011
 Detalhe. Aplicativo de outro tenant, ou não autorizado ao usuário: **`404`** (ADR-0012 §5).
 
 ---
 
 ## 4. Lançamento — o caminho crítico
 
-### `POST /v1/launches` — MVP-0 · RF-018..RF-021, RF-025, RF-037, RF-039
+### `POST /v1/launches` — MVP-0a · RF-018..RF-021, RF-025, RF-037, RF-039
 
 O endpoint mais importante da API. Autoriza, monta, assina, registra e devolve.
 
@@ -140,7 +153,7 @@ O endpoint mais importante da API. Autoriza, monta, assina, registra e devolve.
   "launchId": "018f...",
   "sessionReused": true,
   "rdpFile": "<base64 do .rdp assinado>",
-  "expiresAt": "2026-08-08T13:45:60Z",
+  "expiresAt": "2026-08-08T13:46:00Z",
   "host": { "displayName": "Servidor de aplicativos" },
   "correlationId": "018f..."
 }
@@ -162,9 +175,12 @@ O endpoint mais importante da API. Autoriza, monta, assina, registra e devolve.
 | Erro | Código | Situação | Requisito |
 |------|--------|----------|-----------|
 | `403` | `PERMISSION_REVOKED` | Permissão não vigente — **registrado como `denied_permission`** | RF-007, RF-039 |
+| `400` | `MALFORMED_REQUEST` | Corpo inválido ou `Idempotency-Key` ausente/inválida | ADR-0012 §3 |
 | `404` | `APPLICATION_NOT_FOUND` | Inexistente ou de outro tenant | ADR-0012 §5 |
 | `409` | `QUOTA_EXHAUSTED` | Teto de licença atingido (MVP-1) | RF-064, ADR-0006 |
 | `409` | `IDEMPOTENCY_CONFLICT` | Mesma chave, corpo diferente | ADR-0012 §3 |
+| `409` | `IDEMPOTENCY_KEY_EXPIRED` | A chave expirou; não pode gerar outro lançamento | ADR-0018 |
+| `409` | `IDEMPOTENCY_IN_PROGRESS` | A reserva da chave ainda não tem resultado disponível | ADR-0018 |
 | `422` | `APPLICATION_UNAVAILABLE` | Sem host disponível ou host em drenagem | RF-025 |
 | `429` | `RATE_LIMITED` | Excesso de tentativas | RNF-010 |
 | `503` | `SIGNING_UNAVAILABLE` | `rdpsign` falhou — **nenhum `.rdp` sai sem assinatura** | RNF-002, ADR-0009 |
@@ -174,7 +190,7 @@ O endpoint mais importante da API. Autoriza, monta, assina, registra e devolve.
 > quando assinar ou registrar não é possível: o contrato **não oferece** degradação para "entregar sem
 > assinar" ou "conceder sem registrar".
 
-### `GET /v1/sessions/me` — MVP-0 · RF-024, RF-027
+### `GET /v1/sessions/me` — MVP-0b · RF-024, RF-027
 Sessões ativas do próprio usuário, para o launcher indicar estado e apoiar a reconexão.
 
 ### `DELETE /v1/sessions/{id}` — **MVP-1** · RF-008, RF-045
@@ -410,7 +426,7 @@ paths:
 | `POST /auth/logout` | RF-006 | MVP-0 |
 | `GET /me` | RF-001 | MVP-0 |
 | `GET /applications` | RF-011, RF-013, RF-015 | MVP-0 |
-| `GET /applications/{id}/icon` | RF-013 (**PD-03**) | MVP-0 |
+| `GET /applications/{id}/icon` | RF-013 (**PD-03**) | MVP-0b |
 | `POST /launches` | RF-018..RF-021, RF-023, RF-025, RF-037, RF-039 | MVP-0 |
 | `GET /sessions/me` | RF-024, RF-027 | MVP-0 |
 | `GET /audit/launches`, `/audit/access-events` | RF-040, RF-036, RF-038, RNF-015 | MVP-0 |
@@ -432,6 +448,19 @@ RF-019 e RF-021 são internos ao `POST /launches`; RF-012 é seed, sem endpoint 
 
 | ID | Item | Situação |
 |----|------|----------|
-| **PD-03** | Armazenamento de ícones | ✅ **Resolvida** — arquivo referenciado por `icon_ref`, servido por `GET /applications/{id}/icon` com `ETag` |
-| **PD-04** | Armazenamento das respostas de idempotência (memória, tabela ou cache) por 60 s | Aberta — decisão de implementação |
+| **PD-03** | Armazenamento de ícones | ✅ **Decisão resolvida** — arquivo referenciado por `icon_ref`; o endpoint com `ETag` ainda precisa ser implementado em T-404 (MVP-0b) |
+| **PD-04** | Armazenamento das respostas de idempotência (memória, tabela ou cache) por 60 s | ✅ **Resolvida por ADR-0018** — tabela `launch_idempotency`, corpo removido após TTL e tombstone preservado |
 | **PD-05** | Limites concretos de taxa por endpoint (RNF-010) | Aberta — depende de medição (T-005) |
+
+### 12.1 Fatia de API implementada no MVP-0a
+
+| Rota | Comportamento atual | Limite conhecido |
+|------|-------------------|------------------|
+| `GET /health` | Health check ASP.NET Core | Ainda não consulta dependências |
+| `POST /v1/auth/session` | Valida ID token OIDC, mapeia tenant e conta provisionados, grava `access_event` e emite JWT AppBridge | Sem refresh/logout; depende de Entra e provisionamento externo |
+| `GET /v1/applications` | Retorna só apps publicados com permissão vigente | Sem ETag, endpoint de ícone ou paginação |
+| `POST /v1/launches` | Autoriza novamente, reserva `Idempotency-Key` no PostgreSQL, monta e assina `.rdp`, grava trilha | Assinatura e RDS exigem Windows; precisa de certificado e host provisionados |
+
+Idempotência usa `(tenant_id, idempotency_key)`; repetição válida devolve o mesmo status/corpo por
+60 segundos. Corpos expirados são limpos a cada 15 segundos, com chave/hash mantidos como tombstone
+(ADR-0018). A taxa de 15 segundos é um ciclo de limpeza, não uma promessa de remoção instantânea.

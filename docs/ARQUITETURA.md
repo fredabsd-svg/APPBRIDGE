@@ -3,7 +3,8 @@
 > Status: **✅ aprovado por Frederico em 2026-08-08** (RP-04)
 > Depende de: `VISAO.md` e `REQUISITOS.md` (aprovados), ADR-0001 a ADR-0010
 > Decisões posteriores que a afetam: ADR-0011 (modelo de dados), ADR-0012 (API), **ADR-0016**
-> (operação de cancelamento em `ISessionBackend`, §4.2)
+> (operação de cancelamento em `ISessionBackend`, §4.2), ADR-0017 (token de sessão), ADR-0018
+> (idempotência) e ADR-0019 (launcher mínimo do MVP-0a)
 
 ---
 
@@ -77,7 +78,7 @@ graph TB
     ADMIN["<b>Administrador</b>"]
 
     subgraph estacao["Estação Windows do usuário — ingressada no domínio (ADR-0010)"]
-        L["<b>Launcher</b><br/>C# · .NET 10 · WinUI 3 · MSIX<br/>catálogo, atalhos, prelaunch<br/>RF-011..RF-035"]
+        L["<b>Launcher</b><br/>MVP-0a: console .NET 10<br/>MVP-0b: WinUI 3 · MSIX<br/>RF-011..RF-035"]
         SQL["<b>SQLite local</b><br/>cache do catálogo<br/>RF-014"]
         CM["<b>Credential Manager</b><br/>token de sessão<br/>RF-005"]
         MS["<b>mstsc</b><br/>NO-01"]
@@ -125,7 +126,7 @@ graph TB
 
 | Contêiner | Tecnologia | Responsabilidade | Requisitos | Fase |
 |-----------|-----------|------------------|-----------|------|
-| **Launcher** | .NET 10 · WinUI 3 · MSIX (ADR-0005) | Catálogo, atalhos, protocolo, prelaunch, lançamento, latência | RF-011..RF-035 | MVP-0 |
+| **Launcher** | MVP-0a: console .NET 10; MVP-0b: WinUI 3 · MSIX (ADR-0005, 0019) | MVP-0a: login, catálogo, lançamento; MVP-0b: atalhos, protocolo, cache e prelaunch | RF-001, RF-011..RF-035 | MVP-0a / MVP-0b |
 | **SQLite local** | SQLite | Cache do catálogo e estado local do launcher | RF-014 | MVP-0 |
 | **Control Plane** | ASP.NET Core | Autorização, geração e assinatura do `.rdp`, registro de sessões, auditoria, metering | RF-001..RF-042, RF-062..RF-066 | MVP-0 |
 | **PostgreSQL** | PostgreSQL | Persistência multi-tenant e trilha de auditoria | RNF-036, RNF-019 | MVP-0 |
@@ -257,6 +258,10 @@ RDS.**
 previsto para RM-07 — **não é construído agora**, mas a interface existe desde o MVP-0 justamente para
 que ele seja possível sem reescrita.
 
+Na fatia MVP-0a, `RdsSessionBackend` resolve um host online e uma sessão já conhecida no banco. A
+criação e a reconciliação de registros de sessão no Connection Broker (T-601/T-602) ainda não estão
+implementadas; o teste atual cobre a seleção e reutilização com dados de sessão provisionados.
+
 ### 4.3 Componentes do Launcher
 
 | Componente | Responsabilidade | Requisitos |
@@ -270,6 +275,11 @@ que ele seja possível sem reescrita.
 | `PrelaunchService` | Dispara o SessionPrimer e mantém a sessão pronta | RF-023 |
 | `LatencyProbe` | Indicador de latência | RF-026 |
 | `DiagnosticsCollector` | Coleta diagnóstico sem o usuário navegar em pastas (MVP-1) | RNF-041 |
+
+No MVP-0a, o launcher de console implementa o fluxo interativo de Entra, o cliente HTTP para sessão,
+catálogo e lançamento, e a abertura pelo `mstsc`. Não persiste tokens nem catálogo. O cliente WinUI,
+MSIX, atalhos, protocolo `appbridge://`, Credential Manager, SQLite e prelaunch continuam para o
+MVP-0b, conforme ADR-0019.
 
 ---
 
