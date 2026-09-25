@@ -162,7 +162,48 @@ autentica no Control Plane; `ad_object_sid` identifica a conta que abre a sessã
 
 **Requisitos:** RF-001, RF-002, RF-003, RF-005 · **ADR:** 0001
 
-### 4.2 `group` e `user_group_membership` — MVP-0
+### 4.2 `auth_session` — MVP-0b · ADR-0020
+
+Uma linha representa a sessão de um launcher. `id` é o `sid` embutido no access JWT e vincula todos
+os refresh tokens rotacionados daquela sessão. A consulta por esta linha ocorre em cada chamada
+autenticada para que logout e replay invalidem o JWT imediatamente.
+
+| Coluna | Tipo | Notas |
+|--------|------|-------|
+| `id` | uuid v7 PK | Claim `sid` do access token |
+| `tenant_id` | uuid FK | FK composta para usuário e refresh tokens |
+| `user_account_id` | uuid | FK composta `(tenant_id, user_account_id)` |
+| `workstation_name` | varchar(128) | Estação informada no login; usada na trilha de refresh/logout |
+| `last_used_at` | timestamptz | Último refresh confirmado |
+| `expires_at` | timestamptz | Expiração por inatividade, limitada por `absolute_expires_at` |
+| `absolute_expires_at` | timestamptz | Máximo de vida da sessão (30 dias por padrão) |
+| `revoked_at`, `revocation_reason` | timestamptz, text NULL | `logout`, `refresh_replay`, `account_disabled` ou `tenant_suspended` |
+
+A entidade também recebe os campos mutáveis comuns (`created_at/by`, `updated_at/by`, `row_version`,
+`deleted_at/by`). Índice `(tenant_id, user_account_id, revoked_at)`. A tarefa de manutenção elimina
+sessões vencidas/revogadas e seus refresh tokens após 30 dias de retenção técnica.
+
+### 4.3 `auth_refresh_token` — MVP-0b · ADR-0020
+
+Cada rotação acrescenta um registro. O access token não fica nesta tabela e o valor bruto do refresh
+token nunca é gravado: `token_hash` é SHA-256 hexadecimal do valor completo. O hash consumido é
+mantido enquanto a sessão puder estar ativa para detectar replay.
+
+| Coluna | Tipo | Notas |
+|--------|------|-------|
+| `id` | uuid v7 PK | |
+| `tenant_id` | uuid FK | |
+| `session_id` | uuid | FK composta `(tenant_id, session_id)` com exclusão em cascata |
+| `token_hash` | char(64) | SHA-256 hexadecimal; único por tenant |
+| `expires_at` | timestamptz | Expiração ociosa vigente quando este token foi emitido |
+| `consumed_at` | timestamptz NULL | Preenchido no refresh que emite o próximo token |
+
+Inclui ainda os campos de auditoria mutáveis comuns. Índices `UNIQUE (tenant_id, token_hash)` e
+`(tenant_id, session_id)`.
+
+**Requisitos:** RF-004..RF-006, RNF-004, RNF-036 · **ADR:** 0020
+
+### 4.4 `group` e `user_group_membership` — MVP-0
 
 Permissão é **sempre por grupo** (RF-010). O grupo pode espelhar um grupo de diretório ou ser local
 do AppBridge.
@@ -415,6 +456,8 @@ erDiagram
     TENANT ||--o{ REDIRECTION_POLICY : "configura"
 
     USER_ACCOUNT ||--o{ USER_GROUP_MEMBERSHIP : "participa"
+    USER_ACCOUNT ||--o{ AUTH_SESSION : "autentica"
+    AUTH_SESSION ||--o{ AUTH_REFRESH_TOKEN : "rotaciona"
     GROUP ||--o{ USER_GROUP_MEMBERSHIP : "contém"
     GROUP ||--o{ APPLICATION_PERMISSION : "recebe"
     APPLICATION ||--o{ APPLICATION_PERMISSION : "concedida por"
@@ -443,6 +486,21 @@ erDiagram
         text ad_object_sid "estavel a renomeacao"
         text upn
         enum status
+    }
+    AUTH_SESSION {
+        uuid id PK "sid do access JWT"
+        uuid tenant_id FK
+        uuid user_account_id FK
+        timestamptz expires_at
+        timestamptz absolute_expires_at
+        timestamptz revoked_at
+    }
+    AUTH_REFRESH_TOKEN {
+        uuid id PK
+        uuid tenant_id FK
+        uuid session_id FK
+        text token_hash "SHA-256"
+        timestamptz consumed_at
     }
     APPLICATION {
         uuid id PK
@@ -619,6 +677,8 @@ precedida de migração de cópia; migração que altera semântica de coluna de
 | `redirection_policy` | RNF-014, RF-048 | MVP-0 |
 | `signing_certificate` | RNF-008 | MVP-0 |
 | `user_account` | RF-001..RF-003, RF-005 | MVP-0 |
+| `auth_session` | RF-004..RF-006 | MVP-0b · ADR-0020 |
+| `auth_refresh_token` | RF-004..RF-006, RNF-004 | MVP-0b · ADR-0020 |
 | `group`, `user_group_membership` | RF-010, RF-044 | MVP-0 |
 | `application` | RF-011..RF-013, RF-028, RF-063 | MVP-0 |
 | `application_permission` | RF-007, RF-010, RF-021 | MVP-0 |

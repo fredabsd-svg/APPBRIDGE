@@ -6,6 +6,25 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Adicionado — sessão renovável do launcher (T-303, T-803, S016)
+- Criadas as tabelas `auth_session` e `auth_refresh_token`, com isolamento por tenant e FK composta.
+  Refresh tokens têm 256 bits aleatórios, rotacionam a cada uso e ficam no banco somente como SHA-256;
+  reapresentar um token consumido revoga a sessão.
+- Access JWT agora inclui `sid`; cada chamada autenticada confere sessão, tenant, usuário e expiração.
+  Logout revoga a sessão e grava o evento na mesma transação, invalidando access e refresh tokens sem
+  esperar o `exp`. Uma rotina limpa sessões e hashes 30 dias depois da validade/revogação.
+- `POST /v1/auth/session` passou a devolver o par de tokens; implementados `POST /v1/auth/refresh` e
+  `POST /v1/auth/logout`. O refresh expira com 7 dias de inatividade e limite absoluto de 30 dias,
+  ambos configuráveis entre 1 e 90 dias.
+- O launcher persiste o par no Windows Credential Manager, restaura e renova sessões e oferece logout
+  interativo ou `AppBridge.Launcher.exe --logout`. Se logout remoto falhar, apaga a credencial local,
+  avisa que o servidor não confirmou a revogação e retorna erro; o grant remoto expira pelos seus limites.
+- Adicionada a migração `AuthenticationSessions`; contrato da API, modelo, arquitetura, segurança,
+  roteiro operacional, status, roadmap e auditoria atualizados; registrados os detalhes no ADR-0020.
+- Build Release do Control Plane, suíte (42 testes; cobertura 87,44%), build do Launcher e
+  `./scripts/check-docs.sh` aprovados. Serviços e middleware foram exercitados com PostgreSQL local;
+  rota HTTP completa, Credential Manager e MSAL ainda precisam de validação em Windows/Entra real.
+
 ### Adicionado — entrega autorizada de ícones PNG (T-404, S015)
 - Implementado `GET /v1/applications/{id}/icon`, que só serve ícones de aplicativos publicados para
   usuários com permissão vigente; aplicativos inexistentes, não publicados ou não autorizados não

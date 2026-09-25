@@ -4,7 +4,7 @@
 > Depende de: `VISAO.md` e `REQUISITOS.md` (aprovados), ADR-0001 a ADR-0010
 > Decisões posteriores que a afetam: ADR-0011 (modelo de dados), ADR-0012 (API), **ADR-0016**
 > (operação de cancelamento em `ISessionBackend`, §4.2), ADR-0017 (token de sessão), ADR-0018
-> (idempotência) e ADR-0019 (launcher mínimo do MVP-0a)
+> (idempotência), ADR-0019 (launcher mínimo do MVP-0a) e ADR-0020 (sessão renovável)
 
 ---
 
@@ -276,10 +276,10 @@ implementadas; o teste atual cobre a seleção e reutilização com dados de ses
 | `LatencyProbe` | Indicador de latência | RF-026 |
 | `DiagnosticsCollector` | Coleta diagnóstico sem o usuário navegar em pastas (MVP-1) | RNF-041 |
 
-No MVP-0a, o launcher de console implementa o fluxo interativo de Entra, o cliente HTTP para sessão,
-catálogo e lançamento, e a abertura pelo `mstsc`. Não persiste tokens nem catálogo. O cliente WinUI,
-MSIX, atalhos, protocolo `appbridge://`, Credential Manager, SQLite e prelaunch continuam para o
-MVP-0b, conforme ADR-0019.
+No MVP-0a, o launcher de console implementava o fluxo interativo de Entra, o cliente HTTP para sessão,
+catálogo e lançamento, e a abertura pelo `mstsc`, sem persistir tokens. T-303/S016 adicionou refresh,
+logout e persistência no Windows Credential Manager. O cliente WinUI, MSIX, atalhos, protocolo
+`appbridge://`, cache SQLite e prelaunch continuam para o MVP-0b, conforme ADR-0019 e ADR-0020.
 
 ---
 
@@ -299,19 +299,24 @@ sequenceDiagram
 
     U->>L: abre o launcher
     L->>CM: busca token salvo (RF-005)
-    alt token válido
-        CM-->>L: token
-    else sem token ou expirado
+    alt access token ainda válido
+        CM-->>L: access + refresh token
+    else access expirado, refresh válido
+        L->>CP: POST /auth/refresh (refresh token atual)
+        CP->>DB: consome hash e cria sucessor na mesma transação
+        CP-->>L: novo par de tokens
+        L->>CM: substitui credencial salva
+    else sem sessão ou refresh expirado
         L->>ID: fluxo de autenticação (RF-001, RF-003)
         ID-->>L: token de identidade
         L->>CP: POST /auth/session
         CP->>ID: valida token e resolve grupos (RF-010)
         CP->>CP: resolve conta AD vinculada (RF-002, ADR-0001)
-        CP->>DB: grava evento de autenticação (RF-036)
+        CP->>DB: cria sessão, refresh e evento de autenticação (RF-036)
         Note over CP,DB: mesma transação — ADR-0007<br/>falha ao gravar = login negado
         DB-->>CP: confirmado
-        CP-->>L: token de sessão (RF-004)
-        L->>CM: guarda token (RF-005)
+        CP-->>L: access + refresh tokens (RF-004)
+        L->>CM: guarda par de tokens (RF-005)
     end
     L->>CP: GET /catalog
     CP->>DB: catálogo do usuário, filtrado por tenant (RNF-036)
@@ -323,6 +328,40 @@ sequenceDiagram
 
 > **O passo 3 é decisão de arquitetura, não detalhe:** a senha de domínio nunca passa pelo Control
 > Plane (ADR-0010). Ele emite autorização; a credencial é assunto entre a estação e o Windows.
+
+### 5.6 Renovação e logout da sessão — T-303 / RF-004..RF-006
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as Usuário
+    participant L as Launcher
+    participant CM as Credential Manager
+    participant CP as Control Plane
+    participant DB as PostgreSQL
+
+    U->>L: inicia o launcher ou escolhe sair da conta
+    L->>CM: lê o par de tokens
+    opt access token perto de vencer
+        L->>CP: POST /v1/auth/refresh
+        CP->>DB: bloqueia a sessão e confere hash não consumido
+        CP->>DB: consome hash anterior, grava sucessor e auditoria
+        DB-->>CP: transação confirmada
+        CP-->>L: par de tokens rotacionado
+        L->>CM: substitui a credencial
+    end
+    opt usuário escolhe logout
+        L->>CP: POST /v1/auth/logout com access token
+        CP->>DB: revoga sessão e grava logout na mesma transação
+        DB-->>CP: transação confirmada
+        CP-->>L: 204 No Content
+        L->>CM: apaga a credencial mesmo se a API falhar
+    end
+```
+
+O access JWT carrega `sid`; toda rota autenticada confere a sessão no PostgreSQL. Replay de refresh
+revoga o conjunto inteiro e retorna `401 REFRESH_EXPIRED`. O logout invalida o AppBridge de imediato,
+mas não encerra uma sessão RDS já aberta (RF-008).
 
 ### 5.2 Lançamento de aplicativo — o caminho crítico
 

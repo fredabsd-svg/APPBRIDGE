@@ -95,7 +95,7 @@ FC-5.
 |----|--------|-----------|--------|
 | **AM-01** | Atacante forja `.rdp` apontando a estação para host próprio e coleta credenciais de domínio | Assinatura obrigatória (RF-019, RNF-002); estações confiam apenas na impressão digital distribuída por GPO (ADR-0009); nenhum caminho entrega `.rdp` não assinado (`API.md` §4) | ✅ |
 | **AM-02** | **Comprometimento de A-01** (chave de assinatura) permite forjar `.rdp` confiável para todo o parque | Chave não exportável, uso restrito à conta de serviço, rotação documentada (RNF-008); inventário em `signing_certificate` | 🟡 **Parcial** — não há detecção de uso indevido da chave. Ver PS-01 |
-| **AM-03** | Roubo do token de sessão (A-08) na estação permite lançar como a vítima | Token de vida curta e renovável (RF-004); armazenamento no Credential Manager (RF-005); trilha registra `workstationName` e IP, permitindo detectar uso a partir de outra máquina | 🟡 **Parcial** — a detecção é posterior, não impeditiva |
+| **AM-03** | Roubo do token de sessão (A-08) na estação permite lançar como a vítima | Access token de 30 min com `sid`; estado da sessão validado em cada chamada; refresh de uso único com hash e detecção de replay; armazenamento no Credential Manager (RF-004, RF-005); trilha registra estação e IP | 🟡 **Parcial** — um access token ainda válido pode ser usado até logout/expiração; a proteção do Credential Manager não impede código rodando como o próprio usuário |
 | **AM-04** | Agent falso se registra como session host (V2) | Credencial por host emitida no enrollment e revogável (RF-053); aprovação nominal | ✅ (V2) |
 | **AM-05** | Falsificação de identidade no login | Autenticação delegada ao provedor (ADR-0001); AppBridge não guarda senha; limitação de taxa (RNF-010) | ✅ |
 
@@ -199,11 +199,16 @@ Regras: rotação documentada para cada um · nenhum segredo em mensagem de comm
 `*.pfx`, `*.p12`, `.env`, `secrets.json` · toda gravação de log passa por filtro que remove campos
 sensíveis conhecidos (RNF-004).
 
-Na fatia MVP-0a, o token de sessão fica apenas na memória do processo launcher e vence após 30 minutos
-por padrão; não há refresh nem persistência local (ADR-0017, ADR-0019). A configuração de produção
-precisa fornecer a chave HMAC do Control Plane em cofre ou variável de ambiente segura; a chave
-aleatória em memória é somente para desenvolvimento. A validação final desses controles com Entra e
-estações Windows continua pendente.
+Na fatia inicial do MVP-0a, o access token ficava apenas na memória e vencia após 30 minutos. Desde
+T-303/S016, o launcher guarda o par de tokens no Windows Credential Manager. Refresh token é opaco,
+rotacionado a cada uso e persistido no servidor apenas como hash; replay revoga o conjunto da sessão.
+O access JWT carrega `sid` e cada chamada autenticada confirma no PostgreSQL que a sessão continua
+ativa (ADR-0020). Por padrão, refresh expira após 7 dias sem uso e há um limite absoluto de 30 dias.
+
+A configuração de produção precisa fornecer a chave HMAC do Control Plane em cofre ou variável de
+ambiente segura; a chave aleatória em memória é somente para desenvolvimento. A validação do
+Credential Manager e do fluxo MSAL continua pendente em estação Windows com Entra real. Clientes com
+access token anterior à T-303 precisam entrar novamente porque seus JWTs não têm `sid`.
 
 ---
 

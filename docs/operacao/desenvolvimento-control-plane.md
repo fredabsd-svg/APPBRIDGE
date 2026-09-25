@@ -47,12 +47,27 @@ IdentityProvider__TenantMappings__<entra-tenant-id>=<tenant-id-interno>
 ControlPlaneTokens__Issuer=https://appbridge.exemplo.interno
 ControlPlaneTokens__Audience=appbridge-launcher
 ControlPlaneTokens__SigningKey=<chave-base64-com-pelo-menos-32-bytes>
+AuthenticationSessions__IdleLifetimeDays=7
+AuthenticationSessions__MaximumSessionLifetimeDays=30
 ```
 
 Gere uma chave criptograficamente aleatória de pelo menos 32 bytes e forneça-a por cofre ou variável
 de ambiente. Não a grave neste repositório. Em desenvolvimento, o Control Plane gera uma chave
 temporária em memória se `ControlPlaneTokens__SigningKey` estiver ausente; tokens deixam de valer ao
 reiniciar.
+
+O access token dura 30 minutos por padrão. O refresh token renova por até 7 dias sem uso, limitado a
+30 dias desde o login; os dois prazos da sessão aceitam configuração de 1 a 90 dias. O refresh é
+rotacionado a cada uso, e o banco guarda somente hashes. Não configure valores acima do limite
+operacional documentado no ADR-0020. A estação envia o refresh token somente por TLS.
+
+No Windows, o launcher guarda access/refresh tokens em uma credencial genérica local do usuário do
+Credential Manager; não são sincronizados entre estações. No console do launcher, escolha `0` para
+sair da conta, ou execute `AppBridge.Launcher.exe --logout`. As duas formas tentam revogar a sessão
+remota e removem a credencial local. Se o Control Plane estiver inacessível, a sessão local é apagada,
+mas a revogação remota não acontece: o refresh grant no servidor continua utilizável até expirar
+(até 7 dias ocioso, no máximo 30 dias). O launcher retorna erro para destacar esse estado. Depois de implantar T-303,
+usuários com token emitido pela versão anterior devem entrar novamente: o JWT antigo não contém `sid`.
 
 `IdentityProvider__TenantMappings` associa o claim `tid` validado ao UUID interno. Tenant, contas,
 grupos, associações, permissões, pools, hosts e certificado de assinatura precisam ser provisionados

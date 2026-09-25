@@ -2,15 +2,14 @@
 > Entregável 5 de 7 da fase de Design · Sessão S001 · 2026-08-08
 > Status: **✅ aprovado por Frederico em 2026-08-08** (RP-04)
 > Depende de: `ARQUITETURA.md`, `MODELO-DE-DADOS.md`, ADR-0012 (convenções da API)
-> Decisões posteriores: ADR-0017 (troca de token) e ADR-0018 (idempotência do lançamento)
+> Decisões posteriores: ADR-0017 (troca de token), ADR-0018 (idempotência), ADR-0020 (sessão renovável)
 
 ---
 
 ## 1. Como ler este documento
 
-Este é o contrato funcional aprovado para as fases indicadas. Na implementação atual do MVP-0a,
-estão disponíveis somente `GET /health`, `POST /v1/auth/session`, `GET /v1/applications` e
-`POST /v1/launches`; a seção 12.1 registra as diferenças desta fatia.
+Este é o contrato funcional aprovado para as fases indicadas. A seção 12.1 registra a superfície
+implementada por etapa e as diferenças que ainda existem.
 
 - **Convenções transversais estão em ADR-0012** e não se repetem endpoint a endpoint: versionamento
   em `/v1`, erro em Problem Details, idempotência no lançamento, `tenant_id` **nunca** vindo do
@@ -48,10 +47,12 @@ Troca o token do provedor de identidade por um token de sessão do AppBridge.
 // requisição
 { "identityToken": "eyJ...", "workstationName": "PC-CONTABIL-07" }
 
-// 201 Created
+// 201 Created · Cache-Control: no-store · Pragma: no-cache
 {
   "accessToken": "eyJ...",
   "expiresAt": "2026-08-08T14:30:00Z",
+  "refreshToken": "v1.<tenant>.<sessão>.<segredo-aleatório>",
+  "refreshExpiresAt": "2026-08-15T14:00:00Z",
   "user": {
     "id": "018f...", "displayName": "Ana Souza",
     "tenant": { "id": "018f...", "name": "Escritório Modelo" },
@@ -60,8 +61,9 @@ Troca o token do provedor de identidade por um token de sessão do AppBridge.
 }
 ```
 
-No MVP-0a, a resposta contém apenas `accessToken`, `expiresAt` e `user`. Refresh token, logout e
-armazenamento em Credential Manager pertencem à T-303 no MVP-0b (ADR-0017).
+Desde T-303/S016, o Control Plane inclui refresh token na resposta. O launcher persiste os tokens no
+Windows Credential Manager, renova antes de vencer e descarta a credencial local no logout (ADR-0020).
+Access tokens anteriores à implantação, sem claim `sid`, exigem novo login.
 
 > **Para um token válido com tenant mapeado,** a tentativa de autenticação é registrada antes de a
 > resposta sair, na mesma transação (ADR-0007). Se a trilha não gravar, o login não acontece — e a
@@ -80,10 +82,41 @@ armazenamento em Credential Manager pertencem à T-303 no MVP-0b (ADR-0017).
 | `503` | `AUDIT_UNAVAILABLE` | Trilha indisponível — login negado por decisão (ADR-0007) |
 
 ### `POST /v1/auth/refresh` — MVP-0b · RF-004
-Renova o token sem login interativo. `401 REFRESH_EXPIRED` obriga novo login.
+
+Recebe o refresh token no corpo JSON e devolve um par novo de tokens. O valor apresentado é consumido
+na mesma transação que grava a auditoria e cria seu sucessor.
+
+```jsonc
+// requisição
+{ "refreshToken": "v1.<tenant>.<sessão>.<segredo-aleatório>" }
+
+// 200 OK · Cache-Control: no-store · Pragma: no-cache
+{
+  "accessToken": "eyJ...",
+  "expiresAt": "2026-08-08T15:00:00Z",
+  "refreshToken": "v1.<tenant>.<sessão>.<novo-segredo-aleatório>",
+  "refreshExpiresAt": "2026-08-15T14:30:00Z"
+}
+```
+
+Cada refresh token é de uso único. Reapresentar um token consumido revoga a sessão toda e responde
+`401 REFRESH_EXPIRED`, assim como token desconhecido, expirado ou revogado. Os valores brutos nunca
+são registrados em log ou banco; o Control Plane conserva somente hashes para detectar replay. Por
+padrão, a sessão expira após 7 dias sem renovação e, de forma absoluta, após 30 dias. A configuração
+está descrita no roteiro operacional e limitada a 1–90 dias. Respostas com tokens usam
+`Cache-Control: no-store` e `Pragma: no-cache` (RFC 6749 §5.1).
 
 ### `POST /v1/auth/logout` — MVP-0b · RF-006
-Invalida o token e o refresh. **Não encerra sessões RDS abertas** — ver §4.4 e R-014.
+
+Exige `Authorization: Bearer <accessToken>` e não recebe corpo. Revoga a sessão identificada por
+`sid`, audita o evento e devolve `204 No Content`. O Control Plane confere o estado da sessão em cada
+requisição autenticada; depois do commit, o access token e todo o conjunto de refresh tokens deixam de
+ser aceitos. O launcher apaga o par salvo mesmo quando o Control Plane não responde.
+Nesse caso, a credencial local some, mas o servidor não recebeu a revogação; o refresh grant remoto
+continua válido até expirar e a confirmação deve ser tratada como falha de logout.
+
+**Logout do AppBridge não encerra sessões RDS já abertas** — ver §4.4 e R-014. Uma falha na gravação
+da trilha reverte a revogação e responde `503 AUDIT_UNAVAILABLE` (ADR-0007).
 
 ### `GET /v1/me` — MVP-0b · RF-001
 Identidade, tenant, papéis e políticas efetivas do usuário.
@@ -337,7 +370,7 @@ injetado na sessão (RF-058). Uma API que oferece download do certificado não �
 | 400 | `MALFORMED_REQUEST` | Corpo inválido | Erro de programação; reportar diagnóstico |
 | 401 | `INVALID_IDENTITY_TOKEN` | Token do provedor inválido | Refazer login |
 | 401 | `SESSION_EXPIRED` | Token do AppBridge expirado | Renovar; se falhar, login |
-| 401 | `REFRESH_EXPIRED` | Refresh expirado | Login interativo |
+| 401 | `REFRESH_EXPIRED` | Refresh desconhecido, expirado, consumido ou revogado | Login interativo |
 | 403 | `PERMISSION_REVOKED` | Sem permissão vigente | Mensagem clara + remover atalho (RF-032) |
 | 403 | `USER_DISABLED` | Conta desabilitada | Mensagem + logout local |
 | 403 | `TENANT_SUSPENDED` | Tenant suspenso | Mensagem; não repetir |
@@ -471,7 +504,9 @@ RF-019 e RF-021 são internos ao `POST /launches`; RF-012 é seed, sem endpoint 
 | Rota | Comportamento atual | Limite conhecido |
 |------|-------------------|------------------|
 | `GET /health` | Health check ASP.NET Core | Ainda não consulta dependências |
-| `POST /v1/auth/session` | Valida ID token OIDC, mapeia tenant e conta provisionados, grava `access_event` e emite JWT AppBridge | Sem refresh/logout; depende de Entra e provisionamento externo |
+| `POST /v1/auth/session` | Valida ID token OIDC, mapeia tenant e conta provisionados, grava `access_event`, cria sessão persistente e emite access/refresh tokens | Depende de Entra e provisionamento externo; estações precisam renovar a sessão depois da implantação |
+| `POST /v1/auth/refresh` | Rotaciona refresh token, emite access token novo e audita o uso; replay revoga o conjunto da sessão | Refresh exige token no corpo e TLS; sessão dura 7 dias sem uso e no máximo 30 dias por padrão |
+| `POST /v1/auth/logout` | Revoga a sessão do `sid` no access token e grava `access_event` na mesma transação | Não termina a sessão RDS; limpeza local é responsabilidade do launcher mesmo em erro de rede |
 | `GET /v1/applications` | Retorna só apps publicados com permissão vigente e valida `ETag`/`If-None-Match` | Sem paginação |
 | `GET /v1/applications/{id}/icon` | Entrega PNG do app publicado autorizado, com `ETag` e cache privado | Requer PNG de até 1 MiB sob `CatalogAssets:RootPath` |
 | `POST /v1/launches` | Autoriza novamente, reserva `Idempotency-Key` no PostgreSQL, monta e assina `.rdp`, grava trilha | Assinatura e RDS exigem Windows; precisa de certificado e host provisionados |

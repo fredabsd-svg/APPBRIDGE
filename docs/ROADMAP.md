@@ -89,7 +89,7 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 |----|--------|--------------------|------|
 | T-301 | `POST /auth/session`, com registro na mesma transação | Login gera `access_event`; falha de trilha devolve `503 AUDIT_UNAVAILABLE` | 8 |
 | T-302 | Vínculo identidade → conta AD por **SID** | Renomear a conta no AD não quebra o vínculo nem a trilha (RF-002) | 5 |
-| T-303 | Refresh, logout e armazenamento no Credential Manager | Token renova sem login; logout invalida (RF-004..RF-006) | 5 |
+| T-303 | Refresh, logout e armazenamento no Credential Manager — **concluída na S016** (ADR-0020) | Token renova sem login; logout revoga access e refresh (RF-004..RF-006) | 5 |
 | T-304 | `AuthorizationService` com vigência de permissão | Permissão revogada nega o lançamento seguinte em ≤ 60 s (V-07, RNF-030) | 3 |
 
 ### E-04 · Catálogo — 11 pts
@@ -134,7 +134,7 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 |----|--------|--------------------|------|
 | T-801 | Projeto WinUI 3 + MSIX + empacotamento | Instala sem privilégio administrativo; **testa PRE-17** (RNF-044) | 8 |
 | T-802 | `ApiClient` com token, renovação e tratamento dos códigos de erro | Cada código produz mensagem em pt-BR acionável (RF-025, RNF-043) | 5 |
-| T-803 | `CredentialStore` no Windows Credential Manager | Token não aparece em arquivo nem no SQLite (RF-005) | 3 |
+| T-803 | `CredentialStore` no Windows Credential Manager — **concluída como parte de T-303/S016** | Token não aparece em arquivo nem no SQLite (RF-005); validação prática em Windows segue pendente | 3 |
 | T-804 | Cache do catálogo em SQLite | Interface abre sem rede, com aviso de estado (RF-014) | 5 |
 | T-805 | Interface do catálogo: lista, ícones, estado, latência | Usuário identifica seus aplicativos sem treinamento (RF-026, RNF-042) | 5 |
 

@@ -8,7 +8,7 @@ namespace AppBridge.ControlPlane.Authentication;
 
 public sealed class ControlPlaneTokenIssuer(IOptions<ControlPlaneTokenOptions> options)
 {
-    public (string Token, DateTimeOffset ExpiresAt) Issue(UserAccount user, Tenant tenant)
+    public (string Token, DateTimeOffset ExpiresAt) Issue(UserAccount user, Tenant tenant, Guid sessionId)
     {
         var tokenOptions = options.Value;
         var now = DateTimeOffset.UtcNow;
@@ -19,6 +19,7 @@ public sealed class ControlPlaneTokenIssuer(IOptions<ControlPlaneTokenOptions> o
         {
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString("D")),
             new Claim("tenant_id", tenant.Id.ToString("D")),
+            new Claim("sid", sessionId.ToString("D")),
             new Claim("name", user.DisplayName),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.CreateVersion7().ToString("D")),
             new Claim(JwtRegisteredClaimNames.Iat, now.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),

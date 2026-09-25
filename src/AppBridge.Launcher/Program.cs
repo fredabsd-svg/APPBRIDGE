@@ -2,7 +2,7 @@ namespace AppBridge.Launcher;
 
 internal static class Program
 {
-    public static async Task<int> Main()
+    public static async Task<int> Main(string[] args)
     {
         using var cancellation = new CancellationTokenSource();
         ConsoleCancelEventHandler cancelHandler = (_, eventArgs) =>
@@ -20,30 +20,92 @@ internal static class Program
                 return 2;
             }
 
-            var settings = LauncherSettings.Load();
-            using var api = new AppBridgeApiClient(settings.ApiBaseAddress);
-            var identityTokens = new EntraIdentityTokenProvider(settings);
-            var workstationName = Environment.MachineName;
-
-            Console.WriteLine("Entrando no AppBridge...");
-            var identityToken = await identityTokens.AcquireIdentityTokenAsync(cancellation.Token);
-            await api.AuthenticateAsync(identityToken, workstationName, cancellation.Token);
-
-            var applications = await api.GetApplicationsAsync(cancellation.Token);
-            if (applications.Count == 0)
+            var logoutOnly = args.Length == 1 && args[0] == "--logout";
+            if (args.Length > 0 && !logoutOnly)
             {
-                Console.WriteLine("Nenhum aplicativo publicado está autorizado para esta conta.");
-                return 0;
+                Console.Error.WriteLine("Uso: AppBridge.Launcher [--logout]");
+                return 2;
             }
 
-            var selectedApplication = SelectApplication(applications);
-            if (selectedApplication is null)
+            var settings = LauncherSettings.Load();
+            var credentialStore = new WindowsCredentialStore();
+            using var api = new AppBridgeApiClient(settings.ApiBaseAddress, credentialStore);
+            var workstationName = Environment.MachineName;
+
+            if (logoutOnly)
+            {
+                try
+                {
+                    if (!await api.TryRestoreSessionAsync(cancellation.Token))
+                    {
+                        Console.WriteLine("Não há sessão salva neste usuário do Windows.");
+                        return 0;
+                    }
+
+                    await api.LogoutAsync(cancellation.Token);
+                    Console.WriteLine("Sessão encerrada.");
+                    return 0;
+                }
+                catch (Exception exception) when (exception is AppBridgeApiException or HttpRequestException or TaskCanceledException)
+                {
+                    api.ClearSavedSession();
+                    Console.WriteLine("A sessão local foi removida, mas o Control Plane não confirmou o encerramento remoto.");
+                    return 1;
+                }
+            }
+
+            if (!await api.TryRestoreSessionAsync(cancellation.Token))
+            {
+                await AuthenticateAsync(settings, api, workstationName, cancellation.Token);
+            }
+
+            IReadOnlyList<RemoteApplication> applications;
+            try
+            {
+                applications = await api.GetApplicationsAsync(cancellation.Token);
+            }
+            catch (AppBridgeApiException exception) when (exception.Code == "REFRESH_EXPIRED")
+            {
+                Console.WriteLine("A sessão salva foi encerrada. Entre novamente.");
+                await AuthenticateAsync(settings, api, workstationName, cancellation.Token);
+                applications = await api.GetApplicationsAsync(cancellation.Token);
+            }
+
+            var selection = SelectApplication(applications);
+            if (selection is null)
             {
                 Console.WriteLine("Lançamento cancelado.");
                 return 0;
             }
 
-            var launch = await api.CreateLaunchAsync(selectedApplication.Id, workstationName, cancellation.Token);
+            if (selection.Logout)
+            {
+                await api.LogoutAsync(cancellation.Token);
+                Console.WriteLine("Sessão encerrada.");
+                return 0;
+            }
+
+            var selectedApplication = applications.Single(application => application.Id == selection.ApplicationId);
+            LaunchResponse launch;
+            try
+            {
+                launch = await api.CreateLaunchAsync(selectedApplication.Id, workstationName, cancellation.Token);
+            }
+            catch (AppBridgeApiException exception) when (exception.Code == "REFRESH_EXPIRED")
+            {
+                Console.WriteLine("A sessão salva foi encerrada. Entre novamente.");
+                await AuthenticateAsync(settings, api, workstationName, cancellation.Token);
+                applications = await api.GetApplicationsAsync(cancellation.Token);
+                var stillAuthorized = applications.SingleOrDefault(application => application.Id == selectedApplication.Id);
+                if (stillAuthorized is null)
+                {
+                    Console.WriteLine("O aplicativo não está mais autorizado para esta conta.");
+                    return 1;
+                }
+
+                launch = await api.CreateLaunchAsync(stillAuthorized.Id, workstationName, cancellation.Token);
+            }
+
             Console.WriteLine($"Abrindo {selectedApplication.DisplayName}...");
             await new LaunchCoordinator().LaunchAsync(launch, cancellation.Token);
             if (cancellation.IsCancellationRequested)
@@ -80,31 +142,59 @@ internal static class Program
         }
     }
 
-    private static RemoteApplication? SelectApplication(IReadOnlyList<RemoteApplication> applications)
+    private static async Task AuthenticateAsync(
+        LauncherSettings settings,
+        AppBridgeApiClient api,
+        string workstationName,
+        CancellationToken cancellationToken)
     {
-        Console.WriteLine("Aplicativos disponíveis:");
+        Console.WriteLine("Entrando no AppBridge...");
+        var identityTokens = new EntraIdentityTokenProvider(settings);
+        var identityToken = await identityTokens.AcquireIdentityTokenAsync(cancellationToken);
+        await api.AuthenticateAsync(identityToken, workstationName, cancellationToken);
+    }
+
+    private static UserSelection? SelectApplication(IReadOnlyList<RemoteApplication> applications)
+    {
+        if (applications.Count == 0)
+        {
+            Console.WriteLine("Nenhum aplicativo publicado está autorizado para esta conta.");
+        }
+        else
+        {
+            Console.WriteLine("Aplicativos disponíveis:");
+        }
+
         for (var index = 0; index < applications.Count; index++)
         {
             Console.WriteLine($"  {index + 1}. {applications[index].DisplayName}");
         }
 
+        Console.WriteLine("  0. Encerrar sessão");
         while (true)
         {
-            Console.Write("Número do aplicativo (ou Enter para sair): ");
+            Console.Write("Número do aplicativo, 0 para sair da conta ou Enter para cancelar: ");
             var input = Console.ReadLine();
             if (string.IsNullOrWhiteSpace(input))
             {
                 return null;
             }
 
+            if (input == "0")
+            {
+                return new UserSelection(null, true);
+            }
+
             if (int.TryParse(input, out var selectedIndex)
                 && selectedIndex > 0
                 && selectedIndex <= applications.Count)
             {
-                return applications[selectedIndex - 1];
+                return new UserSelection(applications[selectedIndex - 1].Id, false);
             }
 
             Console.WriteLine("Escolha um número da lista.");
         }
     }
+
+    private sealed record UserSelection(Guid? ApplicationId, bool Logout);
 }
