@@ -1,19 +1,23 @@
 # STATUS — AppBridge
 > Estado vivo do projeto. Atualizado ao fim de toda sessão (RA-02).
 
-**Última atualização:** 2026-08-10 · **Sessão atual:** S009 · **Fase:** ✅ Design concluído → **implementação do MVP-0a**
+**Última atualização:** 2026-09-25 · **Sessão atual:** S013 · **Fase:** ✅ Design concluído → **implementação do MVP-0a**
 
 ---
 
 ## 1. Onde estamos
 
 > **FASE DE DESIGN ENCERRADA em 2026-08-08.** Os 7 entregáveis foram **aprovados por Frederico** e
-> **16 ADRs** estão aceitos (13 no fechamento do design + ADR-0014, 0015 e 0016). O replanejamento do cronograma foi aprovado na **opção A** e ratificado
+> **19 ADRs** estão aceitos (13 no fechamento do design + ADR-0014 a ADR-0019). O replanejamento do cronograma foi aprovado na **opção A** e ratificado
 > em **ADR-0013**: MVP-0 dividido em duas etapas, piloto em abr–jun/2027.
 >
-> **O projeto entra agora na implementação do MVP-0a.** A próxima sessão não produz mais documento de
-> design — executa E-01 (infraestrutura) e G-01 (licenciamento), que são caminho crítico e não
-> dependem de código.
+> **A implementação do MVP-0a foi retomada em 2026-09-24 (S010).** Na S013, a fundação do Control
+> Plane, autenticação OIDC/JWT, autorização, catálogo, lançamento com idempotência e o launcher mínimo
+> de console estão implementados; três migrações aplicam e revertem no PostgreSQL local. Os 26
+> testes de integração passam com 84,56% de cobertura de linhas medida. O SDK .NET 10.0.401 está instalado. Isso conclui a fatia de software
+> verificável neste ambiente, mas **não conclui o aceite real do MVP-0a**: E-01/G-01, Entra real,
+> Windows, Connection Broker, `rdpsign`, certificado e V-01/V-05/V-06 continuam como pré-requisitos
+> externos/de campo. Veja `docs/operacao/desenvolvimento-control-plane.md`.
 
 
 ## 2. Entregáveis da fase de design — ✅ concluída
@@ -40,18 +44,17 @@
 
 ## 3. Próximos passos — implementação do MVP-0a
 
-Ordem deliberada: **o que não é código vem primeiro**, porque é caminho crítico (R-023) e porque um
-resultado negativo em G-01 pouparia meses de construção.
+**Sequência atualizada na S010:** a ordem original priorizava E-01 e G-01 por serem caminho crítico
+(R-023). A pedido de Frederico, T-201 começou antes da conclusão dessas etapas; E-01/G-01 continuam
+pendentes, e a integração ponta a ponta ainda depende delas.
 
 | Ordem | Ação | Tarefa | Por que agora |
 |-------|------|--------|---------------|
-| 1 | **Registro de licenças** — preencher a matriz com o inventário do dogfood; minuta da declaração de titularidade para o piloto, junto com T-002 | T-001 / G-01 | Reorientada por ADR-0014: não depende mais de fornecedor, mas o resíduo de R-001 permanece |
-| 2 | **Aquisição** de host, Windows Server 2025 e RDS CALs — 🟡 **especificação pronta** em `operacao/E-01-infraestrutura/T-101-especificacao-de-aquisicao.md`; falta cotar e comprar | T-101 | **Única dependência externa restante do início.** Prazo de entrega define se M2a se sustenta |
-| 3 | **Cotação SPLA** | T-003 | Valida PRE-05 e a viabilidade econômica do piloto |
-| 4 | VMs separadas, domínio, RDS, FSLogix, AppLocker — 🟡 **roteiro pronto** em `operacao/E-01-infraestrutura/roteiro-implantacao.md` | T-102 a T-105 | Épico E-01, caminho crítico. Depende do equipamento |
-| 5 | Ingresso das estações e GPOs — roteiro pronto | T-106 | A tarefa que mais facilmente estoura o prazo; sequenciar cedo |
-| 6 | Varredura externa | T-107 / V-01 | Comprova CS-04. Pode correr em paralelo a partir de T-102 |
-| 7 | Só então: fundação do Control Plane e lançamento assinado | E-02, E-05 | Depende da infraestrutura existir |
+| 1 | Preparar cadastro provisionado para um tenant, usuário, grupo, permissão, pool/host e certificado de assinatura | MVP-0a | O produto ainda não tem API administrativa; ver roteiro de desenvolvimento |
+| 2 | Executar autenticação e catálogo com tenant Entra real; validar geração de ID token para o client ID configurado | T-301, T-402 | Integração de protocolo não foi testada sem credenciais Entra neste ambiente |
+| 3 | Executar lançamento em Windows Server com Connection Broker, `rdpsign` e certificado; aceitar o `.rdp` em estação Windows | T-502, T-503, V-06 | Smoke test real exige ambiente Windows/RDS e GPO conforme ADR-0009/0010 |
+| 4 | Concluir E-01 e G-01: equipamento/licenças, domínio, RDS, FSLogix, AppLocker, GPOs e declaração do cliente | E-01 / G-01 | Dependências externas no caminho crítico do aceite MVP-0a |
+| 5 | Executar V-01 e V-05 e arquivar evidências | E-01 / T-205 | V-01 exige varredura externa; V-05 exige falha controlada da auditoria no ambiente integrado |
 
 **Decisões que ainda cabem a Frederico, em paralelo:** B-009 (subconjunto do MVP-1 exigido pelo
 piloto), B-006 (PS-07, cofre) e B-007 (PS-03, encadeamento da trilha).
@@ -85,7 +88,8 @@ piloto), B-006 (PS-07, cofre) e B-007 (PS-03, encadeamento da trilha).
 
 ## 6. Decisões de arquitetura (ADR)
 
-Todas aceitas em 2026-08-08, por delegação de Frederico. **ADR aceito é imutável (RA-05)** — revisão
+ADRs 0001 a 0016 aceitos por Frederico ou por delegação em suas datas registradas; ADRs 0017 a 0019
+registram as decisões de implementação desta sessão. **ADR aceito é imutável (RA-05)** — revisão
 se faz com ADR novo que substitui o anterior.
 
 | ADR | Tema | Decisão | Emenda gerada |
@@ -102,6 +106,9 @@ se faz com ADR novo que substitui o anterior.
 | [ADR-0010](adr/ADR-0010-autenticacao-na-sessao-e-ingresso-das-estacoes.md) | Autenticação na sessão | Estações **ingressadas no domínio**, com delegação de credenciais por GPO restrita aos session hosts nominados. A senha de domínio nunca passa pelo Control Plane. Caminho degradado documentado para máquina fora do domínio | — (detalha RNF-042) |
 | [ADR-0011](adr/ADR-0011-convencoes-do-modelo-de-dados.md) | Convenções do modelo de dados | UUID v7 como chave, `timestamptz` em UTC, exclusão lógica para dado de tenant e proibida para trilha, e **chave estrangeira composta com `tenant_id`** — segunda linha de defesa que impede no motor uma linha do tenant A apontar para o tenant B | — (detalha RNF-019, RNF-020, RNF-036) |
 | [ADR-0016](adr/ADR-0016-backlog-unico-e-reconciliacao-das-duas-linhas.md) | **Backlog único** | `ROADMAP.md` é a fonte; `BACKLOG_MVP0A_PRIORIZADO.md` vira anexo histórico e `ANALISE_BUGS_E_MELHORIAS.md` recebe errata. Os dois gaps da linha B viram **T-207** (coluna `purpose`) e **T-506** (cancelamento), e PS-04 é antecipada como **T-1106** | ROADMAP, MODELO-DE-DADOS §7.1, ARQUITETURA §4.2 |
+| [ADR-0017](adr/ADR-0017-token-da-sessao-do-control-plane.md) | Token de sessão | Validar ID token OIDC, mapear tenant no servidor e emitir JWT próprio; sem refresh no MVP-0a | RF-001..RF-004 |
+| [ADR-0018](adr/ADR-0018-resposta-idempotente-do-lancamento.md) | Resposta idempotente | Guardar resultado em PostgreSQL por 60 s, depois limpar corpo e manter tombstone | RF-018..RF-021, ADR-0012 |
+| [ADR-0019](adr/ADR-0019-launcher-minimo-do-mvp-0a.md) | Launcher mínimo | CLI .NET 10 para autenticação, catálogo e início via `mstsc`; WinUI/MSIX ficam no MVP-0b | RF-001, RF-011, RF-018..RF-022 |
 | [ADR-0015](adr/ADR-0015-checagem-de-consistencia-no-fechamento-de-sessao.md) | **Processo — RA-02** | Fechamento de sessão passa a exigir **checagem de consistência**, em duas metades: mecânica (`./scripts/check-docs.sh`, 7 verificações) e humana (o conteúdo ainda reflete as decisões vigentes?). Primeira alteração do prompt mestre | altera `CLAUDE.md` |
 | [ADR-0014](adr/ADR-0014-licenciamento-dos-aplicativos-e-do-cliente.md) | **Licenciamento dos aplicativos** | O cliente adquire, instala e usa suas próprias licenças. O AppBridge **não consulta fornecedor nem intermedia licença**. G-01 deixa de ser confirmação escrita do fornecedor e passa a ser **declaração de titularidade e conformidade assinada pelo cliente**. Restringe NO-04 | nenhuma — não altera RF/RNF |
 | [ADR-0013](adr/ADR-0013-replanejamento-do-mvp-0-e-piloto-no-segundo-trimestre.md) | **Replanejamento** | MVP-0 dividido em **MVP-0a** (esqueleto ambulante, out/2026) e **MVP-0b** (dogfood real, dez/2026–jan/2027); piloto do Caminho B em **abr–jun/2027** com 3–5 escritórios. Portões G-01..G-05 mantidos intransponíveis | marcos, não requisitos |
@@ -163,7 +170,7 @@ se faz com ADR novo que substitui o anterior.
 | R-020 | **Nada impede tecnicamente o provedor de assinar com o certificado A1 de um cliente** (AM-33). A proteção é contratual e de detecção, não de prevenção — e o DIF-01 é vendido como diferencial | **Crítica** | Aberto — B-006 / PS-07, antes de o cofre ir a produção |
 | R-021 | A trilha é mantida pelo próprio provedor. Sem encadeamento criptográfico ou carimbo de tempo independente, num litígio ela é a palavra dele (AM-12) | Alta | Aberto — B-007 / PS-03, antes do piloto |
 | R-022 | Sem política de dependências, uma biblioteca comprometida entra no launcher ou no Control Plane sem barreira (AM-32) | Média | Aberto — PS-06 |
-| R-023 | **A infraestrutura (E-01, 34 pts) é o caminho crítico do MVP-0 e não é código** — depende de compra, de terceiros e da agenda das pessoas | **Alta** | Aberto — iniciar E-01 antes de qualquer linha de código |
+| R-023 | **A infraestrutura (E-01, 34 pts) é o caminho crítico do MVP-0** — depende de compra, de terceiros e da agenda das pessoas | **Alta** | Aberto — T-201 começou antes de E-01 por orientação do PO (S010); E-01 continua necessário ao aceite ponta a ponta |
 | R-024 | O MVP-0 completo não cabe na janela original de P8 | Crítica | **Fechado por ADR-0013** — replanejado em duas etapas, opção A |
 | R-026 | Duas linhas divergentes e dois conjuntos de identificadores | Alta | **Fechado por ADR-0016** |
 | R-027 | O backlog paralelo começava pelo código, sem issue para o épico E-01 | Alta | **Mitigado em 2026-08-10** — issues #35 a #39 criados; #8 marcado como bloqueado por #37 |
@@ -183,9 +190,10 @@ se faz com ADR novo que substitui o anterior.
 |----|-----------|--------|-------------------|
 | PD-01 | Política de expurgo de linhas com exclusão lógica (`deleted_at` antigo) — distinta da retenção de trilha | ADR-0011, MODELO-DE-DADOS §14 | Implementação |
 | PD-02 | Row-Level Security do PostgreSQL como terceira linha de defesa de isolamento | ADR-0011 | Piloto |
-| ~~PD-03~~ | ~~Onde fica o binário do ícone~~ | — | **Resolvida em `API.md` §3** — arquivo referenciado, servido por endpoint com `ETag` |
-| PD-04 | Onde ficam as respostas de idempotência durante os 60 s de validade | ADR-0012, API §12 | Implementação |
+| ~~PD-03~~ | ~~Onde fica o binário do ícone~~ | — | **Decisão resolvida em `API.md` §3** — arquivo fora do banco; endpoint continua pendente em T-404 (MVP-0b) |
+| ~~PD-04~~ | ~~Onde ficam as respostas de idempotência durante os 60 s de validade~~ | ADR-0012, API §12 | **Resolvida por ADR-0018**, tabela `launch_idempotency` |
 | PD-05 | Limites concretos de taxa por endpoint (RNF-010) | API §12 | Depende de medição (T-005) — também PS-09 |
+| ~~PD-06~~ | ~~`exception_reason` em política por aplicativo depende de comparação com a política base; `CHECK` simples não compara linhas~~ | MODELO-DE-DADOS §3.3 | **Resolvida em T-501** pelo `RedirectionPolicyResolver` |
 
 ### 9.1 Pendências de segurança (PS-01..PS-10)
 

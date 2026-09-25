@@ -199,6 +199,12 @@ Regras: rotação documentada para cada um · nenhum segredo em mensagem de comm
 `*.pfx`, `*.p12`, `.env`, `secrets.json` · toda gravação de log passa por filtro que remove campos
 sensíveis conhecidos (RNF-004).
 
+Na fatia MVP-0a, o token de sessão fica apenas na memória do processo launcher e vence após 30 minutos
+por padrão; não há refresh nem persistência local (ADR-0017, ADR-0019). A configuração de produção
+precisa fornecer a chave HMAC do Control Plane em cofre ou variável de ambiente segura; a chave
+aleatória em memória é somente para desenvolvimento. A validação final desses controles com Entra e
+estações Windows continua pendente.
+
 ---
 
 ## 7. Verificações obrigatórias

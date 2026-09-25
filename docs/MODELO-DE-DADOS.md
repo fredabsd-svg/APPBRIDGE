@@ -2,7 +2,7 @@
 > Entregável 4 de 7 da fase de Design · Sessão S001 · 2026-08-08
 > Status: **✅ aprovado por Frederico em 2026-08-08** (RP-04)
 > Depende de: `ARQUITETURA.md`, ADR-0004 (isolamento), ADR-0007 (auditoria e retenção), ADR-0011 (convenções)
-> Emendado por **ADR-0016**: coluna `purpose` em `launch` (§7.1)
+> Emendado por **ADR-0016** (coluna `purpose` em `launch`, §7.1) e **ADR-0018** (`launch_idempotency`, §7.2)
 
 ---
 
@@ -14,9 +14,10 @@
   Entidade sem requisito não existe.
 - **Multi-tenant desde a primeira migração** (§2.5 do prompt mestre, ADR-0004): toda tabela de dados de
   tenant tem `tenant_id NOT NULL` e participa da FK composta de ADR-0011 §4.
-- Colunas de auditoria (`created_at`, `created_by`, `updated_at`, `updated_by`, `row_version`,
-  `deleted_at`, `deleted_by`) existem em **toda tabela mutável** e são omitidas das listagens abaixo
-  para não poluir — sua presença é regra, não exceção. Tabelas de trilha carregam apenas
+- Colunas de auditoria (`created_at`, `created_by`, `updated_at`, `updated_by`, `row_version`) existem
+  em **toda tabela mutável**. `deleted_at`/`deleted_by` existem nas tabelas operacionais com exclusão
+  lógica; `application_permission` é a exceção porque usa vigência temporal e não aceita exclusão.
+  Esses campos são omitidos das listagens abaixo para não poluir. Tabelas de trilha carregam apenas
   `created_at`/`created_by`, pelo motivo declarado em ADR-0011 §5.
 
 ---
@@ -80,9 +81,11 @@ Materializa a tabela de prazos do ADR-0007. Uma linha por tenant × categoria.
 | `category` | enum | `access`, `administrative`, `certificate_usage` |
 | `retention_months` | int | Validado contra o mínimo da categoria |
 
-`CHECK` por categoria impede configurar abaixo do mínimo (12/24/60 conforme ADR-0007) — **o mínimo é
-regra de banco, não de tela**, porque a proteção existe justamente contra instrução equivocada de
-cliente. `UNIQUE (tenant_id, category)`.
+`CHECK` por categoria impede configurar abaixo do mínimo — **o mínimo é regra de banco, não de tela**,
+porque a proteção existe justamente contra instrução equivocada de cliente. Conforme ADR-0007, os
+limites são: `access` entre 6 e 60 meses, `administrative` entre 12 e 60 meses e
+`certificate_usage` a partir de 60 meses, sem máximo. Os padrões continuam 12/24/60 meses.
+`UNIQUE (tenant_id, category)`.
 
 **Requisitos:** RNF-018 · **ADR:** 0007
 
@@ -104,8 +107,11 @@ Política base de ADR-0008, por tenant, com sobreposição opcional por aplicati
 | `allow_other_usb` | bool | **`false`** |
 | `exception_reason` | text NULL | **Obrigatório** quando difere do padrão do tenant |
 
-A coluna `exception_reason` é o que impede que exceções virem folclore: `CHECK` exige justificativa
-quando qualquer valor diverge da política do tenant (ADR-0008, condição 2).
+A coluna `exception_reason` é o que impede que exceções virem folclore: exige justificativa quando
+qualquer valor diverge da política do tenant (ADR-0008, condição 2). Essa comparação envolve duas
+linhas e não pode ser expressa por um `CHECK` PostgreSQL simples; o `RedirectionPolicyResolver`
+compara as duas políticas e exige justificativa quando a configuração do aplicativo amplia a base
+(T-501, resolvida em S013).
 
 **Requisitos:** RNF-014, RF-048 · **ADR:** 0008
 
@@ -117,6 +123,8 @@ vencimento visíveis, não para guardar segredo.
 
 | Coluna | Tipo | Notas |
 |--------|------|-------|
+| `id` | uuid v7 PK | |
+| `tenant_id` | uuid FK | Certificado de assinatura pertence a um tenant |
 | `thumbprint` | text UNIQUE | Distribuída às estações por GPO |
 | `subject`, `issuer` | text | |
 | `valid_from`, `valid_to` | timestamptz | Alerta de vencimento |
@@ -317,7 +325,28 @@ correlação com sessão desnecessariamente difíceis, num caminho que é críti
 
 **Requisitos:** RF-037, RF-039, RF-018, RF-020, RF-021 · **ADR:** 0007
 
-### 7.2 `access_event` — MVP-0 · retenção `access` (12 meses)
+### 7.2 `launch_idempotency` — estado operacional do MVP-0a
+
+Reserva a chave do cliente e guarda por até 60 segundos a resposta que inclui o `.rdp` assinado
+(ADR-0018). **Não é trilha de auditoria**: não é consultada para metering e não substitui `launch` ou
+`access_event`.
+
+| Coluna | Tipo | Notas |
+|--------|------|-------|
+| `id`, `tenant_id` | uuid | PK e FK para o tenant |
+| `idempotency_key` | uuid | Chave enviada pelo cliente |
+| `request_hash` | text | SHA-256 do aplicativo, propósito e estação |
+| `expires_at` | timestamptz | Fim da janela de replay de 60 s |
+| `response_json` | jsonb NULL | Resultado HTTP incluindo RDP; nulo após limpeza |
+| campos mutáveis comuns | — | `created_at/by`, `updated_at/by`, `row_version`, `deleted_at` |
+
+`UNIQUE (tenant_id, idempotency_key)` serializa retentativas. O índice `(tenant_id, expires_at)` apoia
+o serviço de limpeza, que apaga somente `response_json` vencido e preserva chave/hash como tombstone.
+Tombstones não têm expurgo configurado nesta fase; a volumetria deve ser revista após dogfood.
+
+**Requisitos:** RF-018..RF-021, RF-037, RF-039 · **ADR:** 0012, 0018
+
+### 7.3 `access_event` — MVP-0 · retenção `access` (12 meses)
 
 Eventos de acesso que não são lançamento: autenticação (RF-036), logout, início e fim de sessão
 (RF-038).
@@ -332,7 +361,7 @@ Eventos de acesso que não são lançamento: autenticação (RF-036), logout, in
 
 **Requisitos:** RF-036, RF-038, RNF-015 · **ADR:** 0007
 
-### 7.3 `admin_audit_event` — MVP-1 · retenção `administrative` (24 meses)
+### 7.4 `admin_audit_event` — MVP-1 · retenção `administrative` (24 meses)
 
 Toda ação administrativa, com **antes e depois** (RNF-017).
 
@@ -352,7 +381,7 @@ Toda ação administrativa, com **antes e depois** (RNF-017).
 
 **Requisitos:** RF-041, RF-075, RNF-017, RNF-024 · **ADR:** 0004, 0007
 
-### 7.4 `certificate_usage_event` — V2 · retenção `certificate_usage` (60 meses)
+### 7.5 `certificate_usage_event` — V2 · retenção `certificate_usage` (60 meses)
 
 A trilha mais sensível do produto (RNF-016, DIF-01). Responde: **quem assinou o quê, por qual titular,
 com qual certificado, quando, em qual aplicativo**.
@@ -362,7 +391,7 @@ com qual certificado, quando, em qual aplicativo**.
 
 **Requisitos:** RF-042, RNF-016 · **ADR:** 0007
 
-### 7.5 `purge_run` — MVP-0 · **nunca expurgada**
+### 7.6 `purge_run` — MVP-0 · **nunca expurgada**
 
 O expurgo é ele próprio registrado (ADR-0007 item 5): `tenant_id`, `category`, `cutoff_date`,
 `rows_deleted`, `started_at`, `finished_at`, `outcome`.
@@ -571,9 +600,10 @@ Por isso tem retenção própria e curta (PRE-24), e é a primeira candidata a p
 
 ## 12. Migrações
 
-Versionadas, aplicadas automaticamente e reversíveis (RNF-052). A **primeira migração já cria
-`tenant_id` em todas as tabelas** — não existe estágio "mono-tenant" a ser migrado depois, o que é
-justamente a dívida que ADR-0004 evita.
+Versionadas em EF Core, aplicadas pela rotina de implantação e reversíveis (RNF-052). A **primeira
+migração já cria `tenant_id` em todas as tabelas de dados de tenant** — a tabela raiz `tenant` é a única
+exceção — não existe estágio "mono-tenant" a ser migrado depois, o que é justamente a dívida que
+ADR-0004 evita.
 
 Regras: nenhuma migração remove coluna com dado de trilha sem ADR; toda migração destrutiva vem
 precedida de migração de cópia; migração que altera semântica de coluna de auditoria exige ADR.
@@ -595,6 +625,7 @@ precedida de migração de cópia; migração que altera semântica de coluna de
 | `host_pool`, `session_host` | RF-047, RF-054, RF-068, RF-074 | MVP-0 |
 | `session` | RF-008, RF-021, RF-024, RF-038, RF-062 | MVP-0 |
 | `launch` | RF-018, RF-020, RF-021, RF-037, RF-039 | MVP-0 |
+| `launch_idempotency` | RF-018..RF-021, RF-037, RF-039 | MVP-0a · ADR-0018 |
 | `access_event` | RF-036, RF-038, RNF-015 | MVP-0 |
 | `purge_run` | RNF-018, RNF-019 | MVP-0 |
 | `admin_audit_event` | RF-041, RF-075, RNF-017, RNF-024 | MVP-1 |
@@ -604,7 +635,8 @@ precedida de migração de cópia; migração que altera semântica de coluna de
 
 **Requisitos de MVP-0 sem entidade correspondente:** RF-014 (cache local do launcher — SQLite na
 estação, fora deste modelo), RF-019 e RF-022 a RF-035 (comportamento do launcher e do processo de
-lançamento, sem estado persistente no Control Plane além de `launch`). Verificado item a item.
+lançamento, sem estado persistente adicional no Control Plane além de `launch` e da resposta
+operacional curta em `launch_idempotency`). Verificado item a item.
 
 ---
 
@@ -615,4 +647,5 @@ lançamento, sem estado persistente no Control Plane além de `launch`). Verific
 | **PRE-24** | Retenção de `host_telemetry`: 90 dias | `PREMISSA:` a confirmar quando o Agent existir |
 | **PD-01** | **Política de expurgo de linhas com exclusão lógica** (`deleted_at` antigo) não está definida. É distinta da retenção de trilha e ficou pendente em ADR-0011 | Aberta — resolver antes da implementação |
 | **PD-02** | Row-Level Security do PostgreSQL como terceira linha de defesa foi registrada em ADR-0011 como evolução desejável, a reavaliar no piloto | Aberta |
-| **PD-03** | Armazenamento do binário de ícone (`icon_ref`): sistema de arquivos ou objeto externo, não definido | Aberta — decisão de `API.md` |
+| **PD-03** | Armazenamento do binário de ícone (`icon_ref`) | ✅ Decisão fechada em `API.md`: arquivo fora do banco; implementação do endpoint fica em T-404 (MVP-0b) |
+| **PD-06** | `exception_reason` depende da comparação entre a política do aplicativo e a política base do tenant; `CHECK` simples não consulta outra linha | ✅ Resolvida em T-501: `RedirectionPolicyResolver` exige justificativa quando a política do app amplia a base |

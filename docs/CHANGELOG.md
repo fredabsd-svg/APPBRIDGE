@@ -6,6 +6,59 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Adicionado — fatia de software do MVP-0a e launcher mínimo (S013)
+- Criado `AppBridge.Launcher`, um executável de console .NET 10 que autentica interativamente com
+  MSAL com um escopo delegado configurado, troca o ID token pela sessão AppBridge, lista somente
+  apps autorizados e chama `mstsc.exe` com `.rdp` assinado temporário. O access token do escopo não
+  é enviado à API; tokens e segredos não são gravados em disco (ADR-0019).
+- Implementados OIDC tenant-mapping, JWT de sessão, autorização no momento do lançamento, seed de
+  catálogo, políticas de redirecionamento e backend RDS por interface; respostas de lançamento ficam
+  em `launch_idempotency` por 60 s e corpos vencidos são limpos pelo pruner (ADR-0017/0018).
+- Adicionadas migrações para FKs compostas por tenant e idempotência persistida. As migrações foram
+  aplicadas e revertidas no PostgreSQL local; os 26 testes de integração passam com 84,56% de
+  cobertura de linhas (fora `Program.cs` e migrações geradas).
+- `GET /health` respondeu `200 Healthy` em smoke test HTTP local com `X-Correlation-Id`. O descritor
+  RDP rejeita host/UPN que possam alterar sua sintaxe; indisponibilidade de metadados OIDC retorna
+  `503 IDENTITY_PROVIDER_UNAVAILABLE`.
+- Adicionado workflow GitHub Actions para restaurar, compilar e testar o Control Plane e compilar o
+  launcher; `docs/operacao/desenvolvimento-control-plane.md` registra as configurações e pré-requisitos.
+- O aceite real ainda depende de Entra, estação Windows, host RDS/Connection Broker, certificado e
+  execução de V-01/V-05/V-06; `STATUS.md` mantém essas pendências explícitas.
+
+### Adicionado — persistência inicial do Control Plane (T-202, S012)
+- Configurados EF Core 10.0.12, o provedor PostgreSQL Npgsql 10.0.3 e a ferramenta local `dotnet-ef`
+  10.0.12.
+- Criados o `AppDbContext`, a fábrica de design-time e o registro de conexão do PostgreSQL no Control
+  Plane; conexão local pode ser sobrescrita por `ConnectionStrings__AppBridge`.
+- `SaveChanges` avança `row_version` e atualiza `updated_at` em linhas mutáveis, mantendo a
+  concorrência otimista prevista no ADR-0011.
+- Gerada a migração inicial com 15 tabelas MVP-0; as 14 tabelas vinculadas a tenants já incluem
+  `tenant_id`, chave candidata `(tenant_id, id)` e FK para `tenant`.
+- A migração contém verificações de enum e retenção, índices únicos/parciais e campos de auditoria.
+  A validação de exceção da política de redirecionamento é pendência PD-06 para T-501.
+- O build do Control Plane passou sem warnings ou erros. A aplicação e reversão da migração não foram
+  executadas porque não há PostgreSQL local ativo; T-202 continua em andamento.
+- `MODELO-DE-DADOS.md` foi alinhado aos mínimos de retenção do ADR-0007 e ao escopo por tenant de
+  `signing_certificate`. `application_permission` não recebe exclusão lógica, conforme ADR-0011, e a
+  regra geral de campos de auditoria passou a explicitar essa exceção.
+
+### Ambiente de desenvolvimento — S011
+- Instalado o SDK .NET 10.0.401 em `/home/fred/.dotnet`; `.bashrc` e `.profile` configurados para
+  exportar `DOTNET_ROOT` e incluir o SDK no `PATH` do usuário.
+- `dotnet build src/AppBridge.ControlPlane/AppBridge.ControlPlane.csproj` passou sem warnings ou
+  erros. A chamada `WriteAsJsonAsync` foi ajustada à sobrecarga do .NET 10.
+- A verificação de execução de `/health` e a demonstração do rastreamento de um lançamento seguem
+  pendentes.
+
+### Adicionado — base do Control Plane (T-201, S010)
+- Criado o projeto ASP.NET Core em `src/AppBridge.ControlPlane`, com endpoint `/health`, resposta de
+  erro interna em Problem Details e logs JSON estruturados.
+- Adicionado middleware para receber ou gerar `X-Correlation-Id`, devolver o mesmo cabeçalho e
+  incluir `correlationId` nos logs de requisição.
+- O perfil local escuta apenas em `127.0.0.1:5080`; o README descreve como iniciar o projeto.
+- Ao fim da S010, o build estava pendente por falta do SDK; foi resolvido na S011. E-01 e G-01
+  continuam pendentes; a sequência antecipada está registrada em `STATUS.md` e no R-023.
+
 ### Reconciliado — backlog único (ADR-0016, S009)
 - **`main` mesclado ao branch.** As duas linhas de trabalho voltaram a ser uma.
 - **`ROADMAP.md` passa a ser o backlog único.** `BACKLOG_MVP0A_PRIORIZADO.md` vira anexo histórico e
