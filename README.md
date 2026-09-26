@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/brand/mark.png" width="96" height="96" alt="Marca do AppBridge: ponte de dois pilares com uma janela de aplicativo em cima.">
+  <img src="docs/brand/mark.svg" width="96" height="96" alt="Marca do AppBridge: ponte de dois pilares com uma janela de aplicativo em cima.">
 </p>
 
 <h1 align="center">AppBridge</h1>
@@ -48,4 +48,4 @@ O roteiro está em [Desenvolvimento e operação local](docs/operacao/desenvolvi
 
 ## Marca
 
-A marca é uma ponte de dois pilares com uma janela de aplicativo sobre o tabuleiro. Arquivos em [`docs/brand/`](docs/brand/): `mark.svg` e `mark.png`. Tinta `#1A2420`, papel `#F3EFE6`, cobre `#8E3F1C`.
+A marca é uma ponte de dois pilares com uma janela de aplicativo sobre o tabuleiro. O arquivo é [`docs/brand/mark.svg`](docs/brand/mark.svg). Tinta `#1A2420`, papel `#F3EFE6`, cobre `#8E3F1C`.
