@@ -59,7 +59,7 @@ public sealed class RdsSessionBackend(
         var host = await dbContext.SessionHosts.SingleOrDefaultAsync(
             row => row.Id == session.SessionHostId,
             cancellationToken);
-        if (host is null || !Regex.IsMatch(host.Fqdn, "^[A-Za-z0-9.-]{1,253}$", RegexOptions.CultureInvariant))
+        if (host is null || !Regex.IsMatch(host.Fqdn, "^[A-Za-z0-9.-]{1,253}\\z", RegexOptions.CultureInvariant))
         {
             throw new RdsSessionException("O host da sessão RDS não é válido.");
         }

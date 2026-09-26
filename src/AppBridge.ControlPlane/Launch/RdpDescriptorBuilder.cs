@@ -7,10 +7,10 @@ namespace AppBridge.ControlPlane.Launching;
 public sealed class RdpDescriptorBuilder
 {
     private static readonly Regex HostNamePattern = new(
-        "^(?=.{1,253}$)(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)(?:\\.(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?))*$",
+        "^(?=.{1,253}\\z)(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)(?:\\.(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?))*\\z",
         RegexOptions.CultureInvariant | RegexOptions.Compiled);
     private static readonly Regex UserPrincipalNamePattern = new(
-        "^[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,189}$",
+        "^[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,189}\\z",
         RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
     public byte[] Build(
@@ -29,7 +29,7 @@ public sealed class RdpDescriptorBuilder
             throw new RdpDescriptorException("O UPN do usuário contém caracteres inválidos.");
         }
 
-        if (!Regex.IsMatch(application.RemoteAppAlias, "^[A-Za-z0-9_.-]{1,128}$", RegexOptions.CultureInvariant))
+        if (!Regex.IsMatch(application.RemoteAppAlias, "^[A-Za-z0-9_.-]{1,128}\\z", RegexOptions.CultureInvariant))
         {
             throw new RdpDescriptorException("O alias do aplicativo contém caracteres inválidos.");
         }

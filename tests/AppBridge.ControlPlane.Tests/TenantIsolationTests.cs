@@ -22,7 +22,7 @@ using Xunit;
 
 namespace AppBridge.ControlPlane.Tests;
 
-public sealed class TenantIsolationTests
+public sealed partial class TenantIsolationTests
 {
     private static readonly SemaphoreSlim SchemaLock = new(1, 1);
     private static bool _schemaReady;
@@ -631,7 +631,7 @@ public sealed class TenantIsolationTests
         {
             nextCalled = true;
             return Task.CompletedTask;
-        }).InvokeAsync(request, revokedContext, revokedDb, cancellationToken);
+        }).InvokeAsync(request, revokedContext, revokedDb);
         Assert.Equal(StatusCodes.Status401Unauthorized, request.Response.StatusCode);
         Assert.False(nextCalled);
     }
@@ -856,7 +856,7 @@ public sealed class TenantIsolationTests
         {
             nextCalled = true;
             return Task.CompletedTask;
-        }).InvokeAsync(invalidTenantContext, invalidTenant, invalidDb, cancellationToken);
+        }).InvokeAsync(invalidTenantContext, invalidTenant, invalidDb);
         Assert.Equal(StatusCodes.Status401Unauthorized, invalidTenantContext.Response.StatusCode);
         Assert.False(nextCalled);
 
@@ -901,14 +901,14 @@ public sealed class TenantIsolationTests
         var tenantContext = new TenantContext();
         await using var validDb = CreateContext(tenantContext);
         await new TenantContextMiddleware(_ => Task.CompletedTask)
-            .InvokeAsync(validTenantContext, tenantContext, validDb, cancellationToken);
+            .InvokeAsync(validTenantContext, tenantContext, validDb);
         Assert.Equal(expectedTenantId, tenantContext.TenantId);
 
         var anonymousContext = new DefaultHttpContext();
         var anonymousTenant = new TenantContext();
         await using var anonymousDb = CreateContext(anonymousTenant);
         await new TenantContextMiddleware(_ => Task.CompletedTask)
-            .InvokeAsync(anonymousContext, anonymousTenant, anonymousDb, cancellationToken);
+            .InvokeAsync(anonymousContext, anonymousTenant, anonymousDb);
         Assert.Null(anonymousTenant.TenantId);
 
         var publicRefreshContext = new DefaultHttpContext();
@@ -929,7 +929,7 @@ public sealed class TenantIsolationTests
         {
             refreshReachedHandler = true;
             return Task.CompletedTask;
-        }).InvokeAsync(publicRefreshContext, publicTenant, publicDb, cancellationToken);
+        }).InvokeAsync(publicRefreshContext, publicTenant, publicDb);
         Assert.True(refreshReachedHandler);
         Assert.Null(publicTenant.TenantId);
     }

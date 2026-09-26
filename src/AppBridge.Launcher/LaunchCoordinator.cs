@@ -39,7 +39,8 @@ internal sealed class LaunchCoordinator
             File.SetAttributes(descriptorPath, FileAttributes.Hidden | FileAttributes.Temporary);
             using var process = Process.Start(new ProcessStartInfo
             {
-                FileName = "mstsc.exe",
+                // Caminho absoluto: sem ele, o CreateProcess procura antes na pasta do launcher e no diretório atual.
+                FileName = Path.Combine(Environment.SystemDirectory, "mstsc.exe"),
                 UseShellExecute = false,
                 ArgumentList = { descriptorPath }
             });

@@ -11,9 +11,10 @@ public sealed class TenantContextMiddleware(RequestDelegate next)
     public async Task InvokeAsync(
         HttpContext context,
         TenantContext tenantContext,
-        AppDbContext dbContext,
-        CancellationToken cancellationToken)
+        AppDbContext dbContext)
     {
+        // UseMiddleware resolve os parâmetros extras pelo contêiner, e CancellationToken não é serviço.
+        var cancellationToken = context.RequestAborted;
         var endpointAllowsAnonymous = context.GetEndpoint()?.Metadata.GetMetadata<IAllowAnonymous>() is not null;
         if (context.User.Identity?.IsAuthenticated == true && !endpointAllowsAnonymous)
         {

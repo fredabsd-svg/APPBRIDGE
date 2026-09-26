@@ -57,7 +57,7 @@ public sealed class LaunchService(
             return new LaunchCommandResult(StatusCodes.Status400BadRequest, "MALFORMED_REQUEST", null);
         }
 
-        var requestHash = ComputeRequestHash(request);
+        var requestHash = ComputeRequestHash(userAccountId, request);
         var now = DateTimeOffset.UtcNow;
 
         try
@@ -286,10 +286,12 @@ public sealed class LaunchService(
             CorrelationId = correlationId
         };
 
-    private static string ComputeRequestHash(LaunchRequest request)
+    private static string ComputeRequestHash(Guid userAccountId, LaunchRequest request)
     {
+        // O usuário entra no hash: a chave de outro usuário do tenant não devolve o .rdp dele.
         var canonical = JsonSerializer.SerializeToUtf8Bytes(new
         {
+            userAccountId,
             applicationId = request.ApplicationId,
             purpose = request.Purpose,
             workstationName = request.WorkstationName
