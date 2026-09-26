@@ -301,9 +301,9 @@ consequência, o lugar onde o risco R-009 se materializa.
 | `tenant_id` | uuid FK | |
 | `user_account_id` | uuid | FK composta |
 | `session_host_id` | uuid | FK composta |
-| `backend_session_id` | text | Identificador no RDS — a ponte com `ISessionBackend` |
+| `backend_session_id` | text NULL | Identificador no RDS — a ponte com `ISessionBackend`. `NULL` = vínculo pendente: registrada no lançamento, ainda não encontrada no Connection Broker (ADR-0021) |
 | `started_at` | timestamptz | |
-| `last_seen_at` | timestamptz | Atualizado pela reconciliação |
+| `last_seen_at` | timestamptz | Atualizado pela reconciliação; numa sessão pendente, também pelo lançamento que a reutiliza (ADR-0021) |
 | `ended_at` | timestamptz NULL | `NULL` = ativa |
 | `end_reason` | enum NULL | `logoff`, `disconnect_timeout`, `terminated_by_admin`, `revoked`, **`reconciled_missing`**, `stale_expired` |
 | `source_ip`, `workstation_name` | text | Compõem o "de onde" de RNF-015 |
@@ -315,7 +315,11 @@ consequência, o lugar onde o risco R-009 se materializa.
 > sessões sem sinal de vida além do limite. Sem elas, o contador de licenças **infla monotonicamente**
 > e o produto passa a bloquear trabalho legítimo (RF-064), que é o pior modo de falha do metering.
 
-**Requisitos:** RF-021, RF-024, RF-038, RF-062, RF-008 · **ADR:** 0006
+A linha nasce no lançamento concedido, na mesma transação do `launch` (ADR-0021). Sessão pendente fora
+da janela `SessionRegistry:PendingBindingMinutes` deixa de contar para reutilização e capacidade, mas
+continua aberta até a reconciliação fechá-la.
+
+**Requisitos:** RF-021, RF-024, RF-038, RF-062, RF-008 · **ADR:** 0006, 0021
 
 ### 6.3 `agent_registration` e `host_telemetry` — V2
 

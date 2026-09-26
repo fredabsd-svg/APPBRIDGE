@@ -258,9 +258,13 @@ RDS.**
 previsto para RM-07 — **não é construído agora**, mas a interface existe desde o MVP-0 justamente para
 que ele seja possível sem reescrita.
 
-Na fatia MVP-0a, `RdsSessionBackend` resolve um host online e uma sessão já conhecida no banco. A
-criação e a reconciliação de registros de sessão no Connection Broker (T-601/T-602) ainda não estão
-implementadas; o teste atual cobre a seleção e reutilização com dados de sessão provisionados.
+Desde a T-601 (ADR-0021), a reutilização de sessão é regra do `SessionRegistry`. Ele serializa o
+posicionamento por usuário com trava consultiva do PostgreSQL e reutiliza a sessão aberta do usuário em
+host `online` ou `draining` do pool. Quando não há sessão, pede ao `RdsSessionBackend` só o host
+`online` com vaga. No lançamento concedido, e depois da assinatura, o registry grava a sessão com
+`backend_session_id` nulo (vínculo pendente) e a liga a `launch.session_id`. Uma sessão pendente ocupa
+vaga por até `SessionRegistry:PendingBindingMinutes` (PRE-29). A reconciliação com o Connection Broker,
+que vincula, fecha e grava o `SessionStarted` do RF-038, é a T-602 e ainda não está implementada.
 
 ### 4.3 Componentes do Launcher
 

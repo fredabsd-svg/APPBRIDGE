@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using AppBridge.ControlPlane.Data;
 using AppBridge.ControlPlane.Domain.Entities;
 using AppBridge.ControlPlane.Domain.Enums;
+using AppBridge.ControlPlane.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -12,6 +13,7 @@ namespace AppBridge.ControlPlane.Launching;
 public sealed class RdsSessionBackend(
     AppDbContext dbContext,
     IOptions<RdsSessionOptions> options,
+    IOptions<SessionRegistryOptions> registryOptions,
     ILogger<RdsSessionBackend> logger) : ISessionBackend
 {
     public async Task<SessionBackendTarget?> ResolveHostAsync(
@@ -19,29 +21,31 @@ public sealed class RdsSessionBackend(
         UserAccount user,
         CancellationToken cancellationToken)
     {
-        var existing = await (
-            from session in dbContext.Sessions
-            join host in dbContext.SessionHosts on new { session.TenantId, session.SessionHostId } equals new { host.TenantId, SessionHostId = host.Id }
-            where session.UserAccountId == user.Id
-                && session.EndedAt == null
-                && host.HostPoolId == application.HostPoolId
-                && host.Status == SessionHostStatus.Online
-            orderby session.LastSeenAt descending
-            select new { Host = host, Session = session })
-            .FirstOrDefaultAsync(cancellationToken);
-
-        if (existing is not null)
+        // A reutilização é regra do SessionRegistry (ADR-0021); aqui só se escolhe o host.
+        var hosts = await dbContext.SessionHosts
+            .Where(host => host.HostPoolId == application.HostPoolId && host.Status == SessionHostStatus.Online)
+            .ToListAsync(cancellationToken);
+        if (hosts.Count == 0)
         {
-            return new SessionBackendTarget(existing.Host, true, existing.Session.Id);
+            return null;
         }
 
-        var candidate = await dbContext.SessionHosts
-            .Where(host => host.HostPoolId == application.HostPoolId
-                && host.Status == SessionHostStatus.Online
-                && dbContext.Sessions.Count(session => session.SessionHostId == host.Id && session.EndedAt == null) < host.MaxSessions)
-            .OrderBy(host => dbContext.Sessions.Count(session => session.SessionHostId == host.Id && session.EndedAt == null))
-            .ThenBy(host => host.Fqdn)
-            .FirstOrDefaultAsync(cancellationToken);
+        var hostIds = hosts.Select(host => host.Id).ToList();
+        var pendingCutoff = DateTimeOffset.UtcNow - registryOptions.Value.PendingBindingWindow;
+        var load = await dbContext.Sessions
+            .Where(SessionRegistry.Occupying(pendingCutoff))
+            .Where(session => hostIds.Contains(session.SessionHostId))
+            .GroupBy(session => session.SessionHostId)
+            .Select(group => new { HostId = group.Key, Count = group.Count() })
+            .ToDictionaryAsync(row => row.HostId, row => row.Count, cancellationToken);
+
+        var candidate = hosts
+            .Select(host => new { Host = host, Load = load.GetValueOrDefault(host.Id) })
+            .Where(row => row.Load < row.Host.MaxSessions)
+            .OrderBy(row => row.Load)
+            .ThenBy(row => row.Host.Fqdn, StringComparer.Ordinal)
+            .Select(row => row.Host)
+            .FirstOrDefault();
 
         return candidate is null ? null : new SessionBackendTarget(candidate, false, null);
     }
@@ -53,6 +57,14 @@ public sealed class RdsSessionBackend(
             cancellationToken);
         if (session is null)
         {
+            return;
+        }
+
+        if (session.BackendSessionId is null)
+        {
+            // Sessão ainda sem vínculo no RDS: não há o que encerrar no host (ADR-0021).
+            CloseSession(session);
+            await dbContext.SaveChangesAsync(cancellationToken);
             return;
         }
 
@@ -70,11 +82,16 @@ public sealed class RdsSessionBackend(
         }
 
         await InvokeLogoffAsync(host.Fqdn, unifiedSessionId, cancellationToken);
+        CloseSession(session);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        logger.LogInformation("A sessão RDS foi encerrada após a falha de lançamento.");
+    }
+
+    private static void CloseSession(RemoteSession session)
+    {
         session.EndedAt = DateTimeOffset.UtcNow;
         session.LastSeenAt = session.EndedAt.Value;
         session.EndReason = SessionEndReason.Logoff;
-        await dbContext.SaveChangesAsync(cancellationToken);
-        logger.LogInformation("A sessão RDS foi encerrada após a falha de lançamento.");
     }
 
     private async Task InvokeLogoffAsync(string hostName, int unifiedSessionId, CancellationToken cancellationToken)

@@ -216,7 +216,11 @@ O endpoint mais importante da API. Autoriza, monta, assina, registra e devolve.
 3. **`rdpFile` vem em base64**, não como corpo `text/plain`, para evitar ambiguidade de codificação —
    o `.rdp` assinado é sensível a byte, e uma conversão de encoding invalida a assinatura.
 4. **`expiresAt` é contratual, não informativo**: o launcher grava, executa e apaga (RF-020). O
-   servidor recusa reapresentação da mesma `Idempotency-Key` depois do vencimento.
+   servidor recusa reapresentação da mesma `Idempotency-Key` depois do vencimento. A chave vale para o
+   usuário que a criou: reapresentada por outro usuário do tenant, responde `IDEMPOTENCY_CONFLICT` e
+   não devolve o `.rdp` (correção da S018).
+5. **`sessionReused` reflete o `SessionRegistry`** (ADR-0021): `true` quando o lançamento foi
+   encaminhado a uma sessão aberta do usuário no pool do aplicativo.
 
 | Erro | Código | Situação | Requisito |
 |------|--------|----------|-----------|

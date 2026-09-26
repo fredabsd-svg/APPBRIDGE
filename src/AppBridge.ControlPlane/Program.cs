@@ -36,11 +36,13 @@ builder.Services.AddSingleton(serviceProvider =>
 builder.Services.AddScoped<LaunchMeteringService>();
 builder.Services.AddScoped<RedirectionPolicyResolver>();
 builder.Services.AddScoped<LaunchService>();
+builder.Services.AddScoped<SessionRegistry>();
 builder.Services.AddScoped<ISessionBackend, RdsSessionBackend>();
 builder.Services.AddScoped<IRdpFileSigner, RdpSignExeSigner>();
 builder.Services.AddSingleton<RdpDescriptorBuilder>();
 builder.Services.Configure<RdpSigningOptions>(builder.Configuration.GetSection("RdpSigning"));
 builder.Services.Configure<RdsSessionOptions>(builder.Configuration.GetSection("RdsSession"));
+builder.Services.Configure<SessionRegistryOptions>(builder.Configuration.GetSection("SessionRegistry"));
 builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower)));
 builder.Services.Configure<IdentityProviderOptions>(builder.Configuration.GetSection("IdentityProvider"));

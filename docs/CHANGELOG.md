@@ -6,6 +6,42 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Adicionado — registro de sessão no lançamento (T-601, S018)
+- `SessionRegistry` reutiliza a sessão aberta do usuário em host `online` ou `draining` do pool do
+  aplicativo (RF-024). Sem sessão, pede ao `ISessionBackend` só a escolha do host. O posicionamento é
+  serializado por usuário com `pg_advisory_xact_lock`, e prelaunch e clique simultâneos passam a gerar
+  uma sessão só.
+- O lançamento concedido registra a sessão depois da assinatura, na mesma transação do `launch`, e
+  preenche `launch.session_id`. A sessão nasce com `backend_session_id` nulo (vínculo pendente) e ocupa
+  vaga por `SessionRegistry__PendingBindingMinutes` minutos (padrão 10, PRE-29) até a T-602 vinculá-la.
+- Migração `SessionPendingBinding`: `session.backend_session_id` passa a aceitar nulo. O rollback grava
+  texto vazio nas linhas pendentes.
+- `RdsSessionBackend` fica só com a seleção de host e conta como carga as sessões pendentes dentro da
+  janela. `CancelSessionAsync` fecha a sessão sem vínculo sem chamar o host.
+- Registrado o ADR-0021 (**proposto**). ARQUITETURA §4.2, MODELO-DE-DADOS §6.2, API (lançamento),
+  ROADMAP e roteiro operacional foram atualizados.
+
+### Corrigido — revisão de código (S018)
+- **Crítico:** `TenantContextMiddleware` recebia `CancellationToken` como parâmetro de `InvokeAsync`.
+  O `UseMiddleware` tenta resolvê-lo pelo contêiner, então toda requisição HTTP respondia 500, inclusive
+  `/health`. Agora o middleware usa `HttpContext.RequestAborted`, e um teste passa pelo pipeline real do
+  `UseMiddleware`. O teste falha no código anterior e passa no novo. Um smoke HTTP local confirmou
+  `/health` com 200 e as rotas protegidas com 401.
+- A chave de idempotência do lançamento passa a ser do usuário: outro usuário do tenant que a
+  reapresente recebe `IDEMPOTENCY_CONFLICT` em vez do `.rdp` assinado.
+- As regex de host, UPN e alias do `.rdp` terminam em `\z`. Com `$`, um `\n` final era aceito.
+- O launcher chama `mstsc.exe` pelo caminho absoluto do diretório do sistema.
+- Suíte com 52 testes e cobertura de linhas de 88,18%. Os builds Release do Control Plane e do Launcher
+  terminam sem aviso. Os achados abertos estão em `STATUS.md` §5.1.
+
+### Alterado — página do repositório e marca (S017, S018)
+- S017: o README virou página de produto e a marca foi publicada em `docs/brand/mark.svg`. O log da
+  S017 citava arquivos que não entraram no commit. Isso foi registrado em `STATUS.md` §10.
+- S018: a marca foi redesenhada como uma ponte de arco com a janela de aplicativo sobre o tabuleiro,
+  porque a anterior lia como mesa. Ganhou variante para fundo escuro (`mark-dark.svg`), PNG de 512 px e
+  prévia social de 1280 × 640. O README ganhou diagrama do fluxo em tema claro e escuro, selos, seção de
+  segurança e LGPD, marcos e mapa da documentação. Nenhum requisito muda.
+
 ### Adicionado — sessão renovável do launcher (T-303, T-803, S016)
 - Criadas as tabelas `auth_session` e `auth_refresh_token`, com isolamento por tenant e FK composta.
   Refresh tokens têm 256 bits aleatórios, rotacionam a cada uso e ficam no banco somente como SHA-256;

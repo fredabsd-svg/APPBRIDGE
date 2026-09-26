@@ -81,8 +81,11 @@ subject, validade e status). A chave privada deve permanecer não exportável no
 máquina do Control Plane, acessível à conta de serviço de menor privilégio. Distribua a impressão
 digital às estações por GPO, conforme ADR-0009.
 
-O backend de lançamento invoca `rdpsign.exe /sha256 <thumbprint> /q <arquivo.rdp>`. A seleção do host
-usa hosts `online` do pool e a capacidade cadastrada. `CancelSessionAsync` encerra sessões conhecidas
+O backend de lançamento invoca `rdpsign.exe /sha256 <thumbprint> /q <arquivo.rdp>`. O `SessionRegistry`
+reutiliza a sessão aberta do usuário no pool; sem ela, a seleção usa hosts `online` do pool e a
+capacidade cadastrada. Cada lançamento concedido sem sessão registra uma sessão com vínculo pendente,
+que ocupa vaga por `SessionRegistry__PendingBindingMinutes` minutos (padrão 10, aceito de 1 a 60,
+PRE-29) até a reconciliação da T-602 existir. `CancelSessionAsync` encerra sessões conhecidas
 via `Invoke-RDUserLogoff`; esse caminho precisa de Connection Broker e módulo RemoteDesktop na máquina
 Windows do Control Plane.
 
@@ -125,8 +128,8 @@ e conceda consentimento ao public client; `APPBRIDGE_ENTRA_SCOPE` deve nomear ex
 escopo. O launcher abre autenticação interativa no navegador,
 troca o token com `POST /v1/auth/session`, lista apenas aplicativos autorizados e abre o selecionado
 com `mstsc.exe`. O `.rdp` temporário é removido quando vence o TTL do servidor ou quando o processo
-recebe interrupção graciosa. T-303 ainda é necessário para cache seguro, renovação e logout; o MVP-0a
-solicita autenticação interativa a cada execução.
+recebe interrupção graciosa. Desde a T-303 (S016), a sessão fica no Credential Manager e é renovada sem
+novo login interativo; veja a seção 3.
 
 ## 6. Build e testes
 

@@ -26,6 +26,7 @@ public sealed class LaunchService(
     TenantContext tenantContext,
     AuthorizationService authorizationService,
     ISessionBackend sessionBackend,
+    SessionRegistry sessionRegistry,
     RedirectionPolicyResolver policyResolver,
     RdpDescriptorBuilder descriptorBuilder,
     IRdpFileSigner signer,
@@ -112,7 +113,7 @@ public sealed class LaunchService(
                         new LaunchCommandResult(StatusCodes.Status403Forbidden, "PERMISSION_REVOKED", null), transactionToken);
                 }
 
-                var target = await sessionBackend.ResolveHostAsync(application, user, transactionToken);
+                var target = await sessionRegistry.PlaceAsync(application, user, now, transactionToken);
                 if (target is null)
                 {
                     dbContext.Launches.Add(NewLaunch(user, application, null, request, LaunchOutcome.DeniedHostUnavailable,
@@ -139,7 +140,9 @@ public sealed class LaunchService(
 
                     var signedDescriptor = await signer.SignAsync(descriptor, certificate.Thumbprint, transactionToken);
                     var expiresAt = now.AddSeconds(60);
-                    var launch = NewLaunch(user, application, target.SessionId, request, LaunchOutcome.Granted,
+                    var sessionId = await sessionRegistry.RegisterAsync(
+                        target, user, sourceIp, request.WorkstationName, now, transactionToken);
+                    var launch = NewLaunch(user, application, sessionId, request, LaunchOutcome.Granted,
                         null, sourceIp, now, correlationId);
                     dbContext.Launches.Add(launch);
                     var response = new LaunchResponse(

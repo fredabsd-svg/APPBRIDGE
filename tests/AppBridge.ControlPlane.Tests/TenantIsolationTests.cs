@@ -279,6 +279,12 @@ public sealed partial class TenantIsolationTests
         var cancellationToken = TestContext.Current.CancellationToken;
         var world = await SeedLaunchWorldAsync(grantPermission: true, addSession: true);
         await using var db = CreateContext(world.TenantId);
+        // Um backend que cria a sessão antes do cliente conectar a devolve como nova; o registry não a
+        // reutiliza porque ela ainda não tem vínculo e está fora da janela (ADR-0021).
+        var eagerSession = await db.Sessions.SingleAsync(row => row.Id == world.SessionId, cancellationToken);
+        eagerSession.BackendSessionId = null;
+        eagerSession.LastSeenAt = DateTimeOffset.UtcNow.AddHours(-1);
+        await db.SaveChangesAsync(cancellationToken);
         var tenantContext = CreateTenantContext(world.TenantId);
         var backend = new FakeSessionBackend(new SessionBackendTarget(world.Host, false, world.SessionId));
         var signer = new FakeRdpFileSigner(fail: true);
@@ -446,7 +452,7 @@ public sealed partial class TenantIsolationTests
         await using var db = CreateContext(world.TenantId);
         var application = await db.Applications.SingleAsync(item => item.Id == world.ApplicationId, cancellationToken);
         var user = await db.UserAccounts.SingleAsync(item => item.Id == world.UserId, cancellationToken);
-        var backend = new RdsSessionBackend(db, Options.Create(new RdsSessionOptions()), NullLogger<RdsSessionBackend>.Instance);
+        var backend = CreateRdsBackend(db);
 
         var target = await backend.ResolveHostAsync(application, user, cancellationToken);
 
@@ -1019,7 +1025,7 @@ public sealed partial class TenantIsolationTests
     {
         var world = await SeedLaunchWorldAsync(grantPermission: true, addSession: true);
         await using var db = CreateContext(world.TenantId);
-        var backend = new RdsSessionBackend(db, Options.Create(new RdsSessionOptions()), NullLogger<RdsSessionBackend>.Instance);
+        var backend = CreateRdsBackend(db);
 
         await backend.CancelSessionAsync(Guid.CreateVersion7(), "test", TestContext.Current.CancellationToken);
 
@@ -1348,18 +1354,26 @@ public sealed partial class TenantIsolationTests
     private LaunchService CreateLaunchService(
         AppDbContext db,
         TenantContext tenantContext,
-        FakeSessionBackend backend,
+        ISessionBackend backend,
         FakeRdpFileSigner signer)
         => new(
             db,
             tenantContext,
             new AuthorizationService(db),
             backend,
+            new SessionRegistry(db, tenantContext, backend, Options.Create(new SessionRegistryOptions())),
             new RedirectionPolicyResolver(db),
             new RdpDescriptorBuilder(),
             signer,
             new AuditWriter(db, tenantContext, NullLogger<AuditWriter>.Instance),
             NullLogger<LaunchService>.Instance);
+
+    private static RdsSessionBackend CreateRdsBackend(AppDbContext db)
+        => new(
+            db,
+            Options.Create(new RdsSessionOptions()),
+            Options.Create(new SessionRegistryOptions()),
+            NullLogger<RdsSessionBackend>.Instance);
 
     private static TenantContext CreateTenantContext(Guid tenantId)
     {
