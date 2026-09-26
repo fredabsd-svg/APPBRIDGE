@@ -1,5 +1,5 @@
 # ADR-0022 — Reconciliação de sessões com o Connection Broker
-Data: 2026-09-26 · Status: **proposto** · Autor: Arquiteto de Software Principal (S019, a pedido de Frederico para seguir à T-602)
+Data: 2026-09-26 · Status: **aceito** (decisão delegada por Frederico em 2026-09-26, S020) · Autor: Arquiteto de Software Principal (S019, a pedido de Frederico para seguir à T-602)
 
 ## Contexto
 

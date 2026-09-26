@@ -6,6 +6,25 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Segurança — troca por access token recente e de uso único (ADR-0023, S020)
+- `POST /v1/auth/session` passa a exigir o access token do Entra para a API do AppBridge:
+  - `aud` igual à API;
+  - `scp` com `access_as_user`;
+  - `azp`/`appid` igual ao launcher;
+  - `iat` de até 10 min.
+
+  O ID token deixa de ser aceito (RC-05).
+- O identificador do token (`uti`/`jti`) é gravado como SHA-256 em `identity_token_redemption`, a tabela
+  da migração `IdentityTokenRedemption`. Uma segunda troca responde `401` e grava
+  `IDENTITY_TOKEN_REPLAYED` na trilha. A rotina diária remove os registros vencidos.
+- O metadado OpenID do Entra passa a ser cacheado por processo (RC-02).
+- O launcher envia o access token e serializa a renovação entre instâncias com uma trava de arquivo.
+  A instância que chega depois adota o par já renovado em vez de reapresentar o refresh consumido (RC-03).
+- ADR-0021 e ADR-0022 foram aceitos por decisão delegada. O ADR-0017 §1 foi substituído pelo ADR-0023.
+  Suíte com 67 testes e 88,78% de cobertura.
+- **Implantação:** `IdentityProvider__Audience` muda para o identificador da API, e passam a ser exigidos
+  `IdentityProvider__ClientApplicationId` e o escopo exposto no Entra. Veja o roteiro operacional §3.
+
 ### Adicionado — reconciliação de sessões (T-602, S019)
 - `ISessionBackend.ListActiveSessionsAsync(hosts)`. O `RdsSessionBackend` consulta `Get-RDUserSession`
   no broker de `RdsSession:ConnectionBroker`, traduz a conta em SID no próprio Windows e devolve JSON

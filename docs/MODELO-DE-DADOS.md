@@ -203,6 +203,24 @@ Inclui ainda os campos de auditoria mutáveis comuns. Índices `UNIQUE (tenant_i
 
 **Requisitos:** RF-004..RF-006, RNF-004, RNF-036 · **ADR:** 0020
 
+### 4.4 `identity_token_redemption` — MVP-0b · ADR-0023
+
+Registra os access tokens do Entra já trocados por sessão, para que cada um só possa ser trocado uma
+vez. O token não é gravado: `token_hash` é o SHA-256 hexadecimal do identificador do token (`uti`, ou
+`jti` na falta dele).
+
+| Coluna | Tipo | Notas |
+|--------|------|-------|
+| `id` | uuid v7 PK | |
+| `tenant_id` | uuid FK | Tenant resolvido pelo `tid` validado |
+| `token_hash` | varchar(64) | Único por tenant; a chave única decide a corrida entre duas trocas |
+| `expires_at` | timestamptz | `exp` do token; a rotina diária remove o registro um dia depois |
+
+Inclui ainda os campos de auditoria mutáveis comuns. Índices `UNIQUE (tenant_id, token_hash)` e
+`(expires_at)`.
+
+**Requisitos:** RF-001, RF-004, RNF-004, RNF-036 · **ADR:** 0023
+
 ### 4.4 `group` e `user_group_membership` — MVP-0
 
 Permissão é **sempre por grupo** (RF-010). O grupo pode espelhar um grupo de diretório ou ser local
@@ -685,6 +703,7 @@ precedida de migração de cópia; migração que altera semântica de coluna de
 | `user_account` | RF-001..RF-003, RF-005 | MVP-0 |
 | `auth_session` | RF-004..RF-006 | MVP-0b · ADR-0020 |
 | `auth_refresh_token` | RF-004..RF-006, RNF-004 | MVP-0b · ADR-0020 |
+| `identity_token_redemption` | RF-001, RF-004, RNF-004 | MVP-0b · ADR-0023 |
 | `group`, `user_group_membership` | RF-010, RF-044 | MVP-0 |
 | `application` | RF-011..RF-013, RF-028, RF-063 | MVP-0 |
 | `application_permission` | RF-007, RF-010, RF-021 | MVP-0 |

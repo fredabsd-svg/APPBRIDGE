@@ -34,6 +34,13 @@ public sealed class AuthenticationRefreshToken : TenantMutableEntity
     public DateTimeOffset? ConsumedAt { get; set; }
 }
 
+/// <summary>Identificador de access token já trocado por sessão; impede a repetição (ADR-0023).</summary>
+public sealed class IdentityTokenRedemption : TenantMutableEntity
+{
+    public string TokenHash { get; set; } = string.Empty;
+    public DateTimeOffset ExpiresAt { get; set; }
+}
+
 public sealed class AppGroup : TenantMutableEntity
 {
     public string Name { get; set; } = string.Empty;

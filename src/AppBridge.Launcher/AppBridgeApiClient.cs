@@ -178,6 +178,28 @@ internal sealed class AppBridgeApiClient : IDisposable
 
     private async Task RefreshSessionAsync(CancellationToken cancellationToken)
     {
+        // RC-03: duas instâncias com o mesmo refresh token fariam o servidor ver replay e revogar a sessão.
+        using var crossProcessLock = await SessionFileLock.AcquireAsync(TimeSpan.FromSeconds(30), cancellationToken);
+        SessionCredentials? stored;
+        try
+        {
+            stored = credentialStore.Read();
+        }
+        catch (Exception exception) when (exception is JsonException or InvalidDataException)
+        {
+            stored = null;
+        }
+
+        if (stored is not null && session is not null && stored.RefreshToken != session.RefreshToken)
+        {
+            // Outra instância já renovou: usa o par dela em vez de reapresentar o token consumido.
+            session = stored;
+            if (stored.ExpiresAt > DateTimeOffset.UtcNow.AddMinutes(1))
+            {
+                return;
+            }
+        }
+
         if (session is null || session.RefreshExpiresAt <= DateTimeOffset.UtcNow)
         {
             ClearSession();

@@ -116,8 +116,8 @@ sem `mstsc` manual, com a porta 3389 comprovadamente fechada para a internet.
 
 | ID | Tarefa | Critério de aceite | Est. |
 |----|--------|--------------------|------|
-| T-601 | `SessionRegistry` — início, reutilização e vínculo com o lançamento — **concluída na S018** (ADR-0021, proposto) | Segundo aplicativo reutiliza a sessão (RF-024) | 5 |
-| T-602 | `SessionReconciler` contra o Connection Broker, com `reconciled_missing` e `stale_expired` — **código concluído na S019** (ADR-0022, proposto); PRE-23 só se valida em campo | Sessão encerrada fora do AppBridge é fechada em até um ciclo; **valida PRE-23** (R-009) | 8 |
+| T-601 | `SessionRegistry` — início, reutilização e vínculo com o lançamento — **concluída na S018** (ADR-0021) | Segundo aplicativo reutiliza a sessão (RF-024) | 5 |
+| T-602 | `SessionReconciler` contra o Connection Broker, com `reconciled_missing` e `stale_expired` — **código concluído na S019** (ADR-0022); PRE-23 só se valida em campo | Sessão encerrada fora do AppBridge é fechada em até um ciclo; **valida PRE-23** (R-009) | 8 |
 | T-603 | `GET /sessions/me` | Launcher exibe sessões ativas | 3 |
 
 ### E-07 · Trilha e retenção — 13 pts

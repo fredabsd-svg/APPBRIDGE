@@ -37,12 +37,24 @@ de aplicar em um ambiente compartilhado.
 
 ## 3. Identidade e token do Control Plane
 
-Registre um aplicativo Entra para desktop/public client. O ID desse cliente precisa ser a audiência do
-token de identidade aceita pela API. Configure no ambiente do Control Plane:
+No Entra são dois registros (ADR-0023):
+
+- **A API do AppBridge**, que expõe o escopo delegado `access_as_user`. O identificador dela (client ID
+  ou App ID URI, conforme o `aud` que o Entra emitir) é `IdentityProvider__Audience`.
+- **O launcher**, como desktop/public client com permissão e consentimento para esse escopo. O client ID
+  dele é `IdentityProvider__ClientApplicationId`.
+
+Configure a API para emitir access token v2 (`accessTokenAcceptedVersion: 2`), que traz `azp` e `uti`.
+O Control Plane só aceita o access token dessa API pedido pelo launcher, emitido há no máximo 10 minutos
+e ainda não trocado. Se `ClientApplicationId` não estiver configurado, a troca responde `503`. Configure no
+ambiente do Control Plane:
 
 ```text
 IdentityProvider__Authority=https://login.microsoftonline.com/<entra-tenant-id>/v2.0
-IdentityProvider__Audience=<client-id-guid>
+IdentityProvider__Audience=<client-id-ou-app-id-uri-da-api>
+IdentityProvider__ClientApplicationId=<client-id-do-launcher>
+IdentityProvider__RequiredScope=access_as_user
+IdentityProvider__MaxTokenAgeMinutes=10
 IdentityProvider__TenantMappings__<entra-tenant-id>=<tenant-id-interno>
 ControlPlaneTokens__Issuer=https://appbridge.exemplo.interno
 ControlPlaneTokens__Audience=appbridge-launcher

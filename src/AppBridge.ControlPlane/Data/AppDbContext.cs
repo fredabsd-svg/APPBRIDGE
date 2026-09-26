@@ -16,6 +16,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, TenantC
     public DbSet<UserAccount> UserAccounts => Set<UserAccount>();
     public DbSet<AuthenticationSession> AuthenticationSessions => Set<AuthenticationSession>();
     public DbSet<AuthenticationRefreshToken> AuthenticationRefreshTokens => Set<AuthenticationRefreshToken>();
+    public DbSet<IdentityTokenRedemption> IdentityTokenRedemptions => Set<IdentityTokenRedemption>();
     public DbSet<AppGroup> Groups => Set<AppGroup>();
     public DbSet<UserGroupMembership> UserGroupMemberships => Set<UserGroupMembership>();
     public DbSet<RemoteApplication> Applications => Set<RemoteApplication>();
@@ -63,6 +64,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, TenantC
         ConfigureUserAccount(modelBuilder);
         ConfigureAuthenticationSession(modelBuilder);
         ConfigureAuthenticationRefreshToken(modelBuilder);
+        ConfigureIdentityTokenRedemption(modelBuilder);
         ConfigureGroup(modelBuilder);
         ConfigureUserGroupMembership(modelBuilder);
         ConfigureApplication(modelBuilder);
@@ -199,6 +201,18 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, TenantC
         entity.HasIndex(x => new { x.TenantId, x.SessionId })
             .HasDatabaseName("ix_auth_refresh_token_tenant_session");
         entity.ToTable("auth_refresh_token");
+    }
+
+    private static void ConfigureIdentityTokenRedemption(ModelBuilder modelBuilder)
+    {
+        var entity = modelBuilder.Entity<IdentityTokenRedemption>();
+        ConfigureTenantMutableEntity(entity, "identity_token_redemption");
+        entity.Property(x => x.TokenHash).HasMaxLength(64).IsRequired();
+        entity.HasIndex(x => new { x.TenantId, x.TokenHash })
+            .IsUnique()
+            .HasDatabaseName("uq_identity_token_redemption_tenant_hash");
+        entity.HasIndex(x => x.ExpiresAt).HasDatabaseName("ix_identity_token_redemption_expires_at");
+        entity.ToTable("identity_token_redemption");
     }
 
     private static void ConfigureGroup(ModelBuilder modelBuilder)

@@ -1,5 +1,5 @@
 # ADR-0017 — Token de sessão do Control Plane
-Data: 2026-09-24 · Status: **aceito** · Autor: Arquiteto de Software Principal
+Data: 2026-09-24 · Status: **aceito; §1 substituído por ADR-0023** · Autor: Arquiteto de Software Principal
 
 ## Contexto
 

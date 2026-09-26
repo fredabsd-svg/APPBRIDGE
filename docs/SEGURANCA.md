@@ -97,7 +97,7 @@ FC-5.
 | **AM-02** | **Comprometimento de A-01** (chave de assinatura) permite forjar `.rdp` confiável para todo o parque | Chave não exportável, uso restrito à conta de serviço, rotação documentada (RNF-008); inventário em `signing_certificate` | 🟡 **Parcial** — não há detecção de uso indevido da chave. Ver PS-01 |
 | **AM-03** | Roubo do token de sessão (A-08) na estação permite lançar como a vítima | Access token de 30 min com `sid`; estado da sessão validado em cada chamada; refresh de uso único com hash e detecção de replay; armazenamento no Credential Manager (RF-004, RF-005); trilha registra estação e IP | 🟡 **Parcial** — um access token ainda válido pode ser usado até logout/expiração; a proteção do Credential Manager não impede código rodando como o próprio usuário |
 | **AM-04** | Agent falso se registra como session host (V2) | Credencial por host emitida no enrollment e revogável (RF-053); aprovação nominal | ✅ (V2) |
-| **AM-05** | Falsificação de identidade no login | Autenticação delegada ao provedor (ADR-0001); AppBridge não guarda senha; limitação de taxa (RNF-010) | ✅ |
+| **AM-05** | Falsificação de identidade no login | Autenticação delegada ao provedor (ADR-0001); AppBridge não guarda senha; limitação de taxa (RNF-010). Desde o ADR-0023, só o access token da API pedido pelo launcher, com até 10 min e de **uso único**, é trocado por sessão. A reapresentação vai para a trilha | ✅ — resíduo: token capturado antes do primeiro uso (R-035) |
 
 ### 4.2 T · Tampering (adulteração)
 

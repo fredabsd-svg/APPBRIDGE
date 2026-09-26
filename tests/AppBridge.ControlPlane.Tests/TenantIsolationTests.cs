@@ -1136,6 +1136,12 @@ public sealed partial class TenantIsolationTests
                 TokenHash = new string('A', 64),
                 ExpiresAt = now.AddDays(-31)
             });
+            db.IdentityTokenRedemptions.Add(new IdentityTokenRedemption
+            {
+                TenantId = tenantId,
+                TokenHash = new string('B', 64),
+                ExpiresAt = now.AddDays(-2)
+            });
             await db.SaveChangesAsync(cancellationToken);
         }
 
@@ -1153,6 +1159,7 @@ public sealed partial class TenantIsolationTests
         await using var verification = CreateContext(tenantId);
         Assert.Empty(await verification.AuthenticationSessions.ToListAsync(cancellationToken));
         Assert.Empty(await verification.AuthenticationRefreshTokens.ToListAsync(cancellationToken));
+        Assert.Empty(await verification.IdentityTokenRedemptions.ToListAsync(cancellationToken));
     }
 
     private async Task AddTenantAsync(Guid tenantId)
@@ -1396,24 +1403,39 @@ public sealed partial class TenantIsolationTests
     private AppDbContext CreateContext(TenantContext tenantContext)
         => new(new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(_connectionString).Options, tenantContext);
 
+    private const string TestLauncherClientId = "3f1d2c4b-launcher";
+
     private AuthenticationSessionService CreateAuthenticationSessionService(
         AppDbContext db,
         TenantContext tenantContext,
         string externalTenantId,
         Guid tenantId,
-        string externalSubject)
+        string externalSubject,
+        string? fixedTokenId = null)
     {
         var options = Options.Create(new IdentityProviderOptions
         {
+            ClientApplicationId = TestLauncherClientId,
             TenantMappings = new Dictionary<string, string> { [externalTenantId] = tenantId.ToString("D") }
         });
-        var identity = new ClaimsPrincipal(new ClaimsIdentity(
-        [
-            new Claim("tid", externalTenantId),
-            new Claim("oid", externalSubject),
-            new Claim("sub", externalSubject),
-            new Claim("name", "Usuário de teste")
-        ], "test"));
+        var now = DateTimeOffset.UtcNow;
+        var claims = new List<Claim>
+        {
+            new("tid", externalTenantId),
+            new("oid", externalSubject),
+            new("sub", externalSubject),
+            new("name", "Usuário de teste"),
+            new("scp", "openid access_as_user"),
+            new("azp", TestLauncherClientId),
+            new("iat", now.AddMinutes(-1).ToUnixTimeSeconds().ToString(System.Globalization.CultureInfo.InvariantCulture)),
+            new("exp", now.AddMinutes(59).ToUnixTimeSeconds().ToString(System.Globalization.CultureInfo.InvariantCulture))
+        };
+        if (fixedTokenId is not null)
+        {
+            claims.Add(new Claim("uti", fixedTokenId));
+        }
+
+        var identity = new ClaimsPrincipal(new ClaimsIdentity(claims, "test"));
         var key = Convert.ToBase64String(Enumerable.Repeat((byte)0x4a, 32).ToArray());
         var tokenOptions = Options.Create(new ControlPlaneTokenOptions
         {
@@ -1448,8 +1470,18 @@ public sealed partial class TenantIsolationTests
 
     private sealed class FakeIdentityTokenValidator(ClaimsPrincipal principal) : IIdentityTokenValidator
     {
+        // Cada chamada representa um token novo do Entra, com `uti` próprio, salvo quando o teste fixa um.
         public Task<ClaimsPrincipal> ValidateAsync(string token, CancellationToken cancellationToken)
-            => Task.FromResult(principal);
+        {
+            if (principal.HasClaim(claim => claim.Type == "uti"))
+            {
+                return Task.FromResult(principal);
+            }
+
+            var identity = new ClaimsIdentity(principal.Claims, "test");
+            identity.AddClaim(new Claim("uti", Guid.NewGuid().ToString("N")));
+            return Task.FromResult(new ClaimsPrincipal(identity));
+        }
     }
 
     private sealed class FakeSessionBackend(SessionBackendTarget target) : ISessionBackend

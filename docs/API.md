@@ -43,6 +43,17 @@ Os dois não se confundem — e nenhum dos dois é a credencial que abre a sess�
 
 Troca o token do provedor de identidade por um token de sessão do AppBridge.
 
+Desde o ADR-0023, `identityToken` carrega o **access token do Entra emitido para a API do AppBridge**,
+e não mais o ID token. O Control Plane exige:
+
+- `aud` igual ao identificador da API;
+- `scp` com o escopo configurado (`access_as_user`);
+- `azp` (ou `appid`) igual ao client ID do launcher;
+- `iat` de no máximo 10 minutos.
+
+Cada token é trocado uma única vez. Reapresentado, responde `401 INVALID_IDENTITY_TOKEN` e grava
+`access_event` com `IDENTITY_TOKEN_REPLAYED`. O nome do campo continua `identityToken` na `/v1`.
+
 ```jsonc
 // requisição
 { "identityToken": "eyJ...", "workstationName": "PC-CONTABIL-07" }

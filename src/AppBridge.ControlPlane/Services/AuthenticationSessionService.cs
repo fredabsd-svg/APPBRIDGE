@@ -39,6 +39,8 @@ public sealed class AuthenticationSessionService(
     ControlPlaneTokenIssuer tokenIssuer,
     ILogger<AuthenticationSessionService> logger)
 {
+    private const string IdentityTokenReplayed = "IDENTITY_TOKEN_REPLAYED";
+
     public async Task<AuthenticationSessionResult> ExchangeAsync(
         AuthenticationSessionRequest request,
         string sourceIp,
@@ -60,6 +62,17 @@ public sealed class AuthenticationSessionService(
         {
             logger.LogWarning(
                 "Token de identidade inválido ou expirado de {sourceIp}; correlationId {correlationId}",
+                sourceIp,
+                correlationId);
+            return new AuthenticationSessionResult(StatusCodes.Status401Unauthorized, "INVALID_IDENTITY_TOKEN", null);
+        }
+
+        var policy = IdentityTokenPolicy.Evaluate(identity, identityProviderOptions.Value, DateTimeOffset.UtcNow);
+        if (!policy.Accepted)
+        {
+            logger.LogWarning(
+                "Token do Entra recusado pela política ({reason}) de {sourceIp}; correlationId {correlationId}",
+                policy.Reason,
                 sourceIp,
                 correlationId);
             return new AuthenticationSessionResult(StatusCodes.Status401Unauthorized, "INVALID_IDENTITY_TOKEN", null);
@@ -88,9 +101,12 @@ public sealed class AuthenticationSessionService(
             return new AuthenticationSessionResult(StatusCodes.Status403Forbidden, "USER_NOT_PROVISIONED", null);
         }
 
+        var redeemed = await TryRedeemAsync(tenantId, policy, cancellationToken);
         var account = await dbContext.UserAccounts
             .SingleOrDefaultAsync(user => user.ExternalSubject == externalSubject, cancellationToken);
-        var resultCode = tenant.Status != TenantStatus.Active
+        var resultCode = !redeemed
+            ? IdentityTokenReplayed
+            : tenant.Status != TenantStatus.Active
             ? "TENANT_SUSPENDED"
             : account is null
                 ? "USER_NOT_PROVISIONED"
@@ -112,6 +128,16 @@ public sealed class AuthenticationSessionService(
 
         return await auditWriter.ExecuteAsync(auditEvent, _ =>
         {
+            if (resultCode == IdentityTokenReplayed)
+            {
+                logger.LogWarning(
+                    "Token do Entra reapresentado de {sourceIp}; correlationId {correlationId}",
+                    sourceIp,
+                    correlationId);
+                return Task.FromResult(new AuthenticationSessionResult(
+                    StatusCodes.Status401Unauthorized, "INVALID_IDENTITY_TOKEN", null));
+            }
+
             if (resultCode is not null || account is null)
             {
                 return Task.FromResult(new AuthenticationSessionResult(
@@ -161,6 +187,32 @@ public sealed class AuthenticationSessionService(
                         new AuthenticatedTenant(tenant.Id, tenant.Name),
                         ["user"]))));
         }, cancellationToken);
+    }
+
+    /// <summary>Grava o identificador do token fora da transação auditada; a chave única decide a corrida.</summary>
+    private async Task<bool> TryRedeemAsync(Guid tenantId, IdentityTokenPolicyResult policy, CancellationToken cancellationToken)
+    {
+        var redemption = new IdentityTokenRedemption
+        {
+            TenantId = tenantId,
+            TokenHash = policy.TokenHash!,
+            ExpiresAt = policy.ExpiresAt
+        };
+        dbContext.IdentityTokenRedemptions.Add(redemption);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+        catch (DbUpdateException exception) when (exception.InnerException is Npgsql.PostgresException
+        {
+            SqlState: Npgsql.PostgresErrorCodes.UniqueViolation,
+            ConstraintName: "uq_identity_token_redemption_tenant_hash"
+        })
+        {
+            dbContext.Entry(redemption).State = EntityState.Detached;
+            return false;
+        }
     }
 
     public async Task<AuthenticationRefreshResult> RefreshAsync(

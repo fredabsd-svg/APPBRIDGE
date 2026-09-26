@@ -1,5 +1,5 @@
 # ADR-0021 — Registro de sessão no lançamento e vínculo pendente
-Data: 2026-09-26 · Status: **proposto** · Autor: Arquiteto de Software Principal (S018, a pedido de Frederico para iniciar a T-601)
+Data: 2026-09-26 · Status: **aceito** (decisão delegada por Frederico em 2026-09-26, S020) · Autor: Arquiteto de Software Principal (S018, a pedido de Frederico para iniciar a T-601)
 
 ## Contexto
 
