@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 300" width="960" height="300" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,Roboto,sans-serif">
+<rect width="960" height="300" rx="16" fill="#F3EFE6"/>
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#8E3F1C"/></marker></defs>
+<rect x="24" y="28" width="272" height="164" rx="12" fill="#FFFDF8" stroke="#C9C1B1"/>
+<circle cx="54" cy="58" r="13" fill="#8E3F1C"/>
+<text x="54" y="63" text-anchor="middle" font-size="14" font-weight="700" fill="#FFFDF8">1</text>
+<text x="76" y="54" font-size="12" fill="#55605B">Estação do escritório</text>
+<text x="76" y="72" font-size="17" font-weight="700" fill="#1A2420">Launcher</text>
+<text x="44" y="114" font-size="14" fill="#1A2420">Atalhos no Desktop e no Iniciar</text>
+<text x="44" y="136" font-size="14" fill="#1A2420">Login com Entra ID</text>
+<text x="44" y="158" font-size="14" fill="#1A2420">Sessão no Credential Manager</text>
+<rect x="344" y="28" width="272" height="164" rx="12" fill="#FFFDF8" stroke="#C9C1B1"/>
+<circle cx="374" cy="58" r="13" fill="#8E3F1C"/>
+<text x="374" y="63" text-anchor="middle" font-size="14" font-weight="700" fill="#FFFDF8">2</text>
+<text x="396" y="54" font-size="12" fill="#55605B">Control Plane</text>
+<text x="396" y="72" font-size="17" font-weight="700" fill="#1A2420">Autoriza e assina</text>
+<text x="364" y="114" font-size="14" fill="#1A2420">Permissão vigente, por tenant</text>
+<text x="364" y="136" font-size="14" fill="#1A2420">Auditoria na mesma transação</text>
+<text x="364" y="158" font-size="14" fill="#1A2420">.rdp assinado, válido por 60 s</text>
+<rect x="664" y="28" width="272" height="164" rx="12" fill="#FFFDF8" stroke="#C9C1B1"/>
+<circle cx="694" cy="58" r="13" fill="#8E3F1C"/>
+<text x="694" y="63" text-anchor="middle" font-size="14" font-weight="700" fill="#FFFDF8">3</text>
+<text x="716" y="54" font-size="12" fill="#55605B">RD Session Host</text>
+<text x="716" y="72" font-size="17" font-weight="700" fill="#1A2420">RemoteApp</text>
+<text x="684" y="114" font-size="14" fill="#1A2420">Janela própria no PC</text>
+<text x="684" y="136" font-size="14" fill="#1A2420">Sem entregar o desktop</text>
+<text x="684" y="158" font-size="14" fill="#1A2420">Instalado uma vez no servidor</text>
+<path d="M298 92H340" stroke="#8E3F1C" stroke-width="2" marker-end="url(#a)"/>
+<path d="M340 128H298" stroke="#8E3F1C" stroke-width="2" marker-end="url(#a)"/>
+<path d="M160 194V244H800V198" fill="none" stroke="#8E3F1C" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#a)"/>
+<rect x="262" y="231" width="436" height="26" rx="13" fill="#F3EFE6"/>
+<text x="480" y="249" text-anchor="middle" font-size="13.5" fill="#1A2420"><tspan font-weight="700">mstsc</tspan> conecta pela rede privada · 3389 fora da internet</text>
+<text x="480" y="284" text-anchor="middle" font-size="12" fill="#55605B">Estado do MVP-0a: launcher de console; o aceite de campo com RDS e Entra reais ainda não aconteceu.</text>
+</svg>
