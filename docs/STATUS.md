@@ -1,15 +1,15 @@
 # STATUS — AppBridge
 > Estado vivo do projeto. Atualizado ao fim de toda sessão (RA-02).
 
-**Última atualização:** 2026-09-26 · **Sessão atual:** S018 · **Fase:** ✅ Design concluído → **implementação do MVP-0b**
+**Última atualização:** 2026-09-26 · **Sessão atual:** S019 · **Fase:** ✅ Design concluído → **implementação do MVP-0b**
 
 ---
 
 ## 1. Onde estamos
 
 > **FASE DE DESIGN ENCERRADA em 2026-08-08.** Os 7 entregáveis foram **aprovados por Frederico** e
-> **21 ADRs** estão aceitos ou propostos (13 no fechamento do design + ADR-0014 a ADR-0020 aceitos;
-> ADR-0021 **proposto** na S018, aguardando Frederico). O replanejamento do cronograma foi aprovado na **opção A** e ratificado
+> **22 ADRs** estão aceitos ou propostos (13 no fechamento do design + ADR-0014 a ADR-0020 aceitos;
+> ADR-0021 e ADR-0022 **propostos** na S018/S019, aguardando Frederico). O replanejamento do cronograma foi aprovado na **opção A** e ratificado
 > em **ADR-0013**: MVP-0 dividido em duas etapas, piloto em abr–jun/2027.
 >
 > **A implementação do MVP-0a foi retomada em 2026-09-24 (S010).** Na S013, a fundação do Control
@@ -20,9 +20,9 @@
 > repositório e a marca; na S018, a marca redesenhada, uma revisão de código e o `SessionRegistry`
 > (T-601, ADR-0021). **A revisão da S018 achou um defeito crítico:** o middleware de tenant pedia um
 > `CancellationToken` ao contêiner, e toda requisição HTTP respondia 500. Os testes chamavam o
-> middleware direto e não pegaram. Está corrigido e coberto por teste do pipeline real. Cinco migrações
-> aplicam no PostgreSQL local; os 52 testes passam com 88,18% de cobertura de linhas
-> medida. Control Plane e Launcher compilam no SDK .NET 10.0.401. Isso conclui a fatia de software
+> middleware direto e não pegaram. Está corrigido e coberto por teste do pipeline real. Na S019, o `SessionReconciler` (T-602,
+> ADR-0022) fechou o ciclo de vida da sessão. Cinco migrações aplicam no PostgreSQL local; os 58 testes
+> passam com 88,63% de cobertura de linhas medida. Control Plane e Launcher compilam no SDK .NET 10.0.401. Isso conclui a fatia de software
 > verificável neste ambiente, mas **não conclui o aceite real do MVP-0a**: E-01/G-01, Entra real,
 > validação Windows do Credential Manager/MSAL, Connection Broker, `rdpsign`, certificado e V-01/V-05/V-06 continuam como pré-requisitos
 > externos/de campo. Veja `docs/operacao/desenvolvimento-control-plane.md`.
@@ -56,10 +56,9 @@
 (R-023). A pedido de Frederico, T-201 começou antes da conclusão dessas etapas; E-01/G-01 continuam
 pendentes, e a integração ponta a ponta ainda depende delas.
 
-**Continuação de software:** T-303/T-803, T-403, T-404 e T-601 foram concluídas nas S016/S014/S015/S018.
-As próximas tarefas de código são a reconciliação de sessões (T-602), que a ADR-0021 torna urgente
-porque só ela vincula e fecha as sessões pendentes, depois `GET /sessions/me` (T-603) e os achados
-abertos da revisão (§5.1). Nenhuma delas substitui as validações de Entra, Windows e RDS listadas abaixo.
+**Continuação de software:** T-303/T-803, T-403, T-404, T-601 e T-602 foram concluídas nas
+S016/S014/S015/S018/S019. A T-602 só se valida contra um Connection Broker real (PRE-23). As próximas
+tarefas de código são `GET /sessions/me` (T-603) e os achados abertos da revisão (§5.1). Nenhuma delas substitui as validações de Entra, Windows e RDS listadas abaixo.
 
 | Ordem | Ação | Tarefa | Por que agora |
 |-------|------|--------|---------------|
@@ -148,6 +147,7 @@ se faz com ADR novo que substitui o anterior.
 | [ADR-0019](adr/ADR-0019-launcher-minimo-do-mvp-0a.md) | Launcher mínimo | CLI .NET 10 para autenticação, catálogo e início via `mstsc`; WinUI/MSIX ficam no MVP-0b | RF-001, RF-011, RF-018..RF-022 |
 | [ADR-0020](adr/ADR-0020-sessao-renovavel-do-launcher.md) | Sessão renovável | Refresh token opaco rotativo; access JWT com `sid`; revogação server-side; Credential Manager no Windows | RF-004..RF-006 |
 | [ADR-0021](adr/ADR-0021-registro-de-sessao-no-lancamento.md) | Registro de sessão | **Proposto.** `SessionRegistry` reutiliza a sessão do usuário, serializa por trava consultiva e grava sessão com vínculo pendente no lançamento concedido; `backend_session_id` passa a aceitar nulo | MODELO-DE-DADOS §6.2, ARQUITETURA §4.2 |
+| [ADR-0022](adr/ADR-0022-reconciliacao-de-sessoes-com-o-connection-broker.md) | Reconciliação de sessões | **Proposto.** `Get-RDUserSession` fora da transação, vínculo por SID, `reconciled_missing`/`never_connected` com backend disponível, só `stale_expired` sem ele; sessões não lançadas pelo AppBridge não são adotadas | ARQUITETURA §4.2, MODELO-DE-DADOS §6.2 |
 | [ADR-0015](adr/ADR-0015-checagem-de-consistencia-no-fechamento-de-sessao.md) | **Processo — RA-02** | Fechamento de sessão passa a exigir **checagem de consistência**, em duas metades: mecânica (`./scripts/check-docs.sh`, 7 verificações) e humana (o conteúdo ainda reflete as decisões vigentes?). Primeira alteração do prompt mestre | altera `CLAUDE.md` |
 | [ADR-0014](adr/ADR-0014-licenciamento-dos-aplicativos-e-do-cliente.md) | **Licenciamento dos aplicativos** | O cliente adquire, instala e usa suas próprias licenças. O AppBridge **não consulta fornecedor nem intermedia licença**. G-01 deixa de ser confirmação escrita do fornecedor e passa a ser **declaração de titularidade e conformidade assinada pelo cliente**. Restringe NO-04 | nenhuma — não altera RF/RNF |
 | [ADR-0013](adr/ADR-0013-replanejamento-do-mvp-0-e-piloto-no-segundo-trimestre.md) | **Replanejamento** | MVP-0 dividido em **MVP-0a** (esqueleto ambulante, out/2026) e **MVP-0b** (dogfood real, dez/2026–jan/2027); piloto do Caminho B em **abr–jun/2027** com 3–5 escritórios. Portões G-01..G-05 mantidos intransponíveis | marcos, não requisitos |
@@ -184,6 +184,8 @@ se faz com ADR novo que substitui o anterior.
 | PRE-27 | 2–3 GB de RAM por sessão com Domínio + Alterdata + Excel simultâneos | E-01 / T-101 | medição no dogfood |
 | PRE-28 | 20–30 GB de container FSLogix por usuário | E-01 / T-101 | medição no dogfood |
 | PRE-29 | Sessão com vínculo pendente ocupa vaga por 10 minutos: cobre a validade do `.rdp`, a conexão e um ciclo da reconciliação | ADR-0021 | medição no dogfood, junto com T-602 |
+| PRE-30 | Ciclo de reconciliação de 60 s é barato o bastante para o Connection Broker e curto o bastante para a contagem | ADR-0022 | medição no dogfood, junto com PRE-23 |
+| PRE-31 | Com o broker fora, 30 min sem sinal justificam fechar a sessão no banco como `stale_expired` | ADR-0022 | medição no dogfood |
 | PRE-25 | 1 ponto de estimativa ≈ meio dia de trabalho focado | ROADMAP §1.1 | primeira semana de implementação |
 | PRE-26 | Dedicação de 40% a 60% do tempo útil ao projeto | ROADMAP §4 | Frederico |
 
@@ -219,7 +221,7 @@ se faz com ADR novo que substitui o anterior.
 | R-031 | O caminho de falha do prelaunch é o menos exercitado do sistema e o que mais deixa estado inconsistente — foi onde o Gap 2 se escondeu | Média | Aberto — T-506 exige teste que **force** a falha |
 | R-032 | Resposta de refresh pode se perder após o commit ou duas instâncias podem renovar o mesmo token; a rotação interpreta o token antigo como replay e encerra a sessão legítima | Média | Aberto — o cliente serializa chamadas no processo; medir concorrência no dogfood (ADR-0020) |
 | R-033 | Logout feito sem conexão remove tokens só da estação; a sessão no Control Plane não é revogada e pode continuar renovável até 7 dias sem uso/30 dias absolutos | Média | Aberto — avisar claramente; confirmar logout remoto quando o Control Plane está disponível (ADR-0020) |
-| R-034 | Até a T-602 existir, nenhuma sessão é vinculada nem fechada: uma sessão encerrada no RDS segue "aberta" no banco e, se já reutilizada, só deixa de ocupar vaga depois da janela do PRE-29 | Média | Aberto — T-602 é a próxima tarefa de código (ADR-0021) |
+| R-034 | Até a T-602 existir, nenhuma sessão é vinculada nem fechada: uma sessão encerrada no RDS segue "aberta" no banco e, se já reutilizada, só deixa de ocupar vaga depois da janela do PRE-29 | Média | **Mitigado no código pela T-602 (S019, ADR-0022)** — falta validar contra broker real (PRE-23) |
 | R-035 | O ID token do Entra funciona como credencial de portador na troca por sessão de até 30 dias; não tem nonce nem prova de posse (RC-05) | Média | Aberto — ADR novo antes do piloto |
 | R-029 | **Dois gaps confirmados na documentação aprovada:** `purpose` existe em `API.md` e não no modelo de dados (metering contaria prelaunch como uso real); `ISessionBackend` sem operação de cancelamento (prelaunch falho deixa sessão zumbi). | **Média-alta** | **Corrigidos nas fontes por ADR-0016** — `purpose` em `MODELO-DE-DADOS.md` §7.1 e `CancelSessionAsync` em `ARQUITETURA.md` §4.2; implementação em T-207 e T-506 |
 | R-025 | **O MVP-1 é o novo gargalo:** ~3 meses entre o fim do dogfood (jan/2027) e o piloto (abr/2027) para os épicos E-13 a E-18, que provavelmente não cabem | **Alta** | Aberto — B-009 |

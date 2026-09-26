@@ -16,6 +16,10 @@ public sealed class RdsSessionBackend(
     IOptions<SessionRegistryOptions> registryOptions,
     ILogger<RdsSessionBackend> logger) : ISessionBackend
 {
+    private static readonly Regex HostNamePattern = new(
+        "^(?=.{1,253}\\z)[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?\\z",
+        RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
     public async Task<SessionBackendTarget?> ResolveHostAsync(
         RemoteApplication application,
         UserAccount user,
@@ -94,14 +98,48 @@ public sealed class RdsSessionBackend(
         session.EndReason = SessionEndReason.Logoff;
     }
 
-    private async Task InvokeLogoffAsync(string hostName, int unifiedSessionId, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<BackendSessionSnapshot>> ListActiveSessionsAsync(
+        IReadOnlyCollection<SessionHost> hosts,
+        CancellationToken cancellationToken)
+    {
+        var broker = options.Value.ConnectionBroker;
+        if (string.IsNullOrWhiteSpace(broker) || !HostNamePattern.IsMatch(broker))
+        {
+            throw new RdsSessionException("RdsSession:ConnectionBroker não está configurado com um FQDN válido.");
+        }
+
+        // A conta vira SID no próprio Windows do Control Plane: a comparação nunca é por nome (ADR-0022).
+        var command = $$"""
+            Import-Module RemoteDesktop;
+            $rows = @(Get-RDUserSession -ConnectionBroker '{{broker}}' -ErrorAction Stop | ForEach-Object {
+                $sid = $null
+                try { $sid = (New-Object System.Security.Principal.NTAccount($_.DomainName, $_.UserName)).Translate([System.Security.Principal.SecurityIdentifier]).Value } catch { }
+                $created = $null
+                if ($_.CreateTime) { $created = $_.CreateTime.ToUniversalTime().ToString('o') }
+                [pscustomobject]@{ host = [string]$_.HostServer; id = [string]$_.UnifiedSessionId; sid = $sid; created = $created }
+            });
+            ConvertTo-Json -Compress -InputObject $rows
+            """;
+        var output = await RunPowerShellAsync(command, "consulta de sessões RDS", cancellationToken);
+        var hostNames = hosts.Select(host => RdsSessionListParser.NormalizeHost(host.Fqdn)).ToHashSet(StringComparer.Ordinal);
+        return RdsSessionListParser.Parse(output)
+            .Where(session => hostNames.Contains(RdsSessionListParser.NormalizeHost(session.HostFqdn)))
+            .ToList();
+    }
+
+    private Task InvokeLogoffAsync(string hostName, int unifiedSessionId, CancellationToken cancellationToken)
+        => RunPowerShellAsync(
+            $"Import-Module RemoteDesktop; Invoke-RDUserLogoff -HostServer '{hostName}' -UnifiedSessionID {unifiedSessionId.ToString(CultureInfo.InvariantCulture)} -Force -ErrorAction Stop",
+            "encerramento de sessão RDS",
+            cancellationToken);
+
+    private async Task<string> RunPowerShellAsync(string command, string operation, CancellationToken cancellationToken)
     {
         if (!OperatingSystem.IsWindows())
         {
             throw new RdsSessionException("O backend RDS exige Windows Server.");
         }
 
-        var command = $"Import-Module RemoteDesktop; Invoke-RDUserLogoff -HostServer '{hostName}' -UnifiedSessionID {unifiedSessionId.ToString(CultureInfo.InvariantCulture)} -Force -ErrorAction Stop";
         var startInfo = new ProcessStartInfo
         {
             FileName = options.Value.PowerShellPath ?? "powershell.exe",
@@ -130,14 +168,16 @@ public sealed class RdsSessionBackend(
         catch (OperationCanceledException exception)
         {
             TryKill(process);
-            throw new RdsSessionException("O encerramento de sessão RDS expirou.", exception);
+            throw new RdsSessionException($"A {operation} expirou.", exception);
         }
 
         if (process.ExitCode != 0)
         {
-            logger.LogError("O comando de encerramento RDS falhou com código {ExitCode}.", process.ExitCode);
-            throw new RdsSessionException("Não foi possível encerrar a sessão RDS.");
+            logger.LogError("O comando de {Operation} falhou com código {ExitCode}.", operation, process.ExitCode);
+            throw new RdsSessionException($"Não foi possível concluir a {operation}.");
         }
+
+        return await stdout;
     }
 
     private static void TryKill(Process process)

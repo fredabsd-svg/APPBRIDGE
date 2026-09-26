@@ -85,7 +85,14 @@ O backend de lançamento invoca `rdpsign.exe /sha256 <thumbprint> /q <arquivo.rd
 reutiliza a sessão aberta do usuário no pool; sem ela, a seleção usa hosts `online` do pool e a
 capacidade cadastrada. Cada lançamento concedido sem sessão registra uma sessão com vínculo pendente,
 que ocupa vaga por `SessionRegistry__PendingBindingMinutes` minutos (padrão 10, aceito de 1 a 60,
-PRE-29) até a reconciliação da T-602 existir. `CancelSessionAsync` encerra sessões conhecidas
+PRE-29) até a reconciliação vinculá-la.
+
+A reconciliação (T-602, ADR-0022) consulta o Connection Broker a cada `SessionReconciler__IntervalSeconds`
+(padrão 60, aceito de 15 a 3600). Configure `RdsSession__ConnectionBroker=<fqdn-do-broker>`. A conta de
+serviço precisa ler sessões no broker e traduzir contas do domínio em SID. Sem broker configurado ou
+alcançável, o ciclo só fecha como `stale_expired` as sessões sem sinal há mais de
+`SessionReconciler__StaleAfterMinutes` (padrão 30, aceito de 5 a 1440). Em desenvolvimento, fora do
+Windows, esse é o comportamento esperado e o log registra um aviso por ciclo. `CancelSessionAsync` encerra sessões conhecidas
 via `Invoke-RDUserLogoff`; esse caminho precisa de Connection Broker e módulo RemoteDesktop na máquina
 Windows do Control Plane.
 

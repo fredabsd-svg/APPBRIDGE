@@ -75,7 +75,7 @@ O design fechou em agosto de 2026. A fatia de software do **MVP-0a** compila e �
 
 | Componente | Agora |
 | --- | --- |
-| Control Plane | ASP.NET Core e PostgreSQL: catálogo autorizado com `ETag`, ícones, lançamento idempotente, reutilização de sessão, login com refresh rotativo e auditoria. |
+| Control Plane | ASP.NET Core e PostgreSQL: catálogo autorizado com `ETag`, ícones, lançamento idempotente, reutilização e reconciliação de sessão, login com refresh rotativo e auditoria. |
 | Launcher | Console .NET 10 que autentica, lista e abre via `mstsc`. O WinUI 3 com MSIX entra no MVP-0b (ADR-0019). |
 | Agent | Ainda não existe. Entra na V2. |
 | Painel admin | Ainda não existe. O MVP-0 não tem administração visual. |

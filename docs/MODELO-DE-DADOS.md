@@ -317,7 +317,9 @@ consequência, o lugar onde o risco R-009 se materializa.
 
 A linha nasce no lançamento concedido, na mesma transação do `launch` (ADR-0021). Sessão pendente fora
 da janela `SessionRegistry:PendingBindingMinutes` deixa de contar para reutilização e capacidade, mas
-continua aberta até a reconciliação fechá-la.
+continua aberta até a reconciliação fechá-la. A reconciliação (ADR-0022) vincula pelo SID do usuário
+(`user_account.ad_object_sid`) e grava `session_started`/`session_ended` em `access_event`, com `payload`
+de `sessionId`, `sessionHostId`, `endReason` e `durationSeconds`.
 
 **Requisitos:** RF-021, RF-024, RF-038, RF-062, RF-008 · **ADR:** 0006, 0021
 

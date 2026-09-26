@@ -1464,6 +1464,11 @@ public sealed partial class TenantIsolationTests
             CancelledSessions.Add(sessionId);
             return Task.CompletedTask;
         }
+
+        public Task<IReadOnlyList<BackendSessionSnapshot>> ListActiveSessionsAsync(
+            IReadOnlyCollection<SessionHost> hosts,
+            CancellationToken cancellationToken)
+            => Task.FromResult<IReadOnlyList<BackendSessionSnapshot>>([]);
     }
 
     private sealed class FakeRdpFileSigner(bool fail = false) : IRdpFileSigner

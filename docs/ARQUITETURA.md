@@ -248,7 +248,7 @@ RDS.**
 |----------|-----|------|
 | `ResolveHostAsync(tenant, user, app)` | Escolhe o host do tenant que atenderá o lançamento | MVP-0 · RF-074 |
 | `BuildConnectionDescriptorAsync(...)` | Produz os parâmetros de conexão que viram o `.rdp` | MVP-0 · RF-018 |
-| `ListActiveSessionsAsync(tenant)` | Fonte de verdade para reconciliação e metering | MVP-0 · RF-038, RF-062 |
+| `ListActiveSessionsAsync(hosts)` | Fonte de verdade para reconciliação e metering; usuário identificado por SID (ADR-0022) | MVP-0 · RF-038, RF-062 |
 | `CancelSessionAsync(sessionId, reason)` | **Cancela sessão recém-criada cujo lançamento falhou** — sem ela, um prelaunch que falha depois de o RDS criar a sessão deixa uma sessão invisível contando licença (ADR-0016, Gap 2) | MVP-0a · R-009 |
 | `TerminateSessionAsync(sessionId)` | Encerramento forçado e revogação | MVP-1 · RF-008, RF-045 |
 | `PublishApplicationAsync(...)` | Publicação de aplicativo | V2 · RF-052 |
@@ -263,8 +263,20 @@ posicionamento por usuário com trava consultiva do PostgreSQL e reutiliza a ses
 host `online` ou `draining` do pool. Quando não há sessão, pede ao `RdsSessionBackend` só o host
 `online` com vaga. No lançamento concedido, e depois da assinatura, o registry grava a sessão com
 `backend_session_id` nulo (vínculo pendente) e a liga a `launch.session_id`. Uma sessão pendente ocupa
-vaga por até `SessionRegistry:PendingBindingMinutes` (PRE-29). A reconciliação com o Connection Broker,
-que vincula, fecha e grava o `SessionStarted` do RF-038, é a T-602 e ainda não está implementada.
+vaga por até `SessionRegistry:PendingBindingMinutes` (PRE-29).
+
+Desde a T-602 (ADR-0022), o `SessionReconciler` roda a cada `SessionReconciler:IntervalSeconds` (PRE-30)
+para cada tenant ativo. Ele consulta `Get-RDUserSession` no Connection Broker (`RdsSession:ConnectionBroker`)
+**fora** da transação e depois trava os usuários na mesma ordem do registry. Então:
+
+- vincula a sessão pendente à do mesmo host e mesmo SID, gravando `session_started`;
+- atualiza `last_seen_at` das sessões presentes;
+- fecha com `reconciled_missing` as ausentes, e com `never_connected` as pendentes vencidas, gravando
+  `session_ended` com duração e host (RF-038).
+
+Se o backend não responde, só fecha com `stale_expired` o que está sem sinal há mais de
+`SessionReconciler:StaleAfterMinutes` (PRE-31). Sessões do broker sem registro no AppBridge não são
+adotadas.
 
 ### 4.3 Componentes do Launcher
 

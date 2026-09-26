@@ -6,6 +6,22 @@ independente por componente (RP-03).
 
 ## [Não publicado]
 
+### Adicionado — reconciliação de sessões (T-602, S019)
+- `ISessionBackend.ListActiveSessionsAsync(hosts)`. O `RdsSessionBackend` consulta `Get-RDUserSession`
+  no broker de `RdsSession:ConnectionBroker`, traduz a conta em SID no próprio Windows e devolve JSON
+  compatível com o PowerShell 5.1. O `RdsSessionListParser` aceita lista, objeto único e resposta vazia.
+- `SessionReconciler`, serviço de fundo com ciclo de 60 s (PRE-30), roda para cada tenant ativo:
+  - vincula a sessão pendente pelo host e pelo SID do usuário e grava `session_started`;
+  - atualiza `last_seen_at` das sessões presentes;
+  - fecha com `reconciled_missing` as sessões ausentes, e as pendentes vencidas com o motivo `never_connected`;
+  - grava `session_ended` com duração e host (RF-038).
+  O backend é consultado fora da transação, e as travas por usuário são as mesmas do `SessionRegistry`.
+- Se o backend falha, nada é fechado por ausência. Só o que está sem sinal há mais de 30 min (PRE-31)
+  é fechado como `stale_expired`.
+- Registrado o ADR-0022 (**proposto**). ARQUITETURA §4.2, MODELO-DE-DADOS §6.2, ROADMAP, STATUS e o
+  roteiro operacional foram atualizados. Suíte com 58 testes e 88,63% de cobertura. O PRE-23 continua
+  dependendo de Connection Broker real.
+
 ### Adicionado — registro de sessão no lançamento (T-601, S018)
 - `SessionRegistry` reutiliza a sessão aberta do usuário em host `online` ou `draining` do pool do
   aplicativo (RF-024). Sem sessão, pede ao `ISessionBackend` só a escolha do host. O posicionamento é

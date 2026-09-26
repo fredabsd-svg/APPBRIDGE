@@ -47,7 +47,7 @@ public sealed class SessionRegistry(
         }
 
         // Prelaunch e primeiro clique chegam juntos; o segundo espera e reutiliza a sessão do primeiro.
-        var lockKey = PlacementLockKey(tenantId, user.Id);
+        var lockKey = UserLockKey(tenantId, user.Id);
         await dbContext.Database.ExecuteSqlAsync($"SELECT pg_advisory_xact_lock({lockKey})", cancellationToken);
 
         var pendingCutoff = now - options.Value.PendingBindingWindow;
@@ -107,7 +107,8 @@ public sealed class SessionRegistry(
         return registered.Id;
     }
 
-    private static long PlacementLockKey(Guid tenantId, Guid userAccountId)
+    /// <summary>Chave da trava consultiva por usuário, compartilhada com o SessionReconciler (ADR-0022).</summary>
+    public static long UserLockKey(Guid tenantId, Guid userAccountId)
     {
         var prefix = "appbridge:session-placement:"u8;
         Span<byte> material = stackalloc byte[prefix.Length + 32];
