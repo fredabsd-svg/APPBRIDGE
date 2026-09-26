@@ -22,7 +22,7 @@ using Xunit;
 
 namespace AppBridge.ControlPlane.Tests;
 
-public sealed class TenantIsolationTests
+public sealed partial class TenantIsolationTests
 {
     private static readonly SemaphoreSlim SchemaLock = new(1, 1);
     private static bool _schemaReady;
@@ -279,6 +279,12 @@ public sealed class TenantIsolationTests
         var cancellationToken = TestContext.Current.CancellationToken;
         var world = await SeedLaunchWorldAsync(grantPermission: true, addSession: true);
         await using var db = CreateContext(world.TenantId);
+        // Um backend que cria a sessão antes do cliente conectar a devolve como nova; o registry não a
+        // reutiliza porque ela ainda não tem vínculo e está fora da janela (ADR-0021).
+        var eagerSession = await db.Sessions.SingleAsync(row => row.Id == world.SessionId, cancellationToken);
+        eagerSession.BackendSessionId = null;
+        eagerSession.LastSeenAt = DateTimeOffset.UtcNow.AddHours(-1);
+        await db.SaveChangesAsync(cancellationToken);
         var tenantContext = CreateTenantContext(world.TenantId);
         var backend = new FakeSessionBackend(new SessionBackendTarget(world.Host, false, world.SessionId));
         var signer = new FakeRdpFileSigner(fail: true);
@@ -446,7 +452,7 @@ public sealed class TenantIsolationTests
         await using var db = CreateContext(world.TenantId);
         var application = await db.Applications.SingleAsync(item => item.Id == world.ApplicationId, cancellationToken);
         var user = await db.UserAccounts.SingleAsync(item => item.Id == world.UserId, cancellationToken);
-        var backend = new RdsSessionBackend(db, Options.Create(new RdsSessionOptions()), NullLogger<RdsSessionBackend>.Instance);
+        var backend = CreateRdsBackend(db);
 
         var target = await backend.ResolveHostAsync(application, user, cancellationToken);
 
@@ -631,7 +637,7 @@ public sealed class TenantIsolationTests
         {
             nextCalled = true;
             return Task.CompletedTask;
-        }).InvokeAsync(request, revokedContext, revokedDb, cancellationToken);
+        }).InvokeAsync(request, revokedContext, revokedDb);
         Assert.Equal(StatusCodes.Status401Unauthorized, request.Response.StatusCode);
         Assert.False(nextCalled);
     }
@@ -856,7 +862,7 @@ public sealed class TenantIsolationTests
         {
             nextCalled = true;
             return Task.CompletedTask;
-        }).InvokeAsync(invalidTenantContext, invalidTenant, invalidDb, cancellationToken);
+        }).InvokeAsync(invalidTenantContext, invalidTenant, invalidDb);
         Assert.Equal(StatusCodes.Status401Unauthorized, invalidTenantContext.Response.StatusCode);
         Assert.False(nextCalled);
 
@@ -901,14 +907,14 @@ public sealed class TenantIsolationTests
         var tenantContext = new TenantContext();
         await using var validDb = CreateContext(tenantContext);
         await new TenantContextMiddleware(_ => Task.CompletedTask)
-            .InvokeAsync(validTenantContext, tenantContext, validDb, cancellationToken);
+            .InvokeAsync(validTenantContext, tenantContext, validDb);
         Assert.Equal(expectedTenantId, tenantContext.TenantId);
 
         var anonymousContext = new DefaultHttpContext();
         var anonymousTenant = new TenantContext();
         await using var anonymousDb = CreateContext(anonymousTenant);
         await new TenantContextMiddleware(_ => Task.CompletedTask)
-            .InvokeAsync(anonymousContext, anonymousTenant, anonymousDb, cancellationToken);
+            .InvokeAsync(anonymousContext, anonymousTenant, anonymousDb);
         Assert.Null(anonymousTenant.TenantId);
 
         var publicRefreshContext = new DefaultHttpContext();
@@ -929,7 +935,7 @@ public sealed class TenantIsolationTests
         {
             refreshReachedHandler = true;
             return Task.CompletedTask;
-        }).InvokeAsync(publicRefreshContext, publicTenant, publicDb, cancellationToken);
+        }).InvokeAsync(publicRefreshContext, publicTenant, publicDb);
         Assert.True(refreshReachedHandler);
         Assert.Null(publicTenant.TenantId);
     }
@@ -1019,7 +1025,7 @@ public sealed class TenantIsolationTests
     {
         var world = await SeedLaunchWorldAsync(grantPermission: true, addSession: true);
         await using var db = CreateContext(world.TenantId);
-        var backend = new RdsSessionBackend(db, Options.Create(new RdsSessionOptions()), NullLogger<RdsSessionBackend>.Instance);
+        var backend = CreateRdsBackend(db);
 
         await backend.CancelSessionAsync(Guid.CreateVersion7(), "test", TestContext.Current.CancellationToken);
 
@@ -1130,6 +1136,12 @@ public sealed class TenantIsolationTests
                 TokenHash = new string('A', 64),
                 ExpiresAt = now.AddDays(-31)
             });
+            db.IdentityTokenRedemptions.Add(new IdentityTokenRedemption
+            {
+                TenantId = tenantId,
+                TokenHash = new string('B', 64),
+                ExpiresAt = now.AddDays(-2)
+            });
             await db.SaveChangesAsync(cancellationToken);
         }
 
@@ -1147,6 +1159,7 @@ public sealed class TenantIsolationTests
         await using var verification = CreateContext(tenantId);
         Assert.Empty(await verification.AuthenticationSessions.ToListAsync(cancellationToken));
         Assert.Empty(await verification.AuthenticationRefreshTokens.ToListAsync(cancellationToken));
+        Assert.Empty(await verification.IdentityTokenRedemptions.ToListAsync(cancellationToken));
     }
 
     private async Task AddTenantAsync(Guid tenantId)
@@ -1348,18 +1361,26 @@ public sealed class TenantIsolationTests
     private LaunchService CreateLaunchService(
         AppDbContext db,
         TenantContext tenantContext,
-        FakeSessionBackend backend,
+        ISessionBackend backend,
         FakeRdpFileSigner signer)
         => new(
             db,
             tenantContext,
             new AuthorizationService(db),
             backend,
+            new SessionRegistry(db, tenantContext, backend, Options.Create(new SessionRegistryOptions())),
             new RedirectionPolicyResolver(db),
             new RdpDescriptorBuilder(),
             signer,
             new AuditWriter(db, tenantContext, NullLogger<AuditWriter>.Instance),
             NullLogger<LaunchService>.Instance);
+
+    private static RdsSessionBackend CreateRdsBackend(AppDbContext db)
+        => new(
+            db,
+            Options.Create(new RdsSessionOptions()),
+            Options.Create(new SessionRegistryOptions()),
+            NullLogger<RdsSessionBackend>.Instance);
 
     private static TenantContext CreateTenantContext(Guid tenantId)
     {
@@ -1382,24 +1403,39 @@ public sealed class TenantIsolationTests
     private AppDbContext CreateContext(TenantContext tenantContext)
         => new(new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(_connectionString).Options, tenantContext);
 
+    private const string TestLauncherClientId = "3f1d2c4b-launcher";
+
     private AuthenticationSessionService CreateAuthenticationSessionService(
         AppDbContext db,
         TenantContext tenantContext,
         string externalTenantId,
         Guid tenantId,
-        string externalSubject)
+        string externalSubject,
+        string? fixedTokenId = null)
     {
         var options = Options.Create(new IdentityProviderOptions
         {
+            ClientApplicationId = TestLauncherClientId,
             TenantMappings = new Dictionary<string, string> { [externalTenantId] = tenantId.ToString("D") }
         });
-        var identity = new ClaimsPrincipal(new ClaimsIdentity(
-        [
-            new Claim("tid", externalTenantId),
-            new Claim("oid", externalSubject),
-            new Claim("sub", externalSubject),
-            new Claim("name", "Usuário de teste")
-        ], "test"));
+        var now = DateTimeOffset.UtcNow;
+        var claims = new List<Claim>
+        {
+            new("tid", externalTenantId),
+            new("oid", externalSubject),
+            new("sub", externalSubject),
+            new("name", "Usuário de teste"),
+            new("scp", "openid access_as_user"),
+            new("azp", TestLauncherClientId),
+            new("iat", now.AddMinutes(-1).ToUnixTimeSeconds().ToString(System.Globalization.CultureInfo.InvariantCulture)),
+            new("exp", now.AddMinutes(59).ToUnixTimeSeconds().ToString(System.Globalization.CultureInfo.InvariantCulture))
+        };
+        if (fixedTokenId is not null)
+        {
+            claims.Add(new Claim("uti", fixedTokenId));
+        }
+
+        var identity = new ClaimsPrincipal(new ClaimsIdentity(claims, "test"));
         var key = Convert.ToBase64String(Enumerable.Repeat((byte)0x4a, 32).ToArray());
         var tokenOptions = Options.Create(new ControlPlaneTokenOptions
         {
@@ -1434,8 +1470,18 @@ public sealed class TenantIsolationTests
 
     private sealed class FakeIdentityTokenValidator(ClaimsPrincipal principal) : IIdentityTokenValidator
     {
+        // Cada chamada representa um token novo do Entra, com `uti` próprio, salvo quando o teste fixa um.
         public Task<ClaimsPrincipal> ValidateAsync(string token, CancellationToken cancellationToken)
-            => Task.FromResult(principal);
+        {
+            if (principal.HasClaim(claim => claim.Type == "uti"))
+            {
+                return Task.FromResult(principal);
+            }
+
+            var identity = new ClaimsIdentity(principal.Claims, "test");
+            identity.AddClaim(new Claim("uti", Guid.NewGuid().ToString("N")));
+            return Task.FromResult(new ClaimsPrincipal(identity));
+        }
     }
 
     private sealed class FakeSessionBackend(SessionBackendTarget target) : ISessionBackend
@@ -1450,6 +1496,11 @@ public sealed class TenantIsolationTests
             CancelledSessions.Add(sessionId);
             return Task.CompletedTask;
         }
+
+        public Task<IReadOnlyList<BackendSessionSnapshot>> ListActiveSessionsAsync(
+            IReadOnlyCollection<SessionHost> hosts,
+            CancellationToken cancellationToken)
+            => Task.FromResult<IReadOnlyList<BackendSessionSnapshot>>([]);
     }
 
     private sealed class FakeRdpFileSigner(bool fail = false) : IRdpFileSigner

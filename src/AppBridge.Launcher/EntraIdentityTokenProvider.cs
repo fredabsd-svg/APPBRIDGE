@@ -17,8 +17,9 @@ internal sealed class EntraIdentityTokenProvider(LauncherSettings settings)
             .WithPrompt(Prompt.SelectAccount)
             .ExecuteAsync(cancellationToken);
 
-        return string.IsNullOrWhiteSpace(result.IdToken)
-            ? throw new InvalidOperationException("O Entra ID não retornou um token de identidade.")
-            : result.IdToken;
+        // ADR-0023: a troca usa o access token da API do AppBridge, não o ID token do launcher.
+        return string.IsNullOrWhiteSpace(result.AccessToken)
+            ? throw new InvalidOperationException("O Entra ID não retornou um token para a API do AppBridge.")
+            : result.AccessToken;
     }
 }

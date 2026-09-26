@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AppBridge.ControlPlane.Services;
 
-/// <summary>Remove sessões sem validade há 30 dias e os hashes usados para detectar replay.</summary>
+/// <summary>Remove sessões sem validade há 30 dias, os hashes usados para detectar replay e os tokens do Entra já vencidos.</summary>
 public sealed class AuthenticationSessionPruner(
     IServiceScopeFactory scopeFactory,
     ILogger<AuthenticationSessionPruner> logger) : BackgroundService
@@ -21,6 +21,10 @@ public sealed class AuthenticationSessionPruner(
                     DELETE FROM auth_session
                     WHERE absolute_expires_at <= CURRENT_TIMESTAMP - INTERVAL '30 days'
                        OR revoked_at <= CURRENT_TIMESTAMP - INTERVAL '30 days'
+                    """, stoppingToken);
+                removed += await dbContext.Database.ExecuteSqlRawAsync("""
+                    DELETE FROM identity_token_redemption
+                    WHERE expires_at <= CURRENT_TIMESTAMP - INTERVAL '1 day'
                     """, stoppingToken);
                 if (removed > 0)
                 {

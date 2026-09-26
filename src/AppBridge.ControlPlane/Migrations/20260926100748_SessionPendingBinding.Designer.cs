@@ -4,6 +4,7 @@ using System.Text.Json;
 using AppBridge.ControlPlane.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -12,9 +13,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace AppBridge.ControlPlane.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260926100748_SessionPendingBinding")]
+    partial class SessionPendingBinding
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -492,77 +495,6 @@ namespace AppBridge.ControlPlane.Migrations
                         {
                             t.HasCheckConstraint("ck_host_pool_backend_type_valid", "backend_type IN ('rds', 'avd')");
                         });
-                });
-
-            modelBuilder.Entity("AppBridge.ControlPlane.Domain.Entities.IdentityTokenRedemption", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                    b.Property<Guid>("CreatedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("created_by");
-
-                    b.Property<DateTimeOffset?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("deleted_at");
-
-                    b.Property<Guid?>("DeletedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("deleted_by");
-
-                    b.Property<DateTimeOffset>("ExpiresAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("expires_at");
-
-                    b.Property<long>("RowVersion")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasDefaultValue(1L)
-                        .HasColumnName("row_version");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("tenant_id");
-
-                    b.Property<string>("TokenHash")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("token_hash");
-
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                    b.Property<Guid>("UpdatedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("updated_by");
-
-                    b.HasKey("Id")
-                        .HasName("pk_identity_token_redemption");
-
-                    b.HasAlternateKey("TenantId", "Id")
-                        .HasName("uq_identity_token_redemption_tenant_id_id");
-
-                    b.HasIndex("ExpiresAt")
-                        .HasDatabaseName("ix_identity_token_redemption_expires_at");
-
-                    b.HasIndex("TenantId", "TokenHash")
-                        .IsUnique()
-                        .HasDatabaseName("uq_identity_token_redemption_tenant_hash");
-
-                    b.ToTable("identity_token_redemption", (string)null);
                 });
 
             modelBuilder.Entity("AppBridge.ControlPlane.Domain.Entities.Launch", b =>
@@ -1722,16 +1654,6 @@ namespace AppBridge.ControlPlane.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_host_pool_tenant");
-                });
-
-            modelBuilder.Entity("AppBridge.ControlPlane.Domain.Entities.IdentityTokenRedemption", b =>
-                {
-                    b.HasOne("AppBridge.ControlPlane.Domain.Entities.Tenant", null)
-                        .WithMany()
-                        .HasForeignKey("TenantId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_identity_token_redemption_tenant");
                 });
 
             modelBuilder.Entity("AppBridge.ControlPlane.Domain.Entities.Launch", b =>

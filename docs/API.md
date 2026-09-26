@@ -43,6 +43,17 @@ Os dois não se confundem — e nenhum dos dois é a credencial que abre a sess�
 
 Troca o token do provedor de identidade por um token de sessão do AppBridge.
 
+Desde o ADR-0023, `identityToken` carrega o **access token do Entra emitido para a API do AppBridge**,
+e não mais o ID token. O Control Plane exige:
+
+- `aud` igual ao identificador da API;
+- `scp` com o escopo configurado (`access_as_user`);
+- `azp` (ou `appid`) igual ao client ID do launcher;
+- `iat` de no máximo 10 minutos.
+
+Cada token é trocado uma única vez. Reapresentado, responde `401 INVALID_IDENTITY_TOKEN` e grava
+`access_event` com `IDENTITY_TOKEN_REPLAYED`. O nome do campo continua `identityToken` na `/v1`.
+
 ```jsonc
 // requisição
 { "identityToken": "eyJ...", "workstationName": "PC-CONTABIL-07" }
@@ -216,7 +227,11 @@ O endpoint mais importante da API. Autoriza, monta, assina, registra e devolve.
 3. **`rdpFile` vem em base64**, não como corpo `text/plain`, para evitar ambiguidade de codificação —
    o `.rdp` assinado é sensível a byte, e uma conversão de encoding invalida a assinatura.
 4. **`expiresAt` é contratual, não informativo**: o launcher grava, executa e apaga (RF-020). O
-   servidor recusa reapresentação da mesma `Idempotency-Key` depois do vencimento.
+   servidor recusa reapresentação da mesma `Idempotency-Key` depois do vencimento. A chave vale para o
+   usuário que a criou: reapresentada por outro usuário do tenant, responde `IDEMPOTENCY_CONFLICT` e
+   não devolve o `.rdp` (correção da S018).
+5. **`sessionReused` reflete o `SessionRegistry`** (ADR-0021): `true` quando o lançamento foi
+   encaminhado a uma sessão aberta do usuário no pool do aplicativo.
 
 | Erro | Código | Situação | Requisito |
 |------|--------|----------|-----------|

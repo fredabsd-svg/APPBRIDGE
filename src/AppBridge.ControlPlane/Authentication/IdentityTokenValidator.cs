@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.IdentityModel.Protocols;
@@ -14,7 +15,9 @@ public interface IIdentityTokenValidator
 
 public sealed class IdentityTokenValidator(IOptions<IdentityProviderOptions> options) : IIdentityTokenValidator
 {
-    private ConfigurationManager<OpenIdConnectConfiguration>? _configurationManager;
+    // RC-02: um gerenciador por autoridade no processo, que já faz cache e renovação das chaves.
+    private static readonly ConcurrentDictionary<string, ConfigurationManager<OpenIdConnectConfiguration>> Managers =
+        new(StringComparer.OrdinalIgnoreCase);
 
     public async Task<ClaimsPrincipal> ValidateAsync(string token, CancellationToken cancellationToken)
     {
@@ -26,7 +29,7 @@ public sealed class IdentityTokenValidator(IOptions<IdentityProviderOptions> opt
 
         try
         {
-            var manager = _configurationManager ??= CreateConfigurationManager(identity.Authority);
+            var manager = Managers.GetOrAdd(identity.Authority.TrimEnd('/'), CreateConfigurationManager);
             var configuration = await manager.GetConfigurationAsync(cancellationToken);
             var handler = new JwtSecurityTokenHandler { MapInboundClaims = false };
             return handler.ValidateToken(token, new TokenValidationParameters
@@ -68,9 +71,8 @@ public sealed class IdentityTokenValidator(IOptions<IdentityProviderOptions> opt
         }
     }
 
-    private static ConfigurationManager<OpenIdConnectConfiguration> CreateConfigurationManager(string authority)
+    private static ConfigurationManager<OpenIdConnectConfiguration> CreateConfigurationManager(string normalizedAuthority)
     {
-        var normalizedAuthority = authority.TrimEnd('/');
         var metadataAddress = $"{normalizedAuthority}/.well-known/openid-configuration";
         return new ConfigurationManager<OpenIdConnectConfiguration>(
             metadataAddress,

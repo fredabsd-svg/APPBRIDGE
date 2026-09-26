@@ -26,6 +26,7 @@ public sealed class LaunchService(
     TenantContext tenantContext,
     AuthorizationService authorizationService,
     ISessionBackend sessionBackend,
+    SessionRegistry sessionRegistry,
     RedirectionPolicyResolver policyResolver,
     RdpDescriptorBuilder descriptorBuilder,
     IRdpFileSigner signer,
@@ -57,7 +58,7 @@ public sealed class LaunchService(
             return new LaunchCommandResult(StatusCodes.Status400BadRequest, "MALFORMED_REQUEST", null);
         }
 
-        var requestHash = ComputeRequestHash(request);
+        var requestHash = ComputeRequestHash(userAccountId, request);
         var now = DateTimeOffset.UtcNow;
 
         try
@@ -112,7 +113,7 @@ public sealed class LaunchService(
                         new LaunchCommandResult(StatusCodes.Status403Forbidden, "PERMISSION_REVOKED", null), transactionToken);
                 }
 
-                var target = await sessionBackend.ResolveHostAsync(application, user, transactionToken);
+                var target = await sessionRegistry.PlaceAsync(application, user, now, transactionToken);
                 if (target is null)
                 {
                     dbContext.Launches.Add(NewLaunch(user, application, null, request, LaunchOutcome.DeniedHostUnavailable,
@@ -139,7 +140,9 @@ public sealed class LaunchService(
 
                     var signedDescriptor = await signer.SignAsync(descriptor, certificate.Thumbprint, transactionToken);
                     var expiresAt = now.AddSeconds(60);
-                    var launch = NewLaunch(user, application, target.SessionId, request, LaunchOutcome.Granted,
+                    var sessionId = await sessionRegistry.RegisterAsync(
+                        target, user, sourceIp, request.WorkstationName, now, transactionToken);
+                    var launch = NewLaunch(user, application, sessionId, request, LaunchOutcome.Granted,
                         null, sourceIp, now, correlationId);
                     dbContext.Launches.Add(launch);
                     var response = new LaunchResponse(
@@ -286,10 +289,12 @@ public sealed class LaunchService(
             CorrelationId = correlationId
         };
 
-    private static string ComputeRequestHash(LaunchRequest request)
+    private static string ComputeRequestHash(Guid userAccountId, LaunchRequest request)
     {
+        // O usuário entra no hash: a chave de outro usuário do tenant não devolve o .rdp dele.
         var canonical = JsonSerializer.SerializeToUtf8Bytes(new
         {
+            userAccountId,
             applicationId = request.ApplicationId,
             purpose = request.Purpose,
             workstationName = request.WorkstationName

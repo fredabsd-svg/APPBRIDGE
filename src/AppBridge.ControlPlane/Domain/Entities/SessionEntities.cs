@@ -21,7 +21,8 @@ public sealed class RemoteSession : TenantMutableEntity
 {
     public Guid UserAccountId { get; set; }
     public Guid SessionHostId { get; set; }
-    public string BackendSessionId { get; set; } = string.Empty;
+    /// <summary>Identificador no RDS; nulo enquanto a reconciliação não vincula a sessão (ADR-0021).</summary>
+    public string? BackendSessionId { get; set; }
     public DateTimeOffset StartedAt { get; set; }
     public DateTimeOffset LastSeenAt { get; set; }
     public DateTimeOffset? EndedAt { get; set; }
